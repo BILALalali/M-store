@@ -1,0 +1,12 @@
+name: shared
+version: 0.0.1
+publish_to: none
+description: مكتبة كود مشترك بين user_app و admin_panel.
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter 
+  flutter_dotenv: ^5.2.1
+  supabase_flutter: ^2.9.1
