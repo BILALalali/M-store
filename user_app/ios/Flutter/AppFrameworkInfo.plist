@@ -22,5 +22,9 @@
   <string>1.0</string>
   <key>MinimumOSVersion</key>
   <string>12.0</string>
+  <key>NSPhotoLibraryUsageDescription</key>
+  <string>نحتاج للوصول إلى الصور لتعيين صورة الملف الشخصي</string>
+  <key>NSCameraUsageDescription</key>
+  <string>نحتاج للوصول إلى الكاميرا لتعيين صورة الملف الشخصي</string>
 </dict>
 </plist>
