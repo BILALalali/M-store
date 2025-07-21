@@ -23,21 +23,6 @@ class MyApp extends StatelessWidget {
       darkTheme: AppTheme.darkTheme,
       home: Scaffold(
         appBar: AppBar(title: const Text(AppConstants.appName)),
-        body: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.admin_panel_settings, size: 64, color: Colors.blue),
-              SizedBox(height: 16),
-              Text(
-                'Supabase Connected!',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text('Admin Panel is ready for development'),
-            ],
-          ),
-        ),
       ),
     );
   }
