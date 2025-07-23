@@ -1,10 +1,23 @@
 import 'package:flutter/material.dart';
+import '../../core/services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
+  void _showLoadingDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final TextEditingController _emailController = TextEditingController();
+    final TextEditingController _passwordController = TextEditingController();
+
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -61,6 +74,7 @@ class LoginScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 22),
                   TextField(
+                    controller: _emailController,
                     decoration: InputDecoration(
                       labelText: 'البريد الإلكتروني',
                       prefixIcon: const Icon(Icons.email),
@@ -68,6 +82,7 @@ class LoginScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   TextField(
+                    controller: _passwordController,
                     obscureText: true,
                     decoration: InputDecoration(
                       labelText: 'كلمة المرور',
@@ -83,8 +98,45 @@ class LoginScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pushReplacementNamed(context, '/main');
+                      onPressed: () async {
+                        _showLoadingDialog(context);
+                        try {
+                          final response = await SupabaseService.client.auth
+                              .signInWithPassword(
+                                email: _emailController.text.trim(),
+                                password: _passwordController.text,
+                              );
+                          final user = response.user;
+                          if (user != null) {
+                            final profileResponse = await SupabaseService.client
+                                .from('profiles')
+                                .select()
+                                .eq('id', user.id)
+                                .maybeSingle();
+                            if (profileResponse == null) {
+                              await SupabaseService.client
+                                  .from('profiles')
+                                  .upsert({
+                                    'id': user.id,
+                                    'name': user.userMetadata?['name'] ?? '',
+                                    'phone': user.userMetadata?['phone'] ?? '',
+                                    'governorate':
+                                        user.userMetadata?['governorate'] ?? '',
+                                    'avatar_url':
+                                        user.userMetadata?['avatar_url'] ?? '',
+                                  });
+                            }
+                            Navigator.of(context).pop(); // إغلاق Dialog
+                            Navigator.pushReplacementNamed(context, '/main');
+                          } else {
+                            Navigator.of(context).pop();
+                          }
+                        } on AuthException catch (e) {
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text(e.message)));
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -126,4 +178,3 @@ class LoginScreen extends StatelessWidget {
     );
   }
 }
- 

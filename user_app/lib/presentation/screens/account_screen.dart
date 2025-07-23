@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import '../../core/services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -12,13 +14,15 @@ class AccountScreen extends StatefulWidget {
 class _AccountScreenState extends State<AccountScreen> {
   bool isEditing = false;
   File? _imageFile;
+  String? avatarUrl;
+  String? userId;
 
-  // بيانات وهمية مؤقتة
-  String name = 'محمد مصطفى';
-  String email = 'mohammad@email.com';
-  String phone = '0999999999';
-  String governorate = 'دمشق';
-  String address = 'شارع الثورة، جانب البنك التجاري';
+  // إزالة القيم الافتراضية
+  String name = '';
+  String email = '';
+  String phone = '';
+  String governorate = '';
+  String address = '';
 
   final List<String> _syrianGovernorates = [
     'دمشق',
@@ -28,7 +32,7 @@ class _AccountScreenState extends State<AccountScreen> {
     'حماة',
     'اللاذقية',
     'طرطوس',
-    'إدلب',
+    'إدلب العز',
     'درعا',
     'السويداء',
     'دير الزور',
@@ -47,11 +51,108 @@ class _AccountScreenState extends State<AccountScreen> {
   @override
   void initState() {
     super.initState();
-    nameController = TextEditingController(text: name);
-    emailController = TextEditingController(text: email);
-    phoneController = TextEditingController(text: phone);
-    addressController = TextEditingController(text: address);
+    nameController = TextEditingController();
+    emailController = TextEditingController();
+    phoneController = TextEditingController();
+    addressController = TextEditingController();
     selectedGovernorate = governorate;
+    _fetchProfile();
+  }
+
+  Future<void> _fetchProfile() async {
+    final user = SupabaseService.client.auth.currentUser;
+    if (user == null) return;
+    userId = user.id;
+    final data = await SupabaseService.client
+        .from('profiles')
+        .select()
+        .eq('id', user.id)
+        .maybeSingle();
+    if (data != null) {
+      setState(() {
+        name = data['name'] ?? '';
+        email = user.email ?? '';
+        phone = data['phone'] ?? '';
+        governorate = data['governorate'] ?? '';
+        avatarUrl = data['avatar_url'];
+        address = data['address'] ?? '';
+        nameController.text = name;
+        emailController.text = email;
+        phoneController.text = phone;
+        addressController.text = address;
+        selectedGovernorate = governorate;
+      });
+    }
+  }
+
+  void _showLoadingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  Future<void> _saveChanges() async {
+    if (userId == null) return;
+    _showLoadingDialog();
+    try {
+      final response = await SupabaseService.client
+          .from('profiles')
+          .update({
+            'name': nameController.text,
+            'phone': phoneController.text,
+            'governorate': selectedGovernorate,
+            'address': addressController.text,
+          })
+          .eq('id', userId);
+      print('update response: ' + response.toString());
+      await _fetchProfile();
+      Navigator.of(context).pop();
+      setState(() {
+        isEditing = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم حفظ التعديلات بنجاح!')));
+    } catch (e) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء الحفظ: $e')));
+    }
+  }
+
+  Future<void> _uploadAndSaveImage(File image) async {
+    if (userId == null) return;
+    final fileExt = image.path.split('.').last;
+    final filePath =
+        'avatars/$userId.${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+    try {
+      _showLoadingDialog();
+      print('--- رفع الصورة إلى Storage ---');
+      final storageResponse = await SupabaseService.client.storage
+          .from('avatars')
+          .upload(filePath, image);
+      print('storage upload response: $storageResponse');
+      final publicUrl = SupabaseService.client.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+      print('publicUrl: $publicUrl');
+      final updateResponse = await SupabaseService.client
+          .from('profiles')
+          .update({'avatar_url': publicUrl})
+          .eq('id', userId);
+      print('avatar_url update response: $updateResponse');
+      await _fetchProfile();
+      Navigator.of(context).pop();
+      setState(() {
+        avatarUrl = publicUrl;
+      });
+    } catch (e) {
+      Navigator.of(context).pop();
+      print('Error uploading image: $e');
+    }
   }
 
   @override
@@ -77,20 +178,6 @@ class _AccountScreenState extends State<AccountScreen> {
     });
   }
 
-  void _saveChanges() {
-    setState(() {
-      name = nameController.text;
-      email = emailController.text;
-      phone = phoneController.text;
-      address = addressController.text;
-      governorate = selectedGovernorate ?? governorate;
-      isEditing = false;
-    });
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('تم حفظ التعديلات بنجاح!')));
-  }
-
   // منطق اختيار صورة من المعرض
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
@@ -102,6 +189,7 @@ class _AccountScreenState extends State<AccountScreen> {
       setState(() {
         _imageFile = File(pickedFile.path);
       });
+      await _uploadAndSaveImage(_imageFile!);
     }
   }
 
@@ -156,8 +244,12 @@ class _AccountScreenState extends State<AccountScreen> {
                         backgroundColor: const Color(0xFF8ED6EC),
                         backgroundImage: _imageFile != null
                             ? FileImage(_imageFile!)
-                            : null,
-                        child: _imageFile == null
+                            : (avatarUrl != null && avatarUrl!.isNotEmpty
+                                  ? NetworkImage(avatarUrl!) as ImageProvider
+                                  : null),
+                        child:
+                            _imageFile == null &&
+                                (avatarUrl == null || avatarUrl!.isEmpty)
                             ? const Icon(
                                 Icons.person,
                                 size: 48,

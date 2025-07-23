@@ -5,8 +5,11 @@ import 'presentation/screens/register_screen.dart';
 import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/main_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'core/services/supabase_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SupabaseService.init();
   runApp(const MyApp());
 }
 

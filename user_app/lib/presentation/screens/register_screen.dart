@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../core/services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -26,7 +30,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'حماة',
     'اللاذقية',
     'طرطوس',
-    'إدلب',
+    ' إدلب العز',
     'درعا',
     'السويداء',
     'دير الزور',
@@ -34,6 +38,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'الرقة',
     'القنيطرة',
   ];
+
+  File? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    final pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImage = File(pickedFile.path);
+      });
+    }
+  }
+
+  Future<String?> _uploadImage(File image, String userId) async {
+    final fileExt = image.path.split('.').last;
+    final filePath =
+        'avatars/$userId.${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+    final storageResponse = await SupabaseService.client.storage
+        .from('avatars')
+        .upload(filePath, image);
+    if (storageResponse.isEmpty) {
+      final publicUrl = SupabaseService.client.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+      return publicUrl;
+    }
+    return null;
+  }
+
+  void _showLoadingDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,13 +112,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircleAvatar(
-                      radius: 32,
-                      backgroundColor: const Color(0xFF8ED6EC),
-                      child: const Icon(
-                        Icons.person,
-                        size: 36,
-                        color: Colors.white,
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: CircleAvatar(
+                        radius: 32,
+                        backgroundColor: const Color(0xFF8ED6EC),
+                        backgroundImage: _selectedImage != null
+                            ? FileImage(_selectedImage!)
+                            : null,
+                        child: _selectedImage == null
+                            ? const Icon(
+                                Icons.camera_alt,
+                                size: 36,
+                                color: Colors.white,
+                              )
+                            : null,
                       ),
                     ),
                     const SizedBox(height: 18),
@@ -181,18 +232,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
+                          _showLoadingDialog(context);
                           if (_formKey.currentState!.validate()) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'تم إنشاء الحساب بنجاح! يمكنك تسجيل الدخول الآن.',
-                                ),
-                              ),
-                            );
-                            Future.delayed(const Duration(seconds: 1), () {
-                              Navigator.pop(context);
-                            });
+                            try {
+                              final response = await SupabaseService.client.auth
+                                  .signUp(
+                                    email: _emailController.text.trim(),
+                                    password: _passwordController.text,
+                                    data: {
+                                      'name': _nameController.text,
+                                      'phone': _phoneController.text,
+                                      'governorate': _selectedGovernorate,
+                                    },
+                                  );
+                              final user = response.user;
+                              if (user != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'تم إنشاء الحساب بنجاح! يرجى تفعيل بريدك الإلكتروني أولاً ثم تسجيل الدخول.',
+                                    ),
+                                  ),
+                                );
+                                Future.delayed(const Duration(seconds: 2), () {
+                                  Navigator.of(context).pop(); // إغلاق Dialog
+                                  Navigator.pop(
+                                    context,
+                                  ); // العودة لشاشة تسجيل الدخول
+                                });
+                              } else {
+                                Navigator.of(context).pop();
+                              }
+                            } on AuthException catch (e) {
+                              Navigator.of(context).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(e.message)),
+                              );
+                            }
+                          } else {
+                            Navigator.of(context).pop();
                           }
                         },
                         style: ElevatedButton.styleFrom(
