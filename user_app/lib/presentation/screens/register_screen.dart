@@ -30,7 +30,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'حماة',
     'اللاذقية',
     'طرطوس',
-    ' إدلب العز',
+    'إدلب',
     'درعا',
     'السويداء',
     'دير الزور',

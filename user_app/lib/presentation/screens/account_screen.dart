@@ -32,7 +32,7 @@ class _AccountScreenState extends State<AccountScreen> {
     'حماة',
     'اللاذقية',
     'طرطوس',
-    'إدلب العز',
+    'إدلب',
     'درعا',
     'السويداء',
     'دير الزور',
