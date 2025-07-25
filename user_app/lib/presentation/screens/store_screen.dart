@@ -46,7 +46,8 @@ class StoreScreen extends StatefulWidget {
       price: 350.0,
       quantity: 5,
       category: 'موبايلات',
-      description: 'موبايل اقتصادي بشاشة كبيرة وبطارية تدوم طويلاً وكاميرا ثلاثية.',
+      description:
+          'موبايل اقتصادي بشاشة كبيرة وبطارية تدوم طويلاً وكاميرا ثلاثية.',
     ),
     Product(
       name: 'آيفون 14 برو',
@@ -57,7 +58,8 @@ class StoreScreen extends StatefulWidget {
       price: 1800.0,
       quantity: 2,
       category: 'موبايلات',
-      description: 'أحدث هواتف آبل مع شاشة ProMotion وكاميرا احترافية ومعالج قوي.',
+      description:
+          'أحدث هواتف آبل مع شاشة ProMotion وكاميرا احترافية ومعالج قوي.',
     ),
     Product(
       name: 'كفر شفاف آيفون',
@@ -150,6 +152,15 @@ class _StoreScreenState extends State<StoreScreen> {
     'إكسسوارات أخرى',
   ];
 
+  // متغيرات البانر
+  final List<String> bannerImages = [
+    'https://images.unsplash.com/photo-1465101046530-73398c7f28ca',
+    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9',
+    'https://images.unsplash.com/photo-1517336714731-489689fd1ca8',
+  ];
+  int _currentBanner = 0;
+  final PageController _bannerController = PageController();
+
   // تصفية المنتجات حسب البحث والفئة
   List<Product> get filteredProducts {
     String search = _searchController.text.trim();
@@ -175,210 +186,239 @@ class _StoreScreenState extends State<StoreScreen> {
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // شعار واسم المتجر
-                Row(
+        child: CustomScrollView(
+          slivers: [
+            // Sliver: بانر إعلانات (غير ثابت)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        'assets/logo.png',
-                        width: 48,
-                        height: 48,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'المصطفى',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor,
-                            fontFamily: 'Cairo',
+                    // شعار واسم المتجر
+                    Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.asset(
+                            'assets/logo.png',
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
                           ),
                         ),
-                        Text(
-                          'Mustafa Store',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.black54,
-                            fontFamily: 'Cairo',
-                          ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              'المصطفى',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: primaryColor,
+                                fontFamily: 'Cairo',
+                              ),
+                            ),
+                            Text(
+                              'Mustafa Store',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.black54,
+                                fontFamily: 'Cairo',
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                // سلايدر إعلانات
-                SizedBox(
-                  height: 120,
-                  child: Stack(
-                    alignment: Alignment.bottomCenter,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: PageView.builder(
-                          controller: widget._bannerController,
-                          itemCount: widget.bannerImages.length,
-                          onPageChanged: (index) {
-                            setState(() => widget._currentBanner = index);
-                          },
-                          itemBuilder: (context, index) {
-                            return Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                Image.network(
-                                  widget.bannerImages[index],
-                                  fit: BoxFit.cover,
-                                ),
-                                Container(
+                    const SizedBox(height: 18),
+                    // سلايدر إعلانات
+                    SizedBox(
+                      height: 120,
+                      child: Stack(
+                        alignment: Alignment.bottomCenter,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: PageView.builder(
+                              controller: _bannerController,
+                              itemCount: bannerImages.length,
+                              onPageChanged: (index) {
+                                setState(() => _currentBanner = index);
+                              },
+                              itemBuilder: (context, index) {
+                                return Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    Image.network(
+                                      bannerImages[index],
+                                      fit: BoxFit.cover,
+                                    ),
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(18),
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Colors.black.withOpacity(0.25),
+                                            Colors.transparent,
+                                          ],
+                                          begin: Alignment.bottomCenter,
+                                          end: Alignment.topCenter,
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      left: 16,
+                                      top: 16,
+                                      child: Image.asset(
+                                        'assets/logo.png',
+                                        width: 36,
+                                        height: 36,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                          // مؤشر النقاط
+                          Positioned(
+                            bottom: 8,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(
+                                bannerImages.length,
+                                (index) => AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 3,
+                                  ),
+                                  width: _currentBanner == index ? 18 : 7,
+                                  height: 7,
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(18),
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Colors.black.withOpacity(0.25),
-                                        Colors.transparent,
-                                      ],
-                                      begin: Alignment.bottomCenter,
-                                      end: Alignment.topCenter,
+                                    color: _currentBanner == index
+                                        ? primaryColor
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 1,
                                     ),
                                   ),
-                                ),
-                                Positioned(
-                                  left: 16,
-                                  top: 16,
-                                  child: Image.asset(
-                                    'assets/logo.png',
-                                    width: 36,
-                                    height: 36,
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                      // مؤشر النقاط
-                      Positioned(
-                        bottom: 8,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(
-                            widget.bannerImages.length,
-                            (index) => AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                              width: widget._currentBanner == index ? 18 : 7,
-                              height: 7,
-                              decoration: BoxDecoration(
-                                color: widget._currentBanner == index
-                                    ? primaryColor
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 1,
                                 ),
                               ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                // شريط الفئات
-                SizedBox(
-                  height: 40,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: categories.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (context, index) {
-                      final cat = categories[index];
-                      final isSelected = cat == selectedCategory;
-                      return ChoiceChip(
-                        label: Text(
-                          cat,
+              ),
+            ),
+            // Sliver: شريط الفئات (ثابت)
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _StickyHeaderDelegate(
+                minHeight: 120,
+                maxHeight: 120,
+                child: Container(
+                  color: backgroundColor,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                    child: Column(
+                      children: [
+                        // شريط الفئات
+                        SizedBox(
+                          height: 40,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: categories.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(width: 8),
+                            itemBuilder: (context, index) {
+                              final cat = categories[index];
+                              final isSelected = cat == selectedCategory;
+                              return ChoiceChip(
+                                label: Text(
+                                  cat,
+                                  style: const TextStyle(fontFamily: 'Cairo'),
+                                ),
+                                selected: isSelected,
+                                onSelected: (_) {
+                                  setState(() => selectedCategory = cat);
+                                },
+                                selectedColor: primaryColor,
+                                backgroundColor: beigeColor,
+                                labelStyle: TextStyle(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.black,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // شريط البحث
+                        TextField(
+                          controller: _searchController,
+                          onChanged: (_) => setState(() {}),
+                          decoration: InputDecoration(
+                            hintText: 'ابحث عن منتج أو فئة..',
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              color: primaryColor,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 0,
+                              horizontal: 16,
+                            ),
+                          ),
                           style: const TextStyle(fontFamily: 'Cairo'),
                         ),
-                        selected: isSelected,
-                        onSelected: (_) {
-                          setState(() => selectedCategory = cat);
-                        },
-                        selectedColor: primaryColor,
-                        backgroundColor: beigeColor,
-                        labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : Colors.black,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Sliver: شبكة المنتجات
+            SliverPadding(
+              padding: const EdgeInsets.all(16.0),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 0.8,
+                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final product = filteredProducts[index];
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              ProductDetailsScreen(product: product),
                         ),
                       );
                     },
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // شريط البحث
-                TextField(
-                  controller: _searchController,
-                  onChanged: (_) => setState(() {}),
-                  decoration: InputDecoration(
-                    hintText: 'ابحث عن منتج أو فئة..',
-                    prefixIcon: const Icon(Icons.search, color: primaryColor),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 0,
-                      horizontal: 16,
-                    ),
-                  ),
-                  style: const TextStyle(fontFamily: 'Cairo'),
-                ),
-                const SizedBox(height: 16),
-                // شبكة المنتجات
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 0.8,
-                  ),
-                  itemCount: filteredProducts.length,
-                  itemBuilder: (context, index) {
-                    final product = filteredProducts[index];
-                    return InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                ProductDetailsScreen(product: product),
-                          ),
-                        );
-                      },
-                      child: ProductCard(product: product),
-                    );
-                  },
-                ),
-              ],
+                    child: ProductCard(product: product),
+                  );
+                }, childCount: filteredProducts.length),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -486,4 +526,36 @@ class ProductCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// كلاس مساعد لجعل الهيدر ثابت
+class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double minHeight;
+  final double maxHeight;
+  final Widget child;
+
+  _StickyHeaderDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
+
+  @override
+  double get minExtent => minHeight;
+
+  @override
+  double get maxExtent => maxHeight;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return child;
+  }
+
+  @override
+  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) =>
+      true;
 }

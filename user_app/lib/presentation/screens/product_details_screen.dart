@@ -47,6 +47,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   Widget build(BuildContext context) {
     final product = widget.product;
     final similarProducts = getSimilarProducts();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final mainImageSize = screenWidth * 0.7;
+    final thumbSize = screenWidth * 0.16;
+    final similarCardWidth = screenWidth * 0.32;
+    final similarImageHeight = similarCardWidth * 0.7;
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
@@ -75,7 +80,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 child: Column(
                   children: [
                     SizedBox(
-                      height: 200,
+                      height: mainImageSize,
                       child: PageView.builder(
                         controller: _pageController,
                         itemCount: product.images.length,
@@ -89,13 +94,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                             child: imageUrl.isNotEmpty
                                 ? Image.network(
                                     imageUrl,
-                                    height: 180,
-                                    width: 180,
+                                    height: mainImageSize,
+                                    width: mainImageSize,
                                     fit: BoxFit.cover,
                                   )
                                 : Container(
-                                    height: 180,
-                                    width: 180,
+                                    height: mainImageSize,
+                                    width: mainImageSize,
                                     color: beigeColor,
                                     child: const Icon(
                                       Icons.image,
@@ -140,13 +145,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                               child: imageUrl.isNotEmpty
                                   ? Image.network(
                                       imageUrl,
-                                      width: 40,
-                                      height: 40,
+                                      width: thumbSize,
+                                      height: thumbSize,
                                       fit: BoxFit.cover,
                                     )
                                   : Container(
-                                      width: 40,
-                                      height: 40,
+                                      width: thumbSize,
+                                      height: thumbSize,
                                       color: beigeColor,
                                       child: const Icon(
                                         Icons.image,
@@ -262,7 +267,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
-                  height: 140,
+                  height: similarCardWidth * 1.25,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: similarProducts.length,
@@ -279,7 +284,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           );
                         },
                         child: Container(
-                          width: 110,
+                          width: similarCardWidth,
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(14),
@@ -303,13 +308,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                 child: p.images.isNotEmpty
                                     ? Image.network(
                                         p.images.first,
-                                        height: 60,
-                                        width: double.infinity,
+                                        height: similarImageHeight,
+                                        width: similarCardWidth,
                                         fit: BoxFit.cover,
                                       )
                                     : Container(
-                                        height: 60,
-                                        width: double.infinity,
+                                        height: similarImageHeight,
+                                        width: similarCardWidth,
                                         color: beigeColor,
                                         child: const Icon(
                                           Icons.image,
