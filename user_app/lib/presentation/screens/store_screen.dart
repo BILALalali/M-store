@@ -513,7 +513,7 @@ class ProductCard extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Text(
+      child: Text(
               'الكمية: ${product.quantity}',
               style: const TextStyle(
                 fontSize: 12,

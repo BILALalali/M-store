@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'store_screen.dart';
+import 'order_model.dart';
+import 'orders_screen.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
   final Product product;
@@ -236,11 +238,22 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       ),
                     ),
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('تم تنفيذ عملية الشراء (وهمية)'),
+                      // إضافة الطلب إلى قائمة الطلبات
+                      OrdersScreen.orders.add(
+                        Order(
+                          productName: product.name,
+                          productImage: product.images.isNotEmpty
+                              ? product.images.first
+                              : '',
+                          date: DateTime.now(),
+                          status: OrderStatus.pending,
+                          userName: 'المستخدم الحالي',
                         ),
                       );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('تم إرسال الطلب بنجاح!')),
+                      );
+                      Navigator.pop(context, true);
                     },
                     child: const Text(
                       'شراء الآن',

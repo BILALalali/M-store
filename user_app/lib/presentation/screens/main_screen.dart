@@ -19,7 +19,7 @@ class _MainScreenState extends State<MainScreen> {
     AccountScreen(),
     OrdersScreen(),
     HomeScreen(),
-    StoreScreen(),
+     StoreScreen(),
     BalanceScreen(),
   ];
 
