@@ -26,8 +26,8 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        '/home': (context) => const HomeScreen(),
-        '/main': (context) => const MainScreen(),
+        '/home': (context) => HomeScreen(),
+        '/main': (context) => MainScreen(),
       },
       locale: const Locale('ar'),
       supportedLocales: const [Locale('ar')],
@@ -39,3 +39,4 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+

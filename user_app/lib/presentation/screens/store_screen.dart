@@ -1,23 +1,6 @@
 import 'package:flutter/material.dart';
 import 'product_details_screen.dart';
-
-class Product {
-  final String name;
-  final List<String> images;
-  final double price;
-  final int quantity;
-  final String category;
-  final String description;
-
-  Product({
-    required this.name,
-    required this.images,
-    required this.price,
-    required this.quantity,
-    required this.category,
-    required this.description,
-  });
-}
+import 'product_model.dart';
 
 class StoreScreen extends StatefulWidget {
   StoreScreen({Key? key}) : super(key: key);
@@ -183,6 +166,11 @@ class _StoreScreenState extends State<StoreScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final logoSize = screenWidth * 0.12; // 12% من عرض الشاشة
+    final productImageHeight = screenWidth * 0.24; // 24% من عرض الشاشة
+    final fontSizeTitle = screenWidth * 0.048; // 4.8% من عرض الشاشة
+    final fontSizeBody = screenWidth * 0.038; // 3.8% من عرض الشاشة
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
@@ -192,230 +180,110 @@ class _StoreScreenState extends State<StoreScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // شعار واسم المتجر
-                    Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.asset(
-                            'assets/logo.png',
-                            width: 48,
-                            height: 48,
-                            fit: BoxFit.cover,
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          'AL-MOSTAFA COMPANY',
+                          style: TextStyle(
+                            fontSize: fontSizeTitle + 2,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF1EC6D9),
+                            fontFamily: 'Cairo',
                           ),
+                          textAlign: TextAlign.center,
                         ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              'المصطفى',
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: primaryColor,
-                                fontFamily: 'Cairo',
-                              ),
-                            ),
-                            Text(
-                              'Mustafa Store',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.black54,
-                                fontFamily: 'Cairo',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
-                    const SizedBox(height: 18),
-                    // سلايدر إعلانات
-                    SizedBox(
-                      height: 120,
-                      child: Stack(
-                        alignment: Alignment.bottomCenter,
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(18),
-                            child: PageView.builder(
-                              controller: _bannerController,
-                              itemCount: bannerImages.length,
-                              onPageChanged: (index) {
-                                setState(() => _currentBanner = index);
-                              },
-                              itemBuilder: (context, index) {
-                                return Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    Image.network(
-                                      bannerImages[index],
-                                      fit: BoxFit.cover,
-                                    ),
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(18),
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            Colors.black.withOpacity(0.25),
-                                            Colors.transparent,
-                                          ],
-                                          begin: Alignment.bottomCenter,
-                                          end: Alignment.topCenter,
-                                        ),
-                                      ),
-                                    ),
-                                    Positioned(
-                                      left: 16,
-                                      top: 16,
-                                      child: Image.asset(
-                                        'assets/logo.png',
-                                        width: 36,
-                                        height: 36,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ),
-                          // مؤشر النقاط
-                          Positioned(
-                            bottom: 8,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: List.generate(
-                                bannerImages.length,
-                                (index) => AnimatedContainer(
-                                  duration: const Duration(milliseconds: 300),
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 3,
-                                  ),
-                                  width: _currentBanner == index ? 18 : 7,
-                                  height: 7,
-                                  decoration: BoxDecoration(
-                                    color: _currentBanner == index
-                                        ? primaryColor
-                                        : Colors.white,
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(
-                                      color: Colors.white,
-                                      width: 1,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        'assets/logo.png',
+                        width: logoSize,
+                        height: logoSize,
+                        fit: BoxFit.cover,
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            // Sliver: شريط الفئات (ثابت)
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _StickyHeaderDelegate(
-                minHeight: 120,
-                maxHeight: 120,
-                child: Container(
-                  color: backgroundColor,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                    child: Column(
-                      children: [
-                        // شريط الفئات
-                        SizedBox(
-                          height: 40,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: categories.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(width: 8),
-                            itemBuilder: (context, index) {
-                              final cat = categories[index];
-                              final isSelected = cat == selectedCategory;
-                              return ChoiceChip(
-                                label: Text(
-                                  cat,
-                                  style: const TextStyle(fontFamily: 'Cairo'),
+            const SizedBox(height: 18),
+            // سلايدر إعلانات
+            SizedBox(
+              height: 120,
+              child: Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: PageView.builder(
+                      controller: _bannerController,
+                      itemCount: bannerImages.length,
+                      onPageChanged: (index) {
+                        setState(() => _currentBanner = index);
+                      },
+                      itemBuilder: (context, index) {
+                        return Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.network(
+                              bannerImages[index],
+                              fit: BoxFit.cover,
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(18),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.black.withOpacity(0.25),
+                                    Colors.transparent,
+                                  ],
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
                                 ),
-                                selected: isSelected,
-                                onSelected: (_) {
-                                  setState(() => selectedCategory = cat);
-                                },
-                                selectedColor: primaryColor,
-                                backgroundColor: beigeColor,
-                                labelStyle: TextStyle(
-                                  color: isSelected
-                                      ? Colors.white
-                                      : Colors.black,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        // شريط البحث
-                        TextField(
-                          controller: _searchController,
-                          onChanged: (_) => setState(() {}),
-                          decoration: InputDecoration(
-                            hintText: 'ابحث عن منتج أو فئة..',
-                            prefixIcon: const Icon(
-                              Icons.search,
-                              color: primaryColor,
+                              ),
                             ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
+                            Positioned(
+                              left: 16,
+                              top: 16,
+                              child: Image.asset(
+                                'assets/logo.png',
+                                width: 36,
+                                height: 36,
+                              ),
                             ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 0,
-                              horizontal: 16,
-                            ),
-                          ),
-                          style: const TextStyle(fontFamily: 'Cairo'),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                   ),
-                ),
-              ),
-            ),
-            // Sliver: شبكة المنتجات
-            SliverPadding(
-              padding: const EdgeInsets.all(16.0),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 0.8,
-                ),
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  final product = filteredProducts[index];
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              ProductDetailsScreen(product: product),
+                  // مؤشر النقاط
+                  Positioned(
+                    bottom: 8,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        bannerImages.length,
+                        (index) => AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          width: _currentBanner == index ? 18 : 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: _currentBanner == index
+                                ? primaryColor
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: Colors.white, width: 1),
+                          ),
                         ),
-                      );
-                    },
-                    child: ProductCard(product: product),
-                  );
-                }, childCount: filteredProducts.length),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -434,6 +302,10 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final imageHeight = screenWidth * 0.24;
+    final fontSizeTitle = screenWidth * 0.042;
+    final fontSizeBody = screenWidth * 0.034;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -458,12 +330,22 @@ class ProductCard extends StatelessWidget {
             child: product.images.isNotEmpty
                 ? Image.network(
                     product.images.first,
-                    height: 90,
+                    height: imageHeight,
                     width: double.infinity,
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: imageHeight,
+                      width: double.infinity,
+                      color: beigeColor,
+                      child: const Icon(
+                        Icons.image,
+                        size: 40,
+                        color: primaryColor,
+                      ),
+                    ),
                   )
                 : Container(
-                    height: 90,
+                    height: imageHeight,
                     width: double.infinity,
                     color: beigeColor,
                     child: const Icon(
@@ -478,9 +360,9 @@ class ProductCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Text(
               product.name,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 15,
+                fontSize: fontSizeTitle,
                 fontFamily: 'Cairo',
               ),
               maxLines: 1,
@@ -491,8 +373,8 @@ class ProductCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2),
             child: Text(
               product.category,
-              style: const TextStyle(
-                fontSize: 12,
+              style: TextStyle(
+                fontSize: fontSizeBody,
                 color: primaryColor,
                 fontFamily: 'Cairo',
               ),
@@ -504,8 +386,8 @@ class ProductCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Text(
               'السعر: ${product.price.toStringAsFixed(1)} ل.س',
-              style: const TextStyle(
-                fontSize: 13,
+              style: TextStyle(
+                fontSize: fontSizeBody,
                 color: Colors.black54,
                 fontFamily: 'Cairo',
               ),
@@ -513,10 +395,10 @@ class ProductCard extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: Text(
+            child: Text(
               'الكمية: ${product.quantity}',
-              style: const TextStyle(
-                fontSize: 12,
+              style: TextStyle(
+                fontSize: fontSizeBody - 1,
                 color: Colors.black45,
                 fontFamily: 'Cairo',
               ),

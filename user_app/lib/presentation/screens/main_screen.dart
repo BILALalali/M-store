@@ -19,7 +19,7 @@ class _MainScreenState extends State<MainScreen> {
     AccountScreen(),
     OrdersScreen(),
     HomeScreen(),
-     StoreScreen(),
+    StoreScreen(),
     BalanceScreen(),
   ];
 
@@ -37,24 +37,41 @@ class _MainScreenState extends State<MainScreen> {
         type: BottomNavigationBarType.fixed,
         selectedFontSize: 13,
         unselectedFontSize: 12,
-        items: const [
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             label: 'حسابي',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.receipt_long_outlined),
             label: 'طلباتي',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.store_sharp),
-            label: 'مخزن الجملة',
+            icon: _currentIndex == 2
+                ? Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1EC6D9).withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    padding: const EdgeInsets.all(8),
+                    child: const Icon(
+                      Icons.home_filled,
+                      size: 32,
+                      color: Color(0xFF1EC6D9),
+                    ),
+                  )
+                : const Icon(
+                    Icons.home_outlined,
+                    size: 26,
+                    color: Colors.black38,
+                  ),
+            label: 'الرئيسية',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.storefront_outlined),
             label: 'متجر المفرق',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.account_balance_wallet_outlined),
             label: 'شحن أرصدة',
           ),

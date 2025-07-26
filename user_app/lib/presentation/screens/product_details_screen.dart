@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'product_model.dart';
 import 'store_screen.dart';
 import 'order_model.dart';
 import 'orders_screen.dart';
@@ -54,6 +55,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     final thumbSize = screenWidth * 0.16;
     final similarCardWidth = screenWidth * 0.32;
     final similarImageHeight = similarCardWidth * 0.7;
+    const Color beigeColor = Color(0xFFF5EEDC);
+    const Color primaryColor = Color(0xFF1EC6D9);
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
@@ -99,6 +102,18 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                     height: mainImageSize,
                                     width: mainImageSize,
                                     fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
+                                              height: mainImageSize,
+                                              width: mainImageSize,
+                                              color: beigeColor,
+                                              child: const Icon(
+                                                Icons.image,
+                                                size: 60,
+                                                color: primaryColor,
+                                              ),
+                                            ),
                                   )
                                 : Container(
                                     height: mainImageSize,
@@ -150,6 +165,18 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                       width: thumbSize,
                                       height: thumbSize,
                                       fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              Container(
+                                                width: thumbSize,
+                                                height: thumbSize,
+                                                color: beigeColor,
+                                                child: const Icon(
+                                                  Icons.image,
+                                                  size: 20,
+                                                  color: primaryColor,
+                                                ),
+                                              ),
                                     )
                                   : Container(
                                       width: thumbSize,
@@ -172,8 +199,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               const SizedBox(height: 24),
               Text(
                 product.name,
-                style: const TextStyle(
-                  fontSize: 22,
+                style: TextStyle(
+                  fontSize: screenWidth * 0.055,
                   fontWeight: FontWeight.bold,
                   color: primaryColor,
                   fontFamily: 'Cairo',
@@ -182,8 +209,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               const SizedBox(height: 8),
               Text(
                 'الفئة: ${product.category}',
-                style: const TextStyle(
-                  fontSize: 15,
+                style: TextStyle(
+                  fontSize: screenWidth * 0.042,
                   color: Colors.black54,
                   fontFamily: 'Cairo',
                 ),
@@ -191,8 +218,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               const SizedBox(height: 8),
               Text(
                 'السعر: ${product.price.toStringAsFixed(1)} ل.س',
-                style: const TextStyle(
-                  fontSize: 17,
+                style: TextStyle(
+                  fontSize: screenWidth * 0.048,
                   color: Colors.black87,
                   fontFamily: 'Cairo',
                 ),
@@ -200,8 +227,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               const SizedBox(height: 8),
               Text(
                 'الكمية المتوفرة: ${product.quantity}',
-                style: const TextStyle(
-                  fontSize: 15,
+                style: TextStyle(
+                  fontSize: screenWidth * 0.042,
                   color: Colors.black45,
                   fontFamily: 'Cairo',
                 ),
@@ -219,8 +246,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               const SizedBox(height: 6),
               Text(
                 product.description,
-                style: const TextStyle(
-                  fontSize: 15,
+                style: TextStyle(
+                  fontSize: screenWidth * 0.042,
                   color: Colors.black87,
                   fontFamily: 'Cairo',
                 ),
@@ -269,10 +296,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               // منتجات مشابهة
               if (similarProducts.isNotEmpty) ...[
                 const SizedBox(height: 36),
-                const Text(
+                Text(
                   'منتجات مشابهة',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: screenWidth * 0.048,
                     fontWeight: FontWeight.bold,
                     color: primaryColor,
                     fontFamily: 'Cairo',
@@ -324,6 +351,18 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                         height: similarImageHeight,
                                         width: similarCardWidth,
                                         fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Container(
+                                                  height: similarImageHeight,
+                                                  width: similarCardWidth,
+                                                  color: beigeColor,
+                                                  child: const Icon(
+                                                    Icons.image,
+                                                    size: 30,
+                                                    color: primaryColor,
+                                                  ),
+                                                ),
                                       )
                                     : Container(
                                         height: similarImageHeight,
@@ -343,9 +382,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                 ),
                                 child: Text(
                                   p.name,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 13,
+                                    fontSize: screenWidth * 0.034,
                                     fontFamily: 'Cairo',
                                   ),
                                   maxLines: 1,
@@ -359,8 +398,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                 ),
                                 child: Text(
                                   '${p.price.toStringAsFixed(1)} ل.س',
-                                  style: const TextStyle(
-                                    fontSize: 12,
+                                  style: TextStyle(
+                                    fontSize: screenWidth * 0.03,
                                     color: Colors.black54,
                                     fontFamily: 'Cairo',
                                   ),
