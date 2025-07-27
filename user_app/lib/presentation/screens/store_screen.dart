@@ -210,82 +210,86 @@ class _StoreScreenState extends State<StoreScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 18),
-            // سلايدر إعلانات
-            SizedBox(
-              height: 120,
-              child: Stack(
-                alignment: Alignment.bottomCenter,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: PageView.builder(
-                      controller: _bannerController,
-                      itemCount: bannerImages.length,
-                      onPageChanged: (index) {
-                        setState(() => _currentBanner = index);
-                      },
-                      itemBuilder: (context, index) {
-                        return Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            Image.network(
-                              bannerImages[index],
-                              fit: BoxFit.cover,
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(18),
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Colors.black.withOpacity(0.25),
-                                    Colors.transparent,
-                                  ],
-                                  begin: Alignment.bottomCenter,
-                                  end: Alignment.topCenter,
+            // الخطأ هنا: SizedBox(height: 18), يجب إحاطته بـ SliverToBoxAdapter
+            SliverToBoxAdapter(child: SizedBox(height: 18)),
+            // الخطأ هنا: SizedBox(...) يجب إحاطته بـ SliverToBoxAdapter
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 120,
+                child: Stack(
+                  alignment: Alignment.bottomCenter,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: PageView.builder(
+                        controller: _bannerController,
+                        itemCount: bannerImages.length,
+                        onPageChanged: (index) {
+                          setState(() => _currentBanner = index);
+                        },
+                        itemBuilder: (context, index) {
+                          return Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.network(
+                                bannerImages[index],
+                                fit: BoxFit.cover,
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(18),
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.black.withOpacity(0.25),
+                                      Colors.transparent,
+                                    ],
+                                    begin: Alignment.bottomCenter,
+                                    end: Alignment.topCenter,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Positioned(
-                              left: 16,
-                              top: 16,
-                              child: Image.asset(
-                                'assets/logo.png',
-                                width: 36,
-                                height: 36,
+                              Positioned(
+                                left: 16,
+                                top: 16,
+                                child: Image.asset(
+                                  'assets/logo.png',
+                                  width: 36,
+                                  height: 36,
+                                ),
                               ),
-                            ),
-                          ],
-                        );
-                      },
+                            ],
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                  // مؤشر النقاط
-                  Positioned(
-                    bottom: 8,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        bannerImages.length,
-                        (index) => AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          margin: const EdgeInsets.symmetric(horizontal: 3),
-                          width: _currentBanner == index ? 18 : 7,
-                          height: 7,
-                          decoration: BoxDecoration(
-                            color: _currentBanner == index
-                                ? primaryColor
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.white, width: 1),
+                    // مؤشر النقاط
+                    Positioned(
+                      bottom: 8,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          bannerImages.length,
+                          (index) => AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            width: _currentBanner == index ? 18 : 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: _currentBanner == index
+                                  ? primaryColor
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.white, width: 1),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
+            // ... هنا يمكنك إضافة المزيد من SliverList أو SliverGrid لعرض المنتجات ...
           ],
         ),
       ),

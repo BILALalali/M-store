@@ -62,7 +62,7 @@ class LoginScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 18),
                   const Text(
-                    'مرحباً بك في مخزن المصطفى',
+                    'مرحباً بك في مصطفى كوباني',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
