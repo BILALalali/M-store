@@ -3,7 +3,7 @@ import 'home_screen.dart';
 import 'account_screen.dart';
 import 'orders_screen.dart';
 import 'store_screen.dart';
-import 'balance_screen.dart';
+import 'other_services_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -20,7 +20,7 @@ class _MainScreenState extends State<MainScreen> {
     OrdersScreen(),
     HomeScreen(),
     StoreScreen(),
-    BalanceScreen(),
+    OtherServicesScreen(),
   ];
 
   @override
@@ -79,8 +79,8 @@ class _MainScreenState extends State<MainScreen> {
                       primaryColor: primaryColor,
                     ),
                     _buildNavItem(
-                      icon: Icons.account_balance_wallet_outlined,
-                      label: 'شحن أرصدة',
+                      icon: Icons.widgets_outlined, // أيقونة خدمات متنوعة
+                      label: 'خدمات أخرى',
                       index: 4,
                       selected: _currentIndex == 4,
                       primaryColor: primaryColor,

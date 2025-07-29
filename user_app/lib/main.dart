@@ -6,6 +6,7 @@ import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/main_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/services/supabase_service.dart';
+import 'presentation/screens/other_services_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +29,14 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const RegisterScreen(),
         '/home': (context) => HomeScreen(),
         '/main': (context) => MainScreen(),
+        '/service1': (context) =>
+            const OtherServicePlaceholderScreen(title: 'دفع فاتورة'),
+        '/service2': (context) =>
+            const OtherServicePlaceholderScreen(title: 'تحويل رصيد'),
+        '/service3': (context) =>
+            const OtherServicePlaceholderScreen(title: 'شحن رصيد'),
+        '/service4': (context) =>
+            const OtherServicePlaceholderScreen(title: 'تبرع'),
       },
       locale: const Locale('ar'),
       supportedLocales: const [Locale('ar')],
