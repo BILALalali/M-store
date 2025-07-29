@@ -67,6 +67,8 @@ class _MainScreenState extends State<MainScreen> {
                       index: 1,
                       selected: _currentIndex == 1,
                       primaryColor: primaryColor,
+                      badge: OrdersScreen.pendingProducts.length,
+                      hasPendingOrders: OrdersScreen.confirmedOrders.isNotEmpty,
                     ),
                     const SizedBox(width: 56), // فراغ لمكان الأيقونة البارزة
                     _buildNavItem(
@@ -129,6 +131,8 @@ class _MainScreenState extends State<MainScreen> {
     required int index,
     required bool selected,
     required Color primaryColor,
+    int badge = 0,
+    bool hasPendingOrders = false,
   }) {
     return Expanded(
       child: InkWell(
@@ -141,10 +145,52 @@ class _MainScreenState extends State<MainScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                size: 26,
-                color: selected ? primaryColor : Colors.black54,
+              Stack(
+                children: [
+                  Icon(
+                    icon,
+                    size: 26,
+                    color: selected ? primaryColor : Colors.black54,
+                  ),
+                  if (badge > 0)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          badge.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  if (hasPendingOrders && badge == 0)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: Colors.orange,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 2),
               Text(

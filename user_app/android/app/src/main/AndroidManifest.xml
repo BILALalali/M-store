@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="AL-MOSTAFA COMBANY"
+        android:label="AL-MOSTAFA COMPANY"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -13,10 +13,27 @@ class _ChatScreenState extends State<ChatScreen> {
   static const Color primaryColor = Color(0xFF1EC6D9);
   static const Color backgroundColor = Color(0xFFF7F7F7);
   final TextEditingController _controller = TextEditingController();
-  final List<String> messages = [
-    'مرحباً، تم استلام طلبك وسيتم التواصل معك قريباً.',
-    'شكرًا لكم، بانتظار التأكيد.',
-  ];
+  // أول رسالة: تفاصيل الطلب من المستخدم
+  late List<Map<String, dynamic>> messages;
+
+  @override
+  void initState() {
+    super.initState();
+    messages = [
+      {
+        'text': '''السلام عليكم، أود طلب المنتجات التالية:
+المنتجات: ${widget.order.productName}''',
+        'isUser': true,
+        'isFirst': true,
+      },
+      // رسالة رد من الإدارة (محاكاة)
+      {
+        'text': 'مرحباً، شكراً لطلبك. سنقوم بمراجعة الطلب والرد عليك قريباً.',
+        'isUser': false,
+        'isAdmin': true,
+      },
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,11 +54,12 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             Text(
-              widget.order.userName,
-              style: const TextStyle(
+              _getStatusText(widget.order.status),
+              style: TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 13,
-                color: Colors.white70,
+                color: _getStatusColor(widget.order.status).withOpacity(0.8),
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
@@ -49,22 +67,9 @@ class _ChatScreenState extends State<ChatScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: Row(
-              children: [
-                Icon(
-                  _getStatusIcon(widget.order.status),
-                  color: _getStatusColor(widget.order.status),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  _getStatusText(widget.order.status),
-                  style: TextStyle(
-                    color: _getStatusColor(widget.order.status),
-                    fontFamily: 'Cairo',
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+            child: Icon(
+              _getStatusIcon(widget.order.status),
+              color: _getStatusColor(widget.order.status),
             ),
           ),
         ],
@@ -76,7 +81,7 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.all(16),
               itemCount: messages.length,
               itemBuilder: (context, index) {
-                final isUser = index % 2 == 1;
+                final isUser = messages[index]['isUser'] == true;
                 return Align(
                   alignment: isUser
                       ? Alignment.centerRight
@@ -93,10 +98,33 @@ class _ChatScreenState extends State<ChatScreen> {
                           : Colors.white,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      messages[index],
-                      style: const TextStyle(fontFamily: 'Cairo'),
-                    ),
+                    child: messages[index]['isFirst'] == true
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'السلام عليكم، أود طلب المنتجات التالية:',
+                                style: const TextStyle(fontFamily: 'Cairo'),
+                              ),
+                              Text(
+                                'المنتجات: ${widget.order.productName}',
+                                style: const TextStyle(fontFamily: 'Cairo'),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'يرجى مراجعة تفاصيل الطلب والرد في أقرب وقت ممكن.',
+                                style: const TextStyle(
+                                  fontFamily: 'Cairo',
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Text(
+                            messages[index]['text'],
+                            style: const TextStyle(fontFamily: 'Cairo'),
+                          ),
                   ),
                 );
               },
@@ -123,7 +151,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   onPressed: () {
                     if (_controller.text.trim().isNotEmpty) {
                       setState(() {
-                        messages.add(_controller.text.trim());
+                        messages.add({
+                          'text': _controller.text.trim(),
+                          'isUser': true, // المستخدم هو العميل
+                        });
                         _controller.clear();
                       });
                     }

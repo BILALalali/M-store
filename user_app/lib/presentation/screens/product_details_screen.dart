@@ -265,20 +265,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       ),
                     ),
                     onPressed: () {
-                      // إضافة الطلب إلى قائمة الطلبات
-                      OrdersScreen.orders.add(
-                        Order(
-                          productName: product.name,
-                          productImage: product.images.isNotEmpty
-                              ? product.images.first
-                              : '',
-                          date: DateTime.now(),
-                          status: OrderStatus.pending,
-                          userName: 'المستخدم الحالي',
-                        ),
-                      );
+                      // إضافة المنتج إلى قائمة الطلبات المؤقتة
+                      OrdersScreen.pendingProducts.add(product);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('تم إرسال الطلب بنجاح!')),
+                        const SnackBar(
+                          content: Text('تم إضافة المنتج إلى قائمة الطلب'),
+                          backgroundColor: Colors.green,
+                        ),
                       );
                       Navigator.pop(context, true);
                     },

@@ -62,14 +62,14 @@ class LoginScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 18),
                   const Text(
-                    'مرحباً بك في مصطفى كوباني',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    'مرحباً بك في شركة المصطفى التجارية ',
+                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 6),
                   const Text(
                     'سجل دخولك للوصول لحسابك',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 22),
@@ -80,7 +80,7 @@ class LoginScreen extends StatelessWidget {
                       prefixIcon: const Icon(Icons.email),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 22),
                   TextField(
                     controller: _passwordController,
                     obscureText: true,
@@ -94,7 +94,7 @@ class LoginScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 45),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -146,7 +146,7 @@ class LoginScreen extends StatelessWidget {
                       ),
                       child: const Text(
                         'تسجيل الدخول',
-                        style: TextStyle(fontSize: 16),
+                        style: TextStyle(fontSize: 18),
                       ),
                     ),
                   ),
@@ -156,7 +156,7 @@ class LoginScreen extends StatelessWidget {
                     children: [
                       const Text(
                         'ليس لديك حساب؟',
-                        style: TextStyle(fontSize: 14),
+                        style: TextStyle(fontSize: 16),
                       ),
                       TextButton(
                         onPressed: () {
@@ -164,7 +164,7 @@ class LoginScreen extends StatelessWidget {
                         },
                         child: const Text(
                           'سجل الآن',
-                          style: TextStyle(fontSize: 14),
+                          style: TextStyle(fontSize: 18),
                         ),
                       ),
                     ],
