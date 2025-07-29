@@ -10,9 +10,9 @@ class StoreScreen extends StatefulWidget {
     Product(
       name: 'سامسونج جالاكسي S23',
       images: [
-        'https://images.samsung.com/is/image/samsung/p6pim/levant/galaxy-s23/gallery/levant-galaxy-s23-s911-sm-s911bzgdmea-thumb-535978237',
-        'https://images.samsung.com/is/image/samsung/p6pim/levant/galaxy-s23/gallery/levant-galaxy-s23-s911-sm-s911bzgdmea-2-thumb',
-        'https://images.samsung.com/is/image/samsung/p6pim/levant/galaxy-s23/gallery/levant-galaxy-s23-s911-sm-s911bzgdmea-3-thumb',
+        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9',
+        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?ixlib=rb-4.0.3',
+        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?ixlib=rb-4.0.3&auto=format&fit=crop&w=500',
       ],
       price: 1200.0,
       quantity: 3,
@@ -23,8 +23,8 @@ class StoreScreen extends StatefulWidget {
     Product(
       name: 'شاومي ريدمي نوت 12',
       images: [
-        'https://fdn2.gsmarena.com/vv/pics/xiaomi/xiaomi-redmi-note-12-4g-1.jpg',
-        'https://fdn2.gsmarena.com/vv/pics/xiaomi/xiaomi-redmi-note-12-4g-2.jpg',
+        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9',
+        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?ixlib=rb-4.0.3',
       ],
       price: 350.0,
       quantity: 5,
@@ -35,8 +35,8 @@ class StoreScreen extends StatefulWidget {
     Product(
       name: 'آيفون 14 برو',
       images: [
-        'https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/iphone-14-pro-max-deep-purple-select?wid=940&hei=1112&fmt=png-alpha&.v=1660753619946',
-        'https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/iphone-14-pro-max-silver-select?wid=940&hei=1112&fmt=png-alpha&.v=1660753619946',
+        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9',
+        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?ixlib=rb-4.0.3',
       ],
       price: 1800.0,
       quantity: 2,
@@ -48,7 +48,7 @@ class StoreScreen extends StatefulWidget {
       name: 'كفر شفاف آيفون',
       images: [
         'https://images.unsplash.com/photo-1517336714731-489689fd1ca8',
-        'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?2',
+        'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?ixlib=rb-4.0.3',
       ],
       price: 10.0,
       quantity: 10,
@@ -58,7 +58,7 @@ class StoreScreen extends StatefulWidget {
     ),
     Product(
       name: 'شاحن سريع 25W',
-      images: ['https://images.unsplash.com/photo-1510557880182-3d4d3c1b3ed4'],
+      images: ['https://images.unsplash.com/photo-1519125323398-675f0ddb6308'],
       price: 20.0,
       quantity: 7,
       category: 'شواحن وكوابل',
@@ -68,7 +68,7 @@ class StoreScreen extends StatefulWidget {
       name: 'سماعة بلوتوث',
       images: [
         'https://images.unsplash.com/photo-1511367461989-f85a21fda167',
-        'https://images.unsplash.com/photo-1511367461989-f85a21fda167?2',
+        'https://images.unsplash.com/photo-1511367461989-f85a21fda167?ixlib=rb-4.0.3',
       ],
       price: 35.0,
       quantity: 5,
@@ -77,7 +77,7 @@ class StoreScreen extends StatefulWidget {
     ),
     Product(
       name: 'بطاقة شحن MTN 5000',
-      images: ['https://cdn-icons-png.flaticon.com/512/1041/1041916.png'],
+      images: ['https://images.unsplash.com/photo-1519125323398-675f0ddb6308'],
       price: 5000.0,
       quantity: 15,
       category: 'بطاقات وشحن رصيد',
@@ -100,16 +100,6 @@ class StoreScreen extends StatefulWidget {
       description: 'حامل عملي لتثبيت الموبايل في السيارة بأمان وسهولة.',
     ),
   ];
-
-  // قائمة صور إعلانات (يمكن تعديلها لاحقاً من قبل الأدمن)
-  List<String> bannerImages = [
-    'https://images.unsplash.com/photo-1465101046530-73398c7f28ca',
-    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9',
-    'https://images.unsplash.com/photo-1517336714731-489689fd1ca8',
-  ];
-
-  int _currentBanner = 0;
-  final PageController _bannerController = PageController();
 
   @override
   State<StoreScreen> createState() => _StoreScreenState();
@@ -167,18 +157,17 @@ class _StoreScreenState extends State<StoreScreen> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final logoSize = screenWidth * 0.12; // 12% من عرض الشاشة
-    final productImageHeight = screenWidth * 0.24; // 24% من عرض الشاشة
-    final fontSizeTitle = screenWidth * 0.048; // 4.8% من عرض الشاشة
-    final fontSizeBody = screenWidth * 0.038; // 3.8% من عرض الشاشة
+    final logoSize = screenWidth * 0.12;
+    final fontSizeTitle = screenWidth * 0.048;
+
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            // Sliver: بانر إعلانات (غير ثابت)
-            SliverToBoxAdapter(
-              child: Padding(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              // Header
+              Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -190,7 +179,7 @@ class _StoreScreenState extends State<StoreScreen> {
                           style: TextStyle(
                             fontSize: fontSizeTitle + 2,
                             fontWeight: FontWeight.bold,
-                            color: const Color(0xFF1EC6D9),
+                            color: primaryColor,
                             fontFamily: 'Cairo',
                           ),
                           textAlign: TextAlign.center,
@@ -209,13 +198,13 @@ class _StoreScreenState extends State<StoreScreen> {
                   ],
                 ),
               ),
-            ),
-            // الخطأ هنا: SizedBox(height: 18), يجب إحاطته بـ SliverToBoxAdapter
-            SliverToBoxAdapter(child: SizedBox(height: 18)),
-            // الخطأ هنا: SizedBox(...) يجب إحاطته بـ SliverToBoxAdapter
-            SliverToBoxAdapter(
-              child: SizedBox(
+
+              const SizedBox(height: 18),
+
+              // Banner
+              Container(
                 height: 120,
+                margin: const EdgeInsets.symmetric(horizontal: 16),
                 child: Stack(
                   alignment: Alignment.bottomCenter,
                   children: [
@@ -234,6 +223,15 @@ class _StoreScreenState extends State<StoreScreen> {
                               Image.network(
                                 bannerImages[index],
                                 fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Container(
+                                      color: beigeColor,
+                                      child: const Icon(
+                                        Icons.image,
+                                        size: 40,
+                                        color: primaryColor,
+                                      ),
+                                    ),
                               ),
                               Container(
                                 decoration: BoxDecoration(
@@ -288,9 +286,97 @@ class _StoreScreenState extends State<StoreScreen> {
                   ],
                 ),
               ),
-            ),
-            // ... هنا يمكنك إضافة المزيد من SliverList أو SliverGrid لعرض المنتجات ...
-          ],
+
+              const SizedBox(height: 20),
+
+              // Search Bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'ابحث عن منتج...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                  onChanged: (value) {
+                    setState(() {});
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Categories
+              Container(
+                height: 50,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: categories.length,
+                  itemBuilder: (context, index) {
+                    final category = categories[index];
+                    final isSelected = selectedCategory == category;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: Text(category),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          setState(() {
+                            selectedCategory = category;
+                          });
+                        },
+                        backgroundColor: Colors.white,
+                        selectedColor: primaryColor.withOpacity(0.2),
+                        labelStyle: TextStyle(
+                          color: isSelected ? primaryColor : Colors.black54,
+                          fontFamily: 'Cairo',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Products Grid
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.75,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                  ),
+                  itemCount: filteredProducts.length,
+                  itemBuilder: (context, index) {
+                    final product = filteredProducts[index];
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                ProductDetailsScreen(product: product),
+                          ),
+                        );
+                      },
+                      child: ProductCard(product: product),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -310,6 +396,7 @@ class ProductCard extends StatelessWidget {
     final imageHeight = screenWidth * 0.24;
     final fontSizeTitle = screenWidth * 0.042;
     final fontSizeBody = screenWidth * 0.034;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -331,7 +418,8 @@ class ProductCard extends StatelessWidget {
               topLeft: Radius.circular(16),
               topRight: Radius.circular(16),
             ),
-            child: product.images.isNotEmpty
+            child:
+                (product.images.isNotEmpty && product.images.first.isNotEmpty)
                 ? Image.network(
                     product.images.first,
                     height: imageHeight,
@@ -347,6 +435,17 @@ class ProductCard extends StatelessWidget {
                         color: primaryColor,
                       ),
                     ),
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        height: imageHeight,
+                        width: double.infinity,
+                        color: beigeColor,
+                        child: const Center(
+                          child: CircularProgressIndicator(color: primaryColor),
+                        ),
+                      );
+                    },
                   )
                 : Container(
                     height: imageHeight,
@@ -363,7 +462,7 @@ class ProductCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Text(
-              product.name,
+              product.name.isNotEmpty ? product.name : 'منتج بدون اسم',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: fontSizeTitle,
@@ -376,7 +475,7 @@ class ProductCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2),
             child: Text(
-              product.category,
+              product.category.isNotEmpty ? product.category : 'بدون فئة',
               style: TextStyle(
                 fontSize: fontSizeBody,
                 color: primaryColor,
@@ -402,46 +501,15 @@ class ProductCard extends StatelessWidget {
             child: Text(
               'الكمية: ${product.quantity}',
               style: TextStyle(
-                fontSize: fontSizeBody - 1,
-                color: Colors.black45,
+                fontSize: fontSizeBody,
+                color: Colors.black54,
                 fontFamily: 'Cairo',
               ),
             ),
           ),
+          const SizedBox(height: 8),
         ],
       ),
     );
   }
-}
-
-// كلاس مساعد لجعل الهيدر ثابت
-class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final double minHeight;
-  final double maxHeight;
-  final Widget child;
-
-  _StickyHeaderDelegate({
-    required this.minHeight,
-    required this.maxHeight,
-    required this.child,
-  });
-
-  @override
-  double get minExtent => minHeight;
-
-  @override
-  double get maxExtent => maxHeight;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return child;
-  }
-
-  @override
-  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) =>
-      true;
 }
