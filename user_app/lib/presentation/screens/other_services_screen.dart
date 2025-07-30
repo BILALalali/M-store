@@ -14,7 +14,7 @@ class OtherServicesScreen extends StatelessWidget {
         'title': 'تواصل معنا',
         'icon': Icons.support_agent,
         'color': turquoise,
-        'route': '/service1',
+        'route': '/chat',
       },
       {
         'title': 'تحويل رصيد',

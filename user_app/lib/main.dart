@@ -7,6 +7,7 @@ import 'presentation/screens/main_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/services/supabase_service.dart';
 import 'presentation/screens/other_services_screen.dart';
+import 'presentation/screens/chat_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,9 +35,10 @@ class MyApp extends StatelessWidget {
         '/service2': (context) =>
             const OtherServicePlaceholderScreen(title: 'تحويل رصيد'),
         '/service3': (context) =>
-            const OtherServicePlaceholderScreen(title: 'شحن رصيد'),
+            const OtherServicePlaceholderScreen(title: 'خدمات التوصيل'),
         '/service4': (context) =>
-            const OtherServicePlaceholderScreen(title: 'تبرع'),
+            const OtherServicePlaceholderScreen(title: 'شحن كروت ألعاب'),
+        '/chat': (context) => const ChatScreen(),
       },
       locale: const Locale('ar'),
       supportedLocales: const [Locale('ar')],
