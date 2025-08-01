@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'product_model.dart';
+import 'orders_screen.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
   final Product product;
@@ -55,6 +56,30 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               p.name != widget.product.name,
         )
         .toList();
+  }
+
+  // إضافة المنتج إلى قائمة الطلبات
+  void _addToCart() {
+    // التحقق من أن المنتج غير موجود بالفعل في القائمة
+    if (!OrdersScreen.pendingProducts.contains(widget.product)) {
+      setState(() {
+        OrdersScreen.pendingProducts.add(widget.product);
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم إضافة المنتج إلى قائمة الطلب'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('المنتج موجود بالفعل في قائمة الطلب'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
   }
 
   @override
@@ -312,15 +337,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('تم إضافة المنتج إلى قائمة الطلب'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                    Navigator.pop(context, true);
-                  },
+                  onPressed: _addToCart,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,
                     foregroundColor: Colors.white,
