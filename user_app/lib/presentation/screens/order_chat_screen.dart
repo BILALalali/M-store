@@ -62,10 +62,19 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
   /// إضافة رسالة الترحيب الأولية
   void _initializeWelcomeMessage() {
+    String welcomeMessage;
+
+    if (widget.order.orderType == OrderType.wholesale) {
+      welcomeMessage =
+          'مرحباً! تم استلام طلب الجملة الخاص بك لـ "${widget.order.productName}". سنقوم بمراجعة الطلب والرد عليك في أقرب وقت ممكن.';
+    } else {
+      welcomeMessage =
+          'مرحباً! تم تأكيد طلبك لـ "${widget.order.productName}". انتظر ردنا في أقرب وقت ممكن';
+    }
+
     _messages.add(
       OrderChatMessage(
-        text:
-            'مرحباً! تم تأكيد طلبك لـ "${widget.order.productName}". انتظر ردنا في أقرب وقت ممكن',
+        text: welcomeMessage,
         isFromUser: false,
         timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
         type: MessageType.text,
@@ -101,8 +110,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         setState(() {
           _messages.add(
             OrderChatMessage(
-              text:
-                  'شكراً لك على رسالتك بخصوص طلبك. سنقوم بمتابعة طلبك والرد عليك في أقرب وقت ممكن.',
+              text: 'شكراً لك! سنقوم بمراجعة طلبك والرد عليك قريباً.',
               isFromUser: false,
               timestamp: DateTime.now(),
               type: MessageType.text,
@@ -204,20 +212,53 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         children: [
           CircleAvatar(
             backgroundColor: Colors.white,
-            child: Icon(Icons.shopping_cart, color: primaryColor),
+            child: Icon(
+              widget.order.orderType == OrderType.wholesale
+                  ? Icons.local_shipping
+                  : Icons.shopping_cart,
+              color: primaryColor,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'طلب ${widget.order.productName}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Text(
+                      widget.order.orderType == OrderType.wholesale
+                          ? 'طلب جملة - ${widget.order.productName}'
+                          : 'طلب ${widget.order.productName}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (widget.order.orderType == OrderType.wholesale) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'جملة',
+                          style: TextStyle(
+                            color: Color(0xFF1EC6D9),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Cairo',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 Text(
                   'تاريخ الطلب: ${_formatDate(widget.order.date)}',
@@ -269,21 +310,59 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
   /// بناء صورة المنتج
   Widget _buildProductImage() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Image.network(
-        widget.order.productImage,
-        width: 60,
-        height: 60,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            width: 60,
-            height: 60,
-            color: Colors.grey[300],
-            child: const Icon(Icons.image, color: Colors.grey),
-          );
-        },
+    // التحقق من نوع الصورة (محلية أم شبكة)
+    bool isLocalImage =
+        widget.order.productImage.startsWith('/') ||
+        widget.order.productImage.startsWith('file://');
+
+    return GestureDetector(
+      onTap: () {
+        _showFullScreenImage();
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: isLocalImage
+            ? Image.file(
+                File(widget.order.productImage),
+                width: 60,
+                height: 60,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: 60,
+                    height: 60,
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.image, color: Colors.grey),
+                  );
+                },
+              )
+            : Image.network(
+                widget.order.productImage,
+                width: 60,
+                height: 60,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: 60,
+                    height: 60,
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.image, color: Colors.grey),
+                  );
+                },
+              ),
+      ),
+    );
+  }
+
+  /// عرض الصورة بحجم كامل
+  void _showFullScreenImage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FullScreenImageScreen(
+          imagePath: widget.order.productImage,
+          productName: widget.order.productName,
+        ),
       ),
     );
   }
@@ -298,12 +377,34 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
+        if (widget.order.orderType == OrderType.wholesale &&
+            widget.order.quantity != null) ...[
+          Text(
+            'الكمية: ${widget.order.quantity}',
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF1EC6D9),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+        ],
+        if (widget.order.orderType == OrderType.wholesale &&
+            widget.order.description != null) ...[
+          Text(
+            'الوصف: ${widget.order.description}',
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+        ],
         Text(
           'الحالة: ${_getStatusText(widget.order.status)}',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 12,
             color: _getStatusColor(widget.order.status),
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ],
@@ -561,9 +662,9 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
       case OrderStatus.pending:
         return 'قيد المراجعة';
       case OrderStatus.confirmed:
-        return 'مؤكد';
+        return 'تم التأكيد';
       case OrderStatus.cancelled:
-        return 'ملغي';
+        return 'تم الإلغاء';
     }
   }
 
@@ -577,5 +678,112 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
       case OrderStatus.cancelled:
         return Colors.red;
     }
+  }
+}
+
+/// شاشة عرض الصورة بحجم كامل
+class FullScreenImageScreen extends StatelessWidget {
+  final String imagePath;
+  final String productName;
+
+  const FullScreenImageScreen({
+    super.key,
+    required this.imagePath,
+    required this.productName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // التحقق من نوع الصورة (محلية أم شبكة)
+    bool isLocalImage =
+        imagePath.startsWith('/') || imagePath.startsWith('file://');
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          'صورة المنتج: $productName',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontFamily: 'Cairo',
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          child: isLocalImage
+              ? Image.file(
+                  File(imagePath),
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey[900],
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: Colors.white,
+                              size: 64,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'خطأ في تحميل الصورة',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontFamily: 'Cairo',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                )
+              : Image.network(
+                  imagePath,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey[900],
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: Colors.white,
+                              size: 64,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'خطأ في تحميل الصورة',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontFamily: 'Cairo',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ),
+    );
   }
 }

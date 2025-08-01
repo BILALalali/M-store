@@ -1,5 +1,7 @@
 enum OrderStatus { pending, confirmed, cancelled }
 
+enum OrderType { retail, wholesale }
+
 class Order {
   final String productName;
   final String productImage;
@@ -9,6 +11,9 @@ class Order {
   final OrderStatus status;
   final String userName;
   final bool hasUnreadMessages;
+  final OrderType orderType;
+  final String? description; // للطلبات الجملة
+  final int? quantity; // للطلبات الجملة
 
   Order({
     required this.productName,
@@ -19,5 +24,8 @@ class Order {
     required this.status,
     required this.userName,
     this.hasUnreadMessages = false,
+    this.orderType = OrderType.retail,
+    this.description,
+    this.quantity,
   });
 }

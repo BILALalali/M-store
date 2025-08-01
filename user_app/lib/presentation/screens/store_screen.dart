@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'order_model.dart';
+import 'orders_screen.dart';
 
 class StoreScreen extends StatefulWidget {
   StoreScreen({Key? key}) : super(key: key);
@@ -35,11 +37,33 @@ class _StoreScreenState extends State<StoreScreen> {
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
-      // TODO: إرسال البيانات إلى الخادم
+      // إنشاء طلب جملة جديد
+      final wholesaleOrder = Order(
+        productName: _productNameController.text.trim(),
+        productImage: _selectedImage != null
+            ? _selectedImage!.path
+            : 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9', // صورة افتراضية
+        productId: 'wholesale_${DateTime.now().millisecondsSinceEpoch}',
+        productUrl: '',
+        date: DateTime.now(),
+        status: OrderStatus.pending,
+        userName: 'المستخدم الحالي',
+        orderType: OrderType.wholesale,
+        description: _descriptionController.text.trim(),
+        quantity: int.tryParse(_quantityController.text.trim()) ?? 0,
+      );
+
+      // إضافة الطلب إلى قائمة الطلبات المؤكدة
+      OrdersScreen.confirmedOrders.add(wholesaleOrder);
+
+      // عرض رسالة نجاح
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('تم إرسال طلب الشحنة بنجاح'),
+          content: Text(
+            'تم إرسال طلب الشحنة بنجاح! يمكنك متابعة الطلب من شاشة طلباتي',
+          ),
           backgroundColor: primaryColor,
+          duration: Duration(seconds: 3),
         ),
       );
 

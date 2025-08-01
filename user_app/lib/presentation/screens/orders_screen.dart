@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'order_model.dart';
 import 'order_chat_screen.dart';
 import 'product_model.dart';
+import 'dart:io'; // Added for File
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -480,6 +481,21 @@ class ChatCard extends StatelessWidget {
     }
   }
 
+  Widget _buildProductImage(String imageUrl, double size) {
+    return Image.network(
+      imageUrl,
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => Container(
+        width: size,
+        height: size,
+        color: Colors.grey[200],
+        child: const Icon(Icons.image, size: 28, color: Colors.grey),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -502,6 +518,10 @@ class ChatCard extends StatelessWidget {
               offset: const Offset(0, 2),
             ),
           ],
+          // إضافة حدود مميزة لطلبات الجملة
+          border: order.orderType == OrderType.wholesale
+              ? Border.all(color: const Color(0xFF1EC6D9), width: 2)
+              : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -516,12 +536,16 @@ class ChatCard extends StatelessWidget {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1EC6D9).withOpacity(0.1),
+                        color: order.orderType == OrderType.wholesale
+                            ? const Color(0xFF1EC6D9).withOpacity(0.2)
+                            : const Color(0xFF1EC6D9).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
-                        Icons.chat_bubble_outline,
-                        color: Color(0xFF1EC6D9),
+                      child: Icon(
+                        order.orderType == OrderType.wholesale
+                            ? Icons.local_shipping
+                            : Icons.chat_bubble_outline,
+                        color: const Color(0xFF1EC6D9),
                         size: 24,
                       ),
                     ),
@@ -546,13 +570,39 @@ class ChatCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'طلب بتاريخ ${order.date.day}/${order.date.month}/${order.date.year}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          fontFamily: 'Cairo',
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            'طلب بتاريخ ${order.date.day}/${order.date.month}/${order.date.year}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              fontFamily: 'Cairo',
+                            ),
+                          ),
+                          if (order.orderType == OrderType.wholesale) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1EC6D9),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                'جملة',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Cairo',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -565,6 +615,20 @@ class ChatCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      // إضافة تفاصيل إضافية لطلبات الجملة
+                      if (order.orderType == OrderType.wholesale &&
+                          order.quantity != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'الكمية: ${order.quantity}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF1EC6D9),
+                            fontFamily: 'Cairo',
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -599,42 +663,19 @@ class ChatCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'اضغط لفتح المحادثة',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
+                  order.orderType == OrderType.wholesale
+                      ? 'متابعة طلب الجملة'
+                      : 'فتح المحادثة',
+                  style: const TextStyle(
+                    color: Color(0xFF1EC6D9),
+                    fontWeight: FontWeight.bold,
                     fontFamily: 'Cairo',
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1EC6D9),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.arrow_forward_ios,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                      SizedBox(width: 4),
-                      Text(
-                        'فتح',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontFamily: 'Cairo',
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  color: const Color(0xFF1EC6D9),
+                  size: 16,
                 ),
               ],
             ),
@@ -649,6 +690,7 @@ class OrderCard extends StatelessWidget {
   final Order order;
   final double cardHeight;
   final double imageSize;
+
   const OrderCard({
     super.key,
     required this.order,
@@ -671,7 +713,7 @@ class OrderCard extends StatelessWidget {
   IconData getStatusIcon(OrderStatus status) {
     switch (status) {
       case OrderStatus.confirmed:
-        return Icons.check_box;
+        return Icons.check_circle;
       case OrderStatus.cancelled:
         return Icons.cancel;
       case OrderStatus.pending:
@@ -690,6 +732,59 @@ class OrderCard extends StatelessWidget {
       default:
         return 'قيد الاستجابة';
     }
+  }
+
+  Widget _buildProductImage(
+    String imageUrl,
+    double size,
+    BuildContext context,
+  ) {
+    // التحقق من نوع الصورة (محلية أم شبكة)
+    bool isLocalImage =
+        imageUrl.startsWith('/') || imageUrl.startsWith('file://');
+
+    return GestureDetector(
+      onTap: () {
+        _showFullScreenImage(imageUrl, context);
+      },
+      child: isLocalImage
+          ? Image.file(
+              File(imageUrl),
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: size,
+                height: size,
+                color: Colors.grey[200],
+                child: const Icon(Icons.image, size: 28, color: Colors.grey),
+              ),
+            )
+          : Image.network(
+              imageUrl,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: size,
+                height: size,
+                color: Colors.grey[200],
+                child: const Icon(Icons.image, size: 28, color: Colors.grey),
+              ),
+            ),
+    );
+  }
+
+  void _showFullScreenImage(String imageUrl, BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FullScreenImageScreen(
+          imagePath: imageUrl,
+          productName: order.productName,
+        ),
+      ),
+    );
   }
 
   @override
@@ -754,22 +849,10 @@ class OrderCard extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: order.productImage.isNotEmpty
-                          ? Image.network(
+                          ? _buildProductImage(
                               order.productImage,
-                              width: imageSize,
-                              height: imageSize,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Container(
-                                    width: imageSize,
-                                    height: imageSize,
-                                    color: Colors.grey[200],
-                                    child: const Icon(
-                                      Icons.image,
-                                      size: 28,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
+                              imageSize,
+                              context,
                             )
                           : Container(
                               width: imageSize,
