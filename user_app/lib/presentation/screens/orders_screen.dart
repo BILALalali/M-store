@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'order_model.dart';
-import 'orders_screen.dart';
-import 'chat_screen.dart';
+import 'order_chat_screen.dart';
 import 'product_model.dart';
 
 class OrdersScreen extends StatefulWidget {
@@ -20,7 +19,6 @@ class OrdersScreen extends StatefulWidget {
 class _OrdersScreenState extends State<OrdersScreen> {
   static const Color primaryColor = Color(0xFF1EC6D9);
   static const Color backgroundColor = Color(0xFFF7F7F7);
-  static const Color beigeColor = Color(0xFFF5EEDC);
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +137,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
+                    color: Colors.grey.withValues(alpha: 0.1),
                     blurRadius: 8,
                     offset: const Offset(0, -2),
                   ),
@@ -249,13 +247,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
   bool _hasUnreadMessages() {
     // محاكاة وجود رسائل غير مقروءة
     return OrdersScreen.confirmedOrders.isNotEmpty;
-  }
-
-  void _showConfirmedOrders(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => ConfirmedOrdersScreen()),
-    );
   }
 }
 
@@ -495,7 +486,7 @@ class ChatCard extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => ChatScreen()),
+          MaterialPageRoute(builder: (_) => OrderChatScreen(order: order)),
         );
       },
       child: Container(

@@ -2,19 +2,20 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'order_model.dart';
 
 /// أنواع الرسائل المدعومة
 enum MessageType { text, image }
 
-/// نموذج رسالة المحادثة العامة
-class ChatMessage {
+/// نموذج رسالة المحادثة للطلبات
+class OrderChatMessage {
   final String text;
   final bool isFromUser;
   final DateTime timestamp;
   final MessageType type;
   final String? filePath;
 
-  const ChatMessage({
+  const OrderChatMessage({
     required this.text,
     required this.isFromUser,
     required this.timestamp,
@@ -23,26 +24,28 @@ class ChatMessage {
   });
 }
 
-/// شاشة المحادثة العامة مع فريق الدعم
-class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+/// شاشة محادثة الطلب
+class OrderChatScreen extends StatefulWidget {
+  final Order order;
+
+  const OrderChatScreen({super.key, required this.order});
 
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  State<OrderChatScreen> createState() => _OrderChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _OrderChatScreenState extends State<OrderChatScreen> {
   // Controllers
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _imagePicker = ImagePicker();
 
   // قائمة الرسائل
-  final List<ChatMessage> _messages = [];
+  final List<OrderChatMessage> _messages = [];
 
   // ألوان التطبيق
-  static const Color turquoise = Color(0xFF6FD8E8);
-  static const Color beige = Color(0xFFFAF6EF);
+  static const Color primaryColor = Color(0xFF1EC6D9);
+  static const Color backgroundColor = Color(0xFFF7F7F7);
 
   @override
   void initState() {
@@ -60,8 +63,9 @@ class _ChatScreenState extends State<ChatScreen> {
   /// إضافة رسالة الترحيب الأولية
   void _initializeWelcomeMessage() {
     _messages.add(
-      ChatMessage(
-        text: 'مرحباً! كيف يمكنني مساعدتك اليوم؟',
+      OrderChatMessage(
+        text:
+            'مرحباً! تم تأكيد طلبك لـ "${widget.order.productName}". انتظر ردنا في أقرب وقت ممكن',
         isFromUser: false,
         timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
         type: MessageType.text,
@@ -76,7 +80,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     setState(() {
       _messages.add(
-        ChatMessage(
+        OrderChatMessage(
           text: messageText,
           isFromUser: true,
           timestamp: DateTime.now(),
@@ -96,8 +100,9 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) {
         setState(() {
           _messages.add(
-            ChatMessage(
-              text: 'شكراً لك على رسالتك. سنقوم بالرد عليك في أقرب وقت ممكن.',
+            OrderChatMessage(
+              text:
+                  'شكراً لك على رسالتك بخصوص طلبك. سنقوم بمتابعة طلبك والرد عليك في أقرب وقت ممكن.',
               isFromUser: false,
               timestamp: DateTime.now(),
               type: MessageType.text,
@@ -158,7 +163,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _addImageMessage(String filePath, String text) {
     setState(() {
       _messages.add(
-        ChatMessage(
+        OrderChatMessage(
           text: text,
           isFromUser: true,
           timestamp: DateTime.now(),
@@ -181,9 +186,10 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildAppBar(),
-      backgroundColor: beige,
+      backgroundColor: backgroundColor,
       body: Column(
         children: [
+          _buildOrderInfoCard(),
           Expanded(child: _buildMessagesList()),
           _buildMessageInput(),
         ],
@@ -198,25 +204,31 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           CircleAvatar(
             backgroundColor: Colors.white,
-            child: Icon(Icons.support_agent, color: turquoise),
+            child: Icon(Icons.shopping_cart, color: primaryColor),
           ),
           const SizedBox(width: 12),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'فريق الدعم',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'متصل الآن',
-                style: TextStyle(fontSize: 12, color: Colors.white70),
-              ),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'طلب ${widget.order.productName}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'تاريخ الطلب: ${_formatDate(widget.order.date)}',
+                  style: const TextStyle(fontSize: 12, color: Colors.white70),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-      backgroundColor: turquoise,
+      backgroundColor: primaryColor,
       elevation: 0,
       actions: [
         IconButton(
@@ -224,6 +236,75 @@ class _ChatScreenState extends State<ChatScreen> {
           onPressed: () {
             // يمكن إضافة قائمة خيارات هنا
           },
+        ),
+      ],
+    );
+  }
+
+  /// بناء بطاقة معلومات الطلب
+  Widget _buildOrderInfoCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _buildProductImage(),
+          const SizedBox(width: 12),
+          Expanded(child: _buildProductInfo()),
+        ],
+      ),
+    );
+  }
+
+  /// بناء صورة المنتج
+  Widget _buildProductImage() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.network(
+        widget.order.productImage,
+        width: 60,
+        height: 60,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: 60,
+            height: 60,
+            color: Colors.grey[300],
+            child: const Icon(Icons.image, color: Colors.grey),
+          );
+        },
+      ),
+    );
+  }
+
+  /// بناء معلومات المنتج
+  Widget _buildProductInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.order.productName,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'الحالة: ${_getStatusText(widget.order.status)}',
+          style: TextStyle(
+            fontSize: 14,
+            color: _getStatusColor(widget.order.status),
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
@@ -243,9 +324,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   /// بناء فقاعة الرسالة
-  Widget _buildMessageBubble(ChatMessage message) {
-    const Color turquoiseDark = Color(0xFF3EC6D3);
-
+  Widget _buildMessageBubble(OrderChatMessage message) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -257,7 +336,7 @@ class _ChatScreenState extends State<ChatScreen> {
             _buildAvatar(false),
             const SizedBox(width: 8),
           ],
-          Flexible(child: _buildMessageContent(message, turquoiseDark)),
+          Flexible(child: _buildMessageContent(message)),
           if (message.isFromUser) ...[
             const SizedBox(width: 8),
             _buildAvatar(true),
@@ -271,9 +350,9 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildAvatar(bool isUser) {
     return CircleAvatar(
       radius: 16,
-      backgroundColor: isUser ? const Color(0xFF3EC6D3) : turquoise,
+      backgroundColor: isUser ? primaryColor : primaryColor,
       child: Icon(
-        isUser ? Icons.person : Icons.support_agent,
+        isUser ? Icons.person : Icons.shopping_cart,
         size: 16,
         color: Colors.white,
       ),
@@ -281,11 +360,11 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   /// بناء محتوى الرسالة
-  Widget _buildMessageContent(ChatMessage message, Color turquoiseDark) {
+  Widget _buildMessageContent(OrderChatMessage message) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: message.isFromUser ? turquoiseDark : Colors.white,
+        color: message.isFromUser ? primaryColor : Colors.white,
         borderRadius: BorderRadius.circular(20).copyWith(
           bottomLeft: message.isFromUser
               ? const Radius.circular(20)
@@ -307,14 +386,14 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           _buildMessageText(message),
           const SizedBox(height: 4),
-          _buildMessageTime(message.timestamp, message.isFromUser),
+          _buildMessageTime(message.timestamp),
         ],
       ),
     );
   }
 
   /// بناء نص الرسالة
-  Widget _buildMessageText(ChatMessage message) {
+  Widget _buildMessageText(OrderChatMessage message) {
     if (message.type == MessageType.text) {
       return Text(
         message.text,
@@ -338,13 +417,10 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   /// بناء وقت الرسالة
-  Widget _buildMessageTime(DateTime timestamp, bool isFromUser) {
+  Widget _buildMessageTime(DateTime timestamp) {
     return Text(
       _formatTime(timestamp),
-      style: TextStyle(
-        color: isFromUser ? Colors.white70 : Colors.grey,
-        fontSize: 12,
-      ),
+      style: const TextStyle(color: Colors.grey, fontSize: 12),
     );
   }
 
@@ -419,7 +495,7 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: turquoise,
+          color: primaryColor,
           borderRadius: BorderRadius.circular(25),
         ),
         child: const Icon(Icons.send, color: Colors.white, size: 24),
@@ -471,6 +547,35 @@ class _ChatScreenState extends State<ChatScreen> {
       return 'منذ ${difference.inHours} ساعة';
     } else {
       return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+    }
+  }
+
+  /// تنسيق التاريخ
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  /// الحصول على نص الحالة
+  String _getStatusText(OrderStatus status) {
+    switch (status) {
+      case OrderStatus.pending:
+        return 'قيد المراجعة';
+      case OrderStatus.confirmed:
+        return 'مؤكد';
+      case OrderStatus.cancelled:
+        return 'ملغي';
+    }
+  }
+
+  /// الحصول على لون الحالة
+  Color _getStatusColor(OrderStatus status) {
+    switch (status) {
+      case OrderStatus.pending:
+        return Colors.orange;
+      case OrderStatus.confirmed:
+        return Colors.green;
+      case OrderStatus.cancelled:
+        return Colors.red;
     }
   }
 }
