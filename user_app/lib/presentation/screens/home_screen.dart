@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'product_details_screen.dart';
 import 'product_model.dart';
+import 'util_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   HomeScreen({Key? key}) : super(key: key);
@@ -101,16 +102,6 @@ class HomeScreen extends StatefulWidget {
     ),
   ];
 
-  // قائمة صور إعلانات (يمكن تعديلها لاحقاً من قبل الأدمن)
-  List<String> bannerImages = [
-    'https://images.unsplash.com/photo-1465101046530-73398c7f28ca',
-    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9',
-    'https://images.unsplash.com/photo-1517336714731-489689fd1ca8',
-  ];
-
-  int _currentBanner = 0;
-  final PageController _bannerController = PageController();
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -118,31 +109,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   String selectedCategory = 'الكل';
-
-  // ألوان الهوية البصرية
-  static const Color primaryColor = Color(0xFF1EC6D9); // فيروزي
-  static const Color beigeColor = Color(0xFFF5EEDC); // بيج
-  static const Color backgroundColor = Color(0xFFF7F7F7); // رمادي فاتح
-
-  // قائمة الفئات المتخصصة
-  final List<String> categories = [
-    'الكل',
-    'موبايلات',
-    'كفرات وحمايات',
-    'شواحن وكوابل',
-    'سماعات',
-    'بطاقات وشحن رصيد',
-    'إكسسوارات أخرى',
-  ];
-
-  // متغيرات البانر
-  final List<String> bannerImages = [
-    'https://images.unsplash.com/photo-1465101046530-73398c7f28ca',
-    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9',
-    'https://images.unsplash.com/photo-1517336714731-489689fd1ca8',
-  ];
-  int _currentBanner = 0;
-  final PageController _bannerController = PageController();
 
   // تصفية المنتجات حسب البحث والفئة
   List<Product> get filteredProducts {
@@ -166,146 +132,88 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final logoSize = screenWidth * 0.12; // 12% من عرض الشاشة
-    final productImageHeight = screenWidth * 0.45; // 45% من عرض الشاشة
-    final fontSizeTitle = screenWidth * 0.055; // 5.5% من عرض الشاشة
-    final fontSizeBody = screenWidth * 0.042; // 4.2% من عرض الشاشة
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: UtilScreen.backgroundColor,
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            // Sliver: بانر إعلانات (غير ثابت)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Center(
-                        child: Text(
-                          'AL-MOSTAFA COMPANY',
-                          style: TextStyle(
-                            fontSize: fontSizeTitle,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF1EC6D9),
-                            fontFamily: 'Cairo',
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        'assets/logo.png',
-                        width: logoSize,
-                        height: logoSize,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ],
-                ),
+        child: Column(
+          children: [
+            // الهيدر مع اللوجو (ثابت)
+            Container(
+              height: 70,
+              color: UtilScreen.backgroundColor,
+              child: const AppHeader(),
+            ),
+            // شريط البحث (ثابت)
+            Container(
+              height: 60,
+              color: UtilScreen.backgroundColor,
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: CustomSearchBar(
+                controller: _searchController,
+                onChanged: () => setState(() {}),
               ),
             ),
-            // Sliver: شريط الفئات (ثابت)
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _StickyHeaderDelegate(
-                minHeight: 120,
-                maxHeight: 120,
-                child: Container(
-                  color: backgroundColor,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                    child: Column(
-                      children: [
-                        // شريط الفئات
-                        SizedBox(
-                          height: 40,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: categories.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(width: 8),
-                            itemBuilder: (context, index) {
-                              final cat = categories[index];
-                              final isSelected = cat == selectedCategory;
-                              return ChoiceChip(
-                                label: Text(
-                                  cat,
-                                  style: const TextStyle(fontFamily: 'Cairo'),
-                                ),
-                                selected: isSelected,
-                                onSelected: (_) {
-                                  setState(() => selectedCategory = cat);
-                                },
-                                selectedColor: primaryColor,
-                                backgroundColor: beigeColor,
-                                labelStyle: TextStyle(
-                                  color: isSelected
-                                      ? Colors.white
-                                      : Colors.black,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        // شريط البحث
-                        TextField(
-                          controller: _searchController,
-                          onChanged: (_) => setState(() {}),
-                          decoration: InputDecoration(
-                            hintText: 'ابحث عن منتج أو فئة..',
-                            prefixIcon: const Icon(
-                              Icons.search,
-                              color: primaryColor,
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 0,
-                              horizontal: 16,
-                            ),
-                          ),
-                          style: const TextStyle(fontFamily: 'Cairo'),
-                        ),
-                      ],
+            // المحتوى القابل للتمرير
+            Expanded(
+              child: CustomScrollView(
+                slivers: [
+                  // بانر الإعلانات (غير ثابت)
+                  const SliverToBoxAdapter(child: BannerAds()),
+                  // شريط الفئات (غير ثابت)
+                  SliverToBoxAdapter(
+                    child: Container(
+                      color: UtilScreen.backgroundColor,
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      child: CategoryChips(
+                        selectedCategory: selectedCategory,
+                        onCategoryChanged: (category) {
+                          setState(() => selectedCategory = category);
+                        },
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ),
-            // Sliver: قائمة المنتجات في عمود واحد
-            SliverPadding(
-              padding: const EdgeInsets.all(16.0),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  final product = filteredProducts[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                ProductDetailsScreen(product: product),
-                          ),
-                        );
-                      },
-                      child: ProductCardSingleColumn(product: product),
+                  // الشريط المتحرك للنص (ثابت عند التمرير)
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: StickyHeaderDelegate(
+                      child: Container(
+                        color: UtilScreen.backgroundColor,
+                        child: const ScrollingTextBanner(),
+                      ),
+                      minHeight: 60,
+                      maxHeight: 60,
                     ),
-                  );
-                }, childCount: filteredProducts.length),
+                  ),
+                  // قائمة المنتجات في عمودين
+                  SliverPadding(
+                    padding: const EdgeInsets.all(16.0),
+                    sliver: SliverGrid(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.75,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final product = filteredProducts[index];
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    ProductDetailsScreen(product: product),
+                              ),
+                            );
+                          },
+                          child: ProductCardTwoColumns(product: product),
+                        );
+                      }, childCount: filteredProducts.length),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -313,163 +221,4 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
-
-class ProductCardSingleColumn extends StatelessWidget {
-  final Product product;
-  const ProductCardSingleColumn({super.key, required this.product});
-
-  static const Color primaryColor = Color(0xFF1EC6D9);
-  static const Color beigeColor = Color(0xFFF5EEDC);
-
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final imageHeight = screenWidth * 0.45;
-    final fontSizeTitle = screenWidth * 0.048;
-    final fontSizeBody = screenWidth * 0.038;
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // صورة المنتج
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(16),
-              topRight: Radius.circular(16),
-            ),
-            child: product.images.isNotEmpty
-                ? Image.network(
-                    product.images.first,
-                    height: imageHeight,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: imageHeight,
-                      width: double.infinity,
-                      color: beigeColor,
-                      child: const Icon(
-                        Icons.image,
-                        size: 48,
-                        color: primaryColor,
-                      ),
-                    ),
-                  )
-                : Container(
-                    height: imageHeight,
-                    width: double.infinity,
-                    color: beigeColor,
-                    child: const Icon(
-                      Icons.image,
-                      size: 48,
-                      color: primaryColor,
-                    ),
-                  ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: fontSizeTitle,
-                    fontFamily: 'Cairo',
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  product.category,
-                  style: TextStyle(
-                    fontSize: fontSizeBody,
-                    color: primaryColor,
-                    fontFamily: 'Cairo',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'السعر: ${product.price.toStringAsFixed(1)} ل.س',
-                      style: TextStyle(
-                        fontSize: fontSizeBody,
-                        color: Colors.black87,
-                        fontFamily: 'Cairo',
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      'الكمية: ${product.quantity}',
-                      style: TextStyle(
-                        fontSize: fontSizeBody,
-                        color: Colors.black54,
-                        fontFamily: 'Cairo',
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  product.description,
-                  style: TextStyle(
-                    fontSize: fontSizeBody,
-                    color: Colors.black54,
-                    fontFamily: 'Cairo',
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// كلاس مساعد لجعل الهيدر ثابت
-class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final double minHeight;
-  final double maxHeight;
-  final Widget child;
-
-  _StickyHeaderDelegate({
-    required this.minHeight,
-    required this.maxHeight,
-    required this.child,
-  });
-
-  @override
-  double get minExtent => minHeight;
-
-  @override
-  double get maxExtent => maxHeight;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return child;
-  }
-
-  @override
-  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) =>
-      true;
 }
