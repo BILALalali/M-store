@@ -1,409 +1,305 @@
 import 'package:flutter/material.dart';
-import 'product_details_screen.dart';
-import 'product_model.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class StoreScreen extends StatefulWidget {
   StoreScreen({Key? key}) : super(key: key);
-
-  // قائمة المنتجات متاحة بشكل ثابت
-  static List<Product> get products => [
-    Product(
-      name: 'سامسونج جالاكسي S23',
-      images: [
-        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9',
-        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?ixlib=rb-4.0.3',
-        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?ixlib=rb-4.0.3&auto=format&fit=crop&w=500',
-      ],
-      price: 1200.0,
-      quantity: 3,
-      category: 'موبايلات',
-      description:
-          'هاتف ذكي متطور بشاشة AMOLED وكاميرا عالية الدقة وسعة بطارية كبيرة.',
-    ),
-    Product(
-      name: 'شاومي ريدمي نوت 12',
-      images: [
-        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9',
-        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?ixlib=rb-4.0.3',
-      ],
-      price: 350.0,
-      quantity: 5,
-      category: 'موبايلات',
-      description:
-          'موبايل اقتصادي بشاشة كبيرة وبطارية تدوم طويلاً وكاميرا ثلاثية.',
-    ),
-    Product(
-      name: 'آيفون 14 برو',
-      images: [
-        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9',
-        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?ixlib=rb-4.0.3',
-      ],
-      price: 1800.0,
-      quantity: 2,
-      category: 'موبايلات',
-      description:
-          'أحدث هواتف آبل مع شاشة ProMotion وكاميرا احترافية ومعالج قوي.',
-    ),
-    Product(
-      name: 'كفر شفاف آيفون',
-      images: [
-        'https://images.unsplash.com/photo-1517336714731-489689fd1ca8',
-        'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?ixlib=rb-4.0.3',
-      ],
-      price: 10.0,
-      quantity: 10,
-      category: 'كفرات وحمايات',
-      description:
-          'كفر شفاف عالي الجودة يوفر حماية ممتازة مع الحفاظ على شكل الجهاز.',
-    ),
-    Product(
-      name: 'شاحن سريع 25W',
-      images: ['https://images.unsplash.com/photo-1519125323398-675f0ddb6308'],
-      price: 20.0,
-      quantity: 7,
-      category: 'شواحن وكوابل',
-      description: 'شاحن سريع بقوة 25 واط متوافق مع معظم أجهزة أندرويد.',
-    ),
-    Product(
-      name: 'سماعة بلوتوث',
-      images: [
-        'https://images.unsplash.com/photo-1511367461989-f85a21fda167',
-        'https://images.unsplash.com/photo-1511367461989-f85a21fda167?ixlib=rb-4.0.3',
-      ],
-      price: 35.0,
-      quantity: 5,
-      category: 'سماعات',
-      description: 'سماعة لاسلكية بصوت نقي وعزل ضوضاء ومدة تشغيل طويلة.',
-    ),
-    Product(
-      name: 'بطاقة شحن MTN 5000',
-      images: ['https://images.unsplash.com/photo-1519125323398-675f0ddb6308'],
-      price: 5000.0,
-      quantity: 15,
-      category: 'بطاقات وشحن رصيد',
-      description: 'بطاقة شحن رصيد بقيمة 5000 ل.س لشبكة MTN.',
-    ),
-    Product(
-      name: 'كابل USB-C أصلي',
-      images: ['https://images.unsplash.com/photo-1519125323398-675f0ddb6308'],
-      price: 8.0,
-      quantity: 20,
-      category: 'شواحن وكوابل',
-      description: 'كابل USB-C أصلي لنقل البيانات والشحن السريع.',
-    ),
-    Product(
-      name: 'حامل موبايل للسيارة',
-      images: ['https://images.unsplash.com/photo-1509395176047-4a66953fd231'],
-      price: 15.0,
-      quantity: 8,
-      category: 'إكسسوارات أخرى',
-      description: 'حامل عملي لتثبيت الموبايل في السيارة بأمان وسهولة.',
-    ),
-  ];
 
   @override
   State<StoreScreen> createState() => _StoreScreenState();
 }
 
 class _StoreScreenState extends State<StoreScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  String selectedCategory = 'الكل';
+  final _formKey = GlobalKey<FormState>();
+  final _productNameController = TextEditingController();
+  final _quantityController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  File? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
 
   // ألوان الهوية البصرية
   static const Color primaryColor = Color(0xFF1EC6D9); // فيروزي
-  static const Color beigeColor = Color(0xFFF5EEDC); // بيج
-  static const Color backgroundColor = Color(0xFFF7F7F7); // رمادي فاتح
+  static const Color accentColor = Color(0xFF2E3A59); // أزرق داكن
+  static const Color backgroundColor = Color(0xFFF8F9FA); // رمادي فاتح
+  static const Color cardColor = Color(0xFFFFFFFF); // أبيض
+  static const Color textColor = Color(0xFF2C3E50); // رمادي داكن
 
-  // قائمة الفئات المتخصصة
-  final List<String> categories = [
-    'الكل',
-    'موبايلات',
-    'كفرات وحمايات',
-    'شواحن وكوابل',
-    'سماعات',
-    'بطاقات وشحن رصيد',
-    'إكسسوارات أخرى',
-  ];
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() {
+        _selectedImage = File(image.path);
+      });
+    }
+  }
 
-  // متغيرات البانر
-  final List<String> bannerImages = [
-    'https://images.unsplash.com/photo-1465101046530-73398c7f28ca',
-    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9',
-    'https://images.unsplash.com/photo-1517336714731-489689fd1ca8',
-  ];
-  int _currentBanner = 0;
-  final PageController _bannerController = PageController();
+  void _submitForm() {
+    if (_formKey.currentState!.validate()) {
+      // TODO: إرسال البيانات إلى الخادم
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم إرسال طلب الشحنة بنجاح'),
+          backgroundColor: primaryColor,
+        ),
+      );
 
-  // تصفية المنتجات حسب البحث والفئة
-  List<Product> get filteredProducts {
-    String search = _searchController.text.trim();
-    return StoreScreen.products.where((product) {
-      final matchesCategory =
-          selectedCategory == 'الكل' || product.category == selectedCategory;
-      final matchesSearch =
-          search.isEmpty ||
-          product.name.contains(search) ||
-          product.category.contains(search);
-      return matchesCategory && matchesSearch;
-    }).toList();
+      // تفريغ النموذج
+      _formKey.currentState!.reset();
+      setState(() {
+        _selectedImage = null;
+      });
+    }
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _productNameController.dispose();
+    _quantityController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final logoSize = screenWidth * 0.12;
-    final fontSizeTitle = screenWidth * 0.048;
-
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Center(
-                        child: Text(
-                          'AL-MOSTAFA COMPANY',
-                          style: TextStyle(
-                            fontSize: fontSizeTitle + 2,
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor,
-                            fontFamily: 'Cairo',
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
+          padding: const EdgeInsets.all(20),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // العنوان الرئيسي
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [primaryColor, accentColor],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primaryColor.withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
                       ),
-                    ),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        'assets/logo.png',
-                        width: logoSize,
-                        height: logoSize,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 18),
-
-              // Banner
-              Container(
-                height: 120,
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                child: Stack(
-                  alignment: Alignment.bottomCenter,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
-                      child: PageView.builder(
-                        controller: _bannerController,
-                        itemCount: bannerImages.length,
-                        onPageChanged: (index) {
-                          setState(() => _currentBanner = index);
-                        },
-                        itemBuilder: (context, index) {
-                          return Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              Image.network(
-                                bannerImages[index],
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    Container(
-                                      color: beigeColor,
-                                      child: const Icon(
-                                        Icons.image,
-                                        size: 40,
-                                        color: primaryColor,
-                                      ),
-                                    ),
-                              ),
-                              Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(18),
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.black.withOpacity(0.25),
-                                      Colors.transparent,
-                                    ],
-                                    begin: Alignment.bottomCenter,
-                                    end: Alignment.topCenter,
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                left: 16,
-                                top: 16,
-                                child: Image.asset(
-                                  'assets/logo.png',
-                                  width: 36,
-                                  height: 36,
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-                    // مؤشر النقاط
-                    Positioned(
-                      bottom: 8,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(
-                          bannerImages.length,
-                          (index) => AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            width: _currentBanner == index ? 18 : 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              color: _currentBanner == index
-                                  ? primaryColor
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.white, width: 1),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Search Bar
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'ابحث عن منتج...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
+                    ],
                   ),
-                  onChanged: (value) {
-                    setState(() {});
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Categories
-              Container(
-                height: 50,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: categories.length,
-                  itemBuilder: (context, index) {
-                    final category = categories[index];
-                    final isSelected = selectedCategory == category;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        label: Text(category),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          setState(() {
-                            selectedCategory = category;
-                          });
-                        },
-                        backgroundColor: Colors.white,
-                        selectedColor: primaryColor.withOpacity(0.2),
-                        labelStyle: TextStyle(
-                          color: isSelected ? primaryColor : Colors.black54,
+                  child: Column(
+                    children: [
+                      const Icon(
+                        Icons.local_shipping,
+                        size: 48,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'اطلب شحنة الجملة',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                           fontFamily: 'Cairo',
                         ),
                       ),
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Products Grid
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.75,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
+                      const SizedBox(height: 8),
+                      const Text(
+                        'املأ النموذج أدناه لطلب شحنة الجملة المطلوبة',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white70,
+                          fontFamily: 'Cairo',
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
-                  itemCount: filteredProducts.length,
-                  itemBuilder: (context, index) {
-                    final product = filteredProducts[index];
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                ProductDetailsScreen(product: product),
-                          ),
-                        );
-                      },
-                      child: ProductCard(product: product),
-                    );
+                ),
+
+                const SizedBox(height: 32),
+
+                // حقل اسم المنتج
+                _buildTextField(
+                  controller: _productNameController,
+                  label: 'اسم المنتج',
+                  hint: 'أدخل اسم المنتج المطلوب',
+                  icon: Icons.inventory,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'يرجى إدخال اسم المنتج';
+                    }
+                    return null;
                   },
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 20),
+
+                // حقل الكمية
+                _buildTextField(
+                  controller: _quantityController,
+                  label: 'الكمية المطلوبة',
+                  hint: 'أدخل الكمية المطلوبة',
+                  icon: Icons.numbers,
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'يرجى إدخال الكمية المطلوبة';
+                    }
+                    if (int.tryParse(value) == null) {
+                      return 'يرجى إدخال رقم صحيح';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 20),
+
+                // حقل الوصف
+                _buildTextField(
+                  controller: _descriptionController,
+                  label: 'وصف المنتج',
+                  hint: 'أدخل وصفاً مفصلاً للمنتج المطلوب',
+                  icon: Icons.description,
+                  maxLines: 4,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'يرجى إدخال وصف المنتج';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 20),
+
+                // حقل رفع الصورة
+                _buildImagePicker(),
+
+                const SizedBox(height: 32),
+
+                // زر الإرسال
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _submitForm,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 4,
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.send, size: 24),
+                        SizedBox(width: 12),
+                        Text(
+                          'إرسال طلب الشحنة',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Cairo',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // معلومات إضافية
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: primaryColor.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: primaryColor, size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'سيتم التواصل معك خلال 24 ساعة لتأكيد الطلب وتحديد التفاصيل',
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 14,
+                            fontFamily: 'Cairo',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
-}
 
-class ProductCard extends StatelessWidget {
-  final Product product;
-  const ProductCard({super.key, required this.product});
-
-  static const Color primaryColor = Color(0xFF1EC6D9);
-  static const Color beigeColor = Color(0xFFF5EEDC);
-
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final imageHeight = screenWidth * 0.24;
-    final fontSizeTitle = screenWidth * 0.042;
-    final fontSizeBody = screenWidth * 0.034;
-
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    TextInputType? keyboardType,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+  }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        maxLines: maxLines,
+        validator: validator,
+        style: const TextStyle(color: textColor, fontFamily: 'Cairo'),
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          prefixIcon: Icon(icon, color: primaryColor),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.transparent,
+          labelStyle: const TextStyle(color: primaryColor, fontFamily: 'Cairo'),
+          hintStyle: TextStyle(color: Colors.grey[400], fontFamily: 'Cairo'),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImagePicker() {
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -412,102 +308,88 @@ class ProductCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // صورة المنتج
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(16),
-              topRight: Radius.circular(16),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.image, color: primaryColor),
+                const SizedBox(width: 12),
+                const Text(
+                  'صورة مشابهة للمنتج (اختياري)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                    fontFamily: 'Cairo',
+                  ),
+                ),
+              ],
             ),
-            child:
-                (product.images.isNotEmpty && product.images.first.isNotEmpty)
-                ? Image.network(
-                    product.images.first,
-                    height: imageHeight,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: imageHeight,
+          ),
+          if (_selectedImage != null) ...[
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(
+                      _selectedImage!,
                       width: double.infinity,
-                      color: beigeColor,
-                      child: const Icon(
-                        Icons.image,
-                        size: 40,
-                        color: primaryColor,
-                      ),
-                    ),
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        height: imageHeight,
-                        width: double.infinity,
-                        color: beigeColor,
-                        child: const Center(
-                          child: CircularProgressIndicator(color: primaryColor),
-                        ),
-                      );
-                    },
-                  )
-                : Container(
-                    height: imageHeight,
-                    width: double.infinity,
-                    color: beigeColor,
-                    child: const Icon(
-                      Icons.image,
-                      size: 40,
-                      color: primaryColor,
+                      height: 200,
+                      fit: BoxFit.cover,
                     ),
                   ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Text(
-              product.name.isNotEmpty ? product.name : 'منتج بدون اسم',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: fontSizeTitle,
-                fontFamily: 'Cairo',
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2),
-            child: Text(
-              product.category.isNotEmpty ? product.category : 'بدون فئة',
-              style: TextStyle(
-                fontSize: fontSizeBody,
-                color: primaryColor,
-                fontFamily: 'Cairo',
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Text(
-              'السعر: ${product.price.toStringAsFixed(1)} ل.س',
-              style: TextStyle(
-                fontSize: fontSizeBody,
-                color: Colors.black54,
-                fontFamily: 'Cairo',
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedImage = null;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
+            const SizedBox(height: 16),
+          ],
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Text(
-              'الكمية: ${product.quantity}',
-              style: TextStyle(
-                fontSize: fontSizeBody,
-                color: Colors.black54,
-                fontFamily: 'Cairo',
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _pickImage,
+                icon: const Icon(Icons.add_photo_alternate),
+                label: Text(
+                  _selectedImage == null ? 'اختر صورة' : 'تغيير الصورة',
+                  style: const TextStyle(fontFamily: 'Cairo'),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: primaryColor,
+                  side: BorderSide(color: primaryColor),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 8),
         ],
       ),
     );

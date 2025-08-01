@@ -133,7 +133,7 @@ class _AccountScreenState extends State<AccountScreen> {
       print('--- رفع الصورة إلى Storage ---');
       final storageResponse = await SupabaseService.client.storage
           .from('avatars')
-          .upload(filePath, image);
+          .upload(filePath, image as dynamic);
       print('storage upload response: $storageResponse');
       final publicUrl = SupabaseService.client.storage
           .from('avatars')

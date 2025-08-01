@@ -1,43 +1,54 @@
 import 'package:flutter/material.dart';
 import 'product_model.dart';
-import 'store_screen.dart';
-import 'order_model.dart';
-import 'orders_screen.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
   final Product product;
-  const ProductDetailsScreen({super.key, required this.product});
+  const ProductDetailsScreen({Key? key, required this.product})
+    : super(key: key);
 
   @override
   State<ProductDetailsScreen> createState() => _ProductDetailsScreenState();
 }
 
 class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
-  static const Color primaryColor = Color(0xFF1EC6D9);
-  static const Color beigeColor = Color(0xFFF5EEDC);
+  int _currentImage = 0;
+  final PageController _pageController = PageController();
   static const Color backgroundColor = Color(0xFFF7F7F7);
 
-  int _currentImage = 0;
-  late final PageController _pageController;
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController();
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
+  // قائمة المنتجات الوهمية للمنتجات المشابهة
+  static List<Product> get mockProducts => [
+    Product(
+      name: 'سامسونج جالاكسي S23',
+      images: [
+        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9',
+        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?ixlib=rb-4.0.3',
+      ],
+      price: 1200.0,
+      quantity: 3,
+      category: 'موبايلات',
+      description: 'هاتف ذكي متطور بشاشة AMOLED وكاميرا عالية الدقة.',
+    ),
+    Product(
+      name: 'شاومي ريدمي نوت 12',
+      images: ['https://images.unsplash.com/photo-1511707171634-5f897ff02aa9'],
+      price: 350.0,
+      quantity: 5,
+      category: 'موبايلات',
+      description: 'موبايل اقتصادي بشاشة كبيرة وبطارية تدوم طويلاً.',
+    ),
+    Product(
+      name: 'كفر شفاف آيفون',
+      images: ['https://images.unsplash.com/photo-1517336714731-489689fd1ca8'],
+      price: 10.0,
+      quantity: 10,
+      category: 'كفرات وحمايات',
+      description: 'كفر شفاف عالي الجودة يوفر حماية ممتازة.',
+    ),
+  ];
 
   // جلب المنتجات المشابهة من نفس الفئة (عدا المنتج الحالي)
   List<Product> getSimilarProducts() {
-    // استيراد المنتجات من StoreScreen (يفترض أن المنتجات متاحة بشكل ثابت)
-    // هنا سنستخدم نفس منطق المنتجات الوهمية
-    final allProducts = StoreScreen.products;
-    return allProducts
+    return mockProducts
         .where(
           (p) =>
               p.category == widget.product.category &&
@@ -133,9 +144,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     // صور مصغرة
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(product.images.length, (index) {
-                        final imageUrl = product.images[index];
-                        return GestureDetector(
+                      children: List.generate(
+                        product.images.length,
+                        (index) => GestureDetector(
                           onTap: () {
                             _pageController.animateToPage(
                               index,
@@ -145,31 +156,26 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           },
                           child: Container(
                             margin: const EdgeInsets.symmetric(horizontal: 4),
-                            padding: _currentImage == index
-                                ? const EdgeInsets.all(2)
-                                : EdgeInsets.zero,
+                            width: thumbSize,
+                            height: thumbSize,
                             decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
                               border: Border.all(
                                 color: _currentImage == index
                                     ? primaryColor
-                                    : Colors.transparent,
+                                    : Colors.grey[300]!,
                                 width: 2,
                               ),
-                              borderRadius: BorderRadius.circular(8),
                             ),
                             child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: imageUrl.isNotEmpty
+                              borderRadius: BorderRadius.circular(6),
+                              child: product.images[index].isNotEmpty
                                   ? Image.network(
-                                      imageUrl,
-                                      width: thumbSize,
-                                      height: thumbSize,
+                                      product.images[index],
                                       fit: BoxFit.cover,
                                       errorBuilder:
                                           (context, error, stackTrace) =>
                                               Container(
-                                                width: thumbSize,
-                                                height: thumbSize,
                                                 color: beigeColor,
                                                 child: const Icon(
                                                   Icons.image,
@@ -179,8 +185,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                               ),
                                     )
                                   : Container(
-                                      width: thumbSize,
-                                      height: thumbSize,
                                       color: beigeColor,
                                       child: const Icon(
                                         Icons.image,
@@ -190,98 +194,147 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                     ),
                             ),
                           ),
-                        );
-                      }),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
-              Text(
-                product.name,
-                style: TextStyle(
-                  fontSize: screenWidth * 0.055,
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
-                  fontFamily: 'Cairo',
+              // معلومات المنتج
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'الفئة: ${product.category}',
-                style: TextStyle(
-                  fontSize: screenWidth * 0.042,
-                  color: Colors.black54,
-                  fontFamily: 'Cairo',
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'السعر: ${product.price.toStringAsFixed(1)} ل.س',
-                style: TextStyle(
-                  fontSize: screenWidth * 0.048,
-                  color: Colors.black87,
-                  fontFamily: 'Cairo',
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'الكمية المتوفرة: ${product.quantity}',
-                style: TextStyle(
-                  fontSize: screenWidth * 0.042,
-                  color: Colors.black45,
-                  fontFamily: 'Cairo',
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'الوصف:',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
-                  fontFamily: 'Cairo',
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                product.description,
-                style: TextStyle(
-                  fontSize: screenWidth * 0.042,
-                  color: Colors.black87,
-                  fontFamily: 'Cairo',
-                ),
-              ),
-              const SizedBox(height: 32),
-              Center(
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryColor,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.048,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                        fontFamily: 'Cairo',
                       ),
                     ),
-                    onPressed: () {
-                      // إضافة المنتج إلى قائمة الطلبات المؤقتة
-                      OrdersScreen.pendingProducts.add(product);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('تم إضافة المنتج إلى قائمة الطلب'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                      Navigator.pop(context, true);
-                    },
-                    child: const Text(
-                      'شراء الآن',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontFamily: 'Cairo',
-                        color: Colors.white,
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
                       ),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        product.category,
+                        style: const TextStyle(
+                          color: primaryColor,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Cairo',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.attach_money,
+                          color: primaryColor,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${product.price.toStringAsFixed(1)} ل.س',
+                          style: TextStyle(
+                            fontSize: screenWidth * 0.048,
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
+                            fontFamily: 'Cairo',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.inventory,
+                          color: Colors.grey,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'المتوفر: ${product.quantity}',
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontFamily: 'Cairo',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'الوصف:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        fontFamily: 'Cairo',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      product.description,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
+                        fontFamily: 'Cairo',
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              // زر الشراء
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('تم إضافة المنتج إلى قائمة الطلب'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    Navigator.pop(context, true);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 4,
+                  ),
+                  child: const Text(
+                    'شراء الآن',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontFamily: 'Cairo',
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -368,37 +421,32 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                         ),
                                       ),
                               ),
-                              const SizedBox(height: 8),
                               Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6.0,
-                                ),
-                                child: Text(
-                                  p.name,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: screenWidth * 0.034,
-                                    fontFamily: 'Cairo',
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6.0,
-                                ),
-                                child: Text(
-                                  '${p.price.toStringAsFixed(1)} ل.س',
-                                  style: TextStyle(
-                                    fontSize: screenWidth * 0.03,
-                                    color: Colors.black54,
-                                    fontFamily: 'Cairo',
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
+                                padding: const EdgeInsets.all(8.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      p.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        fontFamily: 'Cairo',
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${p.price.toStringAsFixed(1)} ل.س',
+                                      style: const TextStyle(
+                                        color: primaryColor,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                        fontFamily: 'Cairo',
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],

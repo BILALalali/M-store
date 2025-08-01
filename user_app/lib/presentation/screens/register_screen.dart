@@ -60,7 +60,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'avatars/$userId.${DateTime.now().millisecondsSinceEpoch}.$fileExt';
     final storageResponse = await SupabaseService.client.storage
         .from('avatars')
-        .upload(filePath, image);
+        .upload(filePath, image as dynamic);
     if (storageResponse.isEmpty) {
       final publicUrl = SupabaseService.client.storage
           .from('avatars')
