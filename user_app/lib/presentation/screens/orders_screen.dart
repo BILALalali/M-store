@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'order_model.dart';
 import 'order_chat_screen.dart';
 import 'product_model.dart';
-import 'dart:io'; // Added for File
+import 'dart:io';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -17,9 +17,36 @@ class OrdersScreen extends StatefulWidget {
   State<OrdersScreen> createState() => _OrdersScreenState();
 }
 
-class _OrdersScreenState extends State<OrdersScreen> {
+class _OrdersScreenState extends State<OrdersScreen>
+    with TickerProviderStateMixin {
   static const Color primaryColor = Color(0xFF1EC6D9);
   static const Color backgroundColor = Color(0xFFF7F7F7);
+
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    // بدء التحريك إذا كانت هناك رسائل غير مقروءة
+    if (_hasUnreadMessages()) {
+      _pulseController.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +57,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: primaryColor,
+        backgroundColor: const Color.fromARGB(177, 30, 198, 217),
         elevation: 0,
         centerTitle: true,
         title: Row(
@@ -50,152 +77,339 @@ class _OrdersScreenState extends State<OrdersScreen> {
             ),
           ],
         ),
-        actions: [
-          // زر المحادثات
-          IconButton(
-            icon: Stack(
-              children: [
-                const Icon(Icons.chat_bubble_outline, color: Colors.white),
-                if (OrdersScreen.confirmedOrders.isNotEmpty)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: _hasUnreadMessages()
-                            ? Colors.red
-                            : Colors.orange,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => ConfirmedOrdersScreen()),
-              );
-            },
-            tooltip: 'المحادثات',
-          ),
-        ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // قائمة المنتجات المؤقتة
-          Expanded(
-            child: OrdersScreen.pendingProducts.isEmpty
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.shopping_cart_outlined,
-                          size: 64,
-                          color: Colors.grey,
+          Column(
+            children: [
+              // قائمة المنتجات المؤقتة
+              Expanded(
+                child: OrdersScreen.pendingProducts.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.shopping_cart_outlined,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'لا توجد منتجات في قائمة الطلب',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                                fontFamily: 'Cairo',
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            // زر المحادثات في الشاشة الفارغة
+                            if (OrdersScreen.confirmedOrders.isNotEmpty)
+                              Container(
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 32,
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(25),
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              ConfirmedOrdersScreen(),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: 16,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            const Color.fromARGB(
+                                              255,
+                                              46,
+                                              131,
+                                              141,
+                                            ).withOpacity(0.8),
+                                            const Color.fromARGB(
+                                              143,
+                                              30,
+                                              198,
+                                              217,
+                                            ),
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(25),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color.fromARGB(
+                                              255,
+                                              187,
+                                              100,
+                                              100,
+                                            ).withOpacity(0.3),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Stack(
+                                            children: [
+                                              const Icon(
+                                                Icons.forum,
+                                                color: Color.fromARGB(
+                                                  237,
+                                                  227,
+                                                  248,
+                                                  255,
+                                                ),
+                                                size: 24,
+                                              ),
+                                              Positioned(
+                                                right: -3,
+                                                top: -3,
+                                                child: Container(
+                                                  width: 12,
+                                                  height: 12,
+                                                  decoration: BoxDecoration(
+                                                    color: _hasUnreadMessages()
+                                                        ? Colors.red
+                                                        : Colors.orange,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: Colors.white,
+                                                      width: 1.5,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'عرض المحادثات (${OrdersScreen.confirmedOrders.length})',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              fontFamily: 'Cairo',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                        SizedBox(height: 16),
-                        Text(
-                          'لا توجد منتجات في قائمة الطلب',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
-                            fontFamily: 'Cairo',
-                          ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                          horizontal: 8,
                         ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 8,
-                    ),
-                    itemCount: OrdersScreen.pendingProducts.length,
-                    itemBuilder: (context, index) {
-                      final product = OrdersScreen.pendingProducts[index];
-                      return PendingProductCard(
-                        product: product,
-                        cardHeight: cardHeight,
-                        imageSize: imageSize,
-                        onRemove: () {
-                          setState(() {
-                            OrdersScreen.pendingProducts.removeAt(index);
-                          });
+                        itemCount: OrdersScreen.pendingProducts.length,
+                        itemBuilder: (context, index) {
+                          final product = OrdersScreen.pendingProducts[index];
+                          return PendingProductCard(
+                            product: product,
+                            cardHeight: cardHeight,
+                            imageSize: imageSize,
+                            onRemove: () {
+                              setState(() {
+                                OrdersScreen.pendingProducts.removeAt(index);
+                              });
+                            },
+                          );
                         },
-                      );
-                    },
-                  ),
-          ),
-          // زر تأكيد الطلب مع إجمالي المبلغ
-          if (OrdersScreen.pendingProducts.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withValues(alpha: 0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'إجمالي الطلب:',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Cairo',
-                        ),
                       ),
-                      Text(
-                        '${_calculateTotal().toStringAsFixed(2)} ل.س',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: primaryColor,
-                          fontFamily: 'Cairo',
+              ),
+              // زر تأكيد الطلب مع إجمالي المبلغ
+              if (OrdersScreen.pendingProducts.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withValues(alpha: 0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'إجمالي الطلب:',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Cairo',
+                            ),
+                          ),
+                          Text(
+                            '${_calculateTotal().toStringAsFixed(2)} ل.س',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color.fromARGB(255, 51, 116, 123),
+                              fontFamily: 'Cairo',
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () {
+                            _confirmOrder(context);
+                          },
+                          child: const Text(
+                            'تأكيد الطلب',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontFamily: 'Cairo',
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                ),
+            ],
+          ),
+          // أيقونة المحادثة الخارجة من الشاشة
+          Positioned(
+            bottom: OrdersScreen.pendingProducts.isNotEmpty ? 140 : 20,
+            right: 15,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(35),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => ConfirmedOrdersScreen()),
+                  );
+                },
+                child: AnimatedBuilder(
+                  animation: _pulseAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _hasUnreadMessages() ? _pulseAnimation.value : 1.0,
+                      child: Container(
+                        width: 70,
+                        height: 70,
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(35),
+                          border: Border.all(
+                            color: const Color.fromARGB(255, 30, 198, 217),
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
+                              spreadRadius: 0,
+                            ),
+                            BoxShadow(
+                              color: const Color.fromARGB(
+                                188,
+                                177,
+                                241,
+                                249,
+                              ).withOpacity(0.15),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: Stack(
+                          children: [
+                            const Center(
+                              child: Icon(
+                                Icons.forum,
+                                color: Color.fromARGB(198, 75, 188, 202),
+                                size: 49,
+                              ),
+                            ),
+                            // شارة الإشعار الخارجة
+                            if (OrdersScreen.confirmedOrders.isNotEmpty)
+                              Positioned(
+                                right: -3,
+                                top: -3,
+                                child: Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade500,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 3,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.red.withOpacity(0.4),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '${OrdersScreen.confirmedOrders.length}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      onPressed: () {
-                        _confirmOrder(context);
-                      },
-                      child: const Text(
-                        'تأكيد الطلب',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Cairo',
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                    );
+                  },
+                ),
               ),
             ),
+          ),
         ],
       ),
     );
@@ -377,17 +591,32 @@ class ConfirmedOrdersScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1EC6D9),
+        backgroundColor: const Color.fromARGB(255, 76, 130, 136),
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          'المحادثات',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            fontFamily: 'Cairo',
-          ),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.message, color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'المحادثات',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+                fontFamily: 'Cairo',
+              ),
+            ),
+          ],
         ),
       ),
       body: OrdersScreen.confirmedOrders.isEmpty
@@ -395,7 +624,7 @@ class ConfirmedOrdersScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
+                  Icon(Icons.message, size: 64, color: Colors.grey),
                   SizedBox(height: 16),
                   Text(
                     'لا توجد محادثات',
@@ -667,251 +896,20 @@ class ChatCard extends StatelessWidget {
                       ? 'متابعة طلب الجملة'
                       : 'فتح المحادثة',
                   style: const TextStyle(
-                    color: Color(0xFF1EC6D9),
+                    color: Color.fromARGB(255, 48, 161, 169),
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Cairo',
                   ),
                 ),
                 Icon(
                   Icons.arrow_forward_ios,
-                  color: const Color(0xFF1EC6D9),
+                  color: const Color.fromARGB(255, 127, 222, 232),
                   size: 16,
                 ),
               ],
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class OrderCard extends StatelessWidget {
-  final Order order;
-  final double cardHeight;
-  final double imageSize;
-
-  const OrderCard({
-    super.key,
-    required this.order,
-    required this.cardHeight,
-    required this.imageSize,
-  });
-
-  Color getStatusColor(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.confirmed:
-        return Colors.green;
-      case OrderStatus.cancelled:
-        return Colors.red;
-      case OrderStatus.pending:
-      default:
-        return Colors.orange;
-    }
-  }
-
-  IconData getStatusIcon(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.confirmed:
-        return Icons.check_circle;
-      case OrderStatus.cancelled:
-        return Icons.cancel;
-      case OrderStatus.pending:
-      default:
-        return Icons.hourglass_bottom;
-    }
-  }
-
-  String getStatusText(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.confirmed:
-        return 'تم التأكيد';
-      case OrderStatus.cancelled:
-        return 'تم الإلغاء';
-      case OrderStatus.pending:
-      default:
-        return 'قيد الاستجابة';
-    }
-  }
-
-  Widget _buildProductImage(
-    String imageUrl,
-    double size,
-    BuildContext context,
-  ) {
-    // التحقق من نوع الصورة (محلية أم شبكة)
-    bool isLocalImage =
-        imageUrl.startsWith('/') || imageUrl.startsWith('file://');
-
-    return GestureDetector(
-      onTap: () {
-        _showFullScreenImage(imageUrl, context);
-      },
-      child: isLocalImage
-          ? Image.file(
-              File(imageUrl),
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: size,
-                height: size,
-                color: Colors.grey[200],
-                child: const Icon(Icons.image, size: 28, color: Colors.grey),
-              ),
-            )
-          : Image.network(
-              imageUrl,
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: size,
-                height: size,
-                color: Colors.grey[200],
-                child: const Icon(Icons.image, size: 28, color: Colors.grey),
-              ),
-            ),
-    );
-  }
-
-  void _showFullScreenImage(String imageUrl, BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => FullScreenImageScreen(
-          imagePath: imageUrl,
-          productName: order.productName,
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.07),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // دائرة العدد
-          Container(
-            width: imageSize * 0.7,
-            height: imageSize * 0.7,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF44336),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: const Text(
-              '1',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          // تفاصيل الطلب
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        order.productName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          fontFamily: 'Cairo',
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.right,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: order.productImage.isNotEmpty
-                          ? _buildProductImage(
-                              order.productImage,
-                              imageSize,
-                              context,
-                            )
-                          : Container(
-                              width: imageSize,
-                              height: imageSize,
-                              color: Colors.grey[200],
-                              child: const Icon(
-                                Icons.image,
-                                size: 28,
-                                color: Colors.grey,
-                              ),
-                            ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${order.userName} - بائع',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Colors.black54,
-                    fontFamily: 'Cairo',
-                  ),
-                  textAlign: TextAlign.right,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Text(
-                      '${order.date.day}/${order.date.month}/${order.date.year}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.black38,
-                        fontFamily: 'Cairo',
-                      ),
-                    ),
-                    const Spacer(),
-                    Icon(
-                      getStatusIcon(order.status),
-                      color: getStatusColor(order.status),
-                      size: 18,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      getStatusText(order.status),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: getStatusColor(order.status),
-                        fontFamily: 'Cairo',
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
