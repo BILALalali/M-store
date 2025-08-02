@@ -220,21 +220,23 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(
+          Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Text(
-                      widget.order.orderType == OrderType.wholesale
-                          ? 'طلب جملة - ${widget.order.productName}'
-                          : 'طلب ${widget.order.productName}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Text(
+                        widget.order.orderType == OrderType.wholesale
+                            ? 'طلب جملة - ${widget.order.productName}'
+                            : 'طلب ${widget.order.productName}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
                     if (widget.order.orderType == OrderType.wholesale) ...[
                       const SizedBox(width: 8),

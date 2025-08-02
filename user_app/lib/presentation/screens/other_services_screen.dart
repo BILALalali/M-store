@@ -3,95 +3,227 @@ import 'package:flutter/material.dart';
 class OtherServicesScreen extends StatelessWidget {
   const OtherServicesScreen({super.key});
 
+  // ألوان الهوية البصرية - نقلها خارج build method
+  static const Color _primaryColor = Color(0xFF1EC6D9);
+  static const Color _tertiaryColor = Color(0xFF00CED1);
+  static const Color _backgroundColor = Color.fromARGB(255, 241, 240, 235);
+  static const Color _overlayColor = Color.fromARGB(41, 240, 234, 208);
+
+  // قائمة الخدمات - نقلها خارج build method
+  static const List<Map<String, dynamic>> _services = [
+    {'title': 'تواصل معنا', 'icon': Icons.support_agent, 'route': '/chat'},
+    {'title': 'تحويل رصيد', 'icon': Icons.swap_horiz, 'route': '/service2'},
+    {
+      'title': 'خدمات التوصيل',
+      'icon': Icons.local_shipping,
+      'route': '/service3',
+    },
+    {
+      'title': 'شحن كروت ألعاب',
+      'icon': Icons.videogame_asset,
+      'route': '/service4',
+    },
+  ];
+
   @override
   Widget build(BuildContext context) {
-    // ألوان الهوية البصرية
-    const Color turquoise = Color(0xFF6FD8E8);
-    const Color turquoiseDark = Color(0xFF3EC6D3);
-    const Color beige = Color(0xFFFAF6EF);
-    final services = [
-      {
-        'title': 'تواصل معنا',
-        'icon': Icons.support_agent,
-        'color': turquoise,
-        'route': '/chat',
-      },
-      {
-        'title': 'تحويل رصيد',
-        'icon': Icons.swap_horiz,
-        'color': turquoiseDark,
-        'route': '/service2',
-      },
-      {
-        'title': 'خدمات التوصيل',
-        'icon': Icons.local_shipping,
-        'color': turquoise,
-        'route': '/service3',
-      },
-      {
-        'title': 'شحن كروت ألعاب',
-        'icon': Icons.videogame_asset,
-        'color': turquoiseDark,
-        'route': '/service4',
-      },
-    ];
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('خدمات أخرى'),
-        centerTitle: true,
-        backgroundColor: turquoise,
-        elevation: 0,
+      backgroundColor: _backgroundColor,
+      appBar: _buildAppBar(),
+      body: _buildBody(),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      centerTitle: true,
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _tertiaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _tertiaryColor.withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+            child: Icon(Icons.widgets, color: _tertiaryColor, size: 24),
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'خدمات أخرى',
+            style: TextStyle(
+              color: Colors.black87,
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+              fontFamily: 'Cairo',
+            ),
+          ),
+        ],
       ),
-      backgroundColor: beige,
-      body: Center(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final double cardWidth = (constraints.maxWidth - 56) / 2;
-            return Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              alignment: WrapAlignment.center,
-              children: services.map((service) {
-                return Material(
-                  color: service['color'] as Color,
-                  borderRadius: BorderRadius.circular(24),
-                  elevation: 4,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(24),
-                    onTap: () {
-                      Navigator.pushNamed(context, service['route'] as String);
-                    },
-                    child: Container(
-                      width: cardWidth < 160 ? 160 : cardWidth,
-                      height: 180,
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            service['icon'] as IconData,
-                            size: 48,
-                            color: Colors.white,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            service['title'] as String,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
+    );
+  }
+
+  Widget _buildBody() {
+    return Stack(
+      children: [
+        // خلفية بسيطة
+        Container(color: _overlayColor),
+        // المحتوى الرئيسي
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              Expanded(
+                child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 0.7,
                   ),
-                );
-              }).toList(),
-            );
-          },
+                  itemCount: _services.length,
+                  itemBuilder: (context, index) {
+                    final service = _services[index];
+                    return ServiceCard(
+                      title: service['title'] as String,
+                      icon: service['icon'] as IconData,
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        service['route'] as String,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class ServiceCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  static const Color _tertiaryColor = Color(0xFF00CED1);
+
+  const ServiceCard({
+    super.key,
+    required this.title,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _tertiaryColor.withOpacity(0.15), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(children: [_buildIconSection(), _buildButtonSection()]),
+      ),
+    );
+  }
+
+  Widget _buildIconSection() {
+    return Expanded(
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(18),
+          ),
+          color: _tertiaryColor.withOpacity(0.08),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [_buildIcon(), const SizedBox(height: 12), _buildTitle()],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIcon() {
+    return Container(
+      width: 91,
+      height: 101,
+      decoration: BoxDecoration(
+        color: _tertiaryColor.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _tertiaryColor.withOpacity(0.2), width: 1),
+      ),
+      child: Icon(icon, size: 45, color: _tertiaryColor),
+    );
+  }
+
+  Widget _buildTitle() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          color: Colors.black87,
+          fontSize: 21,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'Cairo',
+        ),
+        textAlign: TextAlign.center,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  Widget _buildButtonSection() {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      child: Container(
+        width: double.infinity,
+        height: 32,
+        decoration: BoxDecoration(
+          color: _tertiaryColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: _tertiaryColor.withOpacity(0.3),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Center(
+          child: Text(
+            'استعراض',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Cairo',
+            ),
+          ),
         ),
       ),
     );
@@ -100,18 +232,81 @@ class OtherServicesScreen extends StatelessWidget {
 
 class OtherServicePlaceholderScreen extends StatelessWidget {
   final String title;
+
+  static const Color _backgroundColor = Color.fromARGB(183, 85, 130, 131);
+  static const Color _appBarColor = Color.fromARGB(255, 143, 185, 194);
+  static const Color _accentColor = Color(0xFFE91E63);
+
   const OtherServicePlaceholderScreen({super.key, required this.title});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Text(
-          'صفحة $title (تحت الإنشاء)',
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+      backgroundColor: _backgroundColor,
+      appBar: _buildAppBar(),
+      body: _buildBody(),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: _appBarColor,
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: Colors.white,
+          fontFamily: 'Cairo',
+          fontWeight: FontWeight.bold,
         ),
       ),
+      centerTitle: true,
+      elevation: 0,
+    );
+  }
+
+  Widget _buildBody() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildIconContainer(),
+          const SizedBox(height: 24),
+          _buildTitleText(),
+          const SizedBox(height: 8),
+          _buildSubtitleText(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIconContainer() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _accentColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _accentColor.withOpacity(0.3), width: 2),
+      ),
+      child: const Icon(Icons.construction, size: 64, color: Color(0xFFE91E63)),
+    );
+  }
+
+  Widget _buildTitleText() {
+    return Text(
+      'صفحة $title',
+      style: const TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
+        fontFamily: 'Cairo',
+      ),
+    );
+  }
+
+  Widget _buildSubtitleText() {
+    return const Text(
+      'تحت الإنشاء',
+      style: TextStyle(fontSize: 16, color: Colors.grey, fontFamily: 'Cairo'),
     );
   }
 }

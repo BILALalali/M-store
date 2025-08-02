@@ -12,19 +12,34 @@ class AccountScreen extends StatefulWidget {
 }
 
 class _AccountScreenState extends State<AccountScreen> {
+  // Constants
+  static const Color _primaryColor = Color(0xFF8ED6EC);
+  static const Color _secondaryColor = Color(0xFF23B3C6);
+  static const Color _backgroundColor = Color(0xFFF6F3EA);
+  static const Color _accentColor = Color(0xFFE91E63);
+
+  // State variables
   bool isEditing = false;
   File? _imageFile;
   String? avatarUrl;
   String? userId;
 
-  // إزالة القيم الافتراضية
+  // User data
   String name = '';
   String email = '';
   String phone = '';
   String governorate = '';
   String address = '';
 
-  final List<String> _syrianGovernorates = [
+  // Controllers
+  late TextEditingController nameController;
+  late TextEditingController emailController;
+  late TextEditingController phoneController;
+  late TextEditingController addressController;
+  String? selectedGovernorate;
+
+  // Syrian governorates list
+  static const List<String> _syrianGovernorates = [
     'دمشق',
     'ريف دمشق',
     'حلب',
@@ -41,33 +56,32 @@ class _AccountScreenState extends State<AccountScreen> {
     'القنيطرة',
   ];
 
-  // Controllers
-  late TextEditingController nameController;
-  late TextEditingController emailController;
-  late TextEditingController phoneController;
-  late TextEditingController addressController;
-  String? selectedGovernorate;
-
   @override
   void initState() {
     super.initState();
+    _initializeControllers();
+    _fetchProfile();
+  }
+
+  void _initializeControllers() {
     nameController = TextEditingController();
     emailController = TextEditingController();
     phoneController = TextEditingController();
     addressController = TextEditingController();
     selectedGovernorate = governorate;
-    _fetchProfile();
   }
 
   Future<void> _fetchProfile() async {
     final user = SupabaseService.client.auth.currentUser;
     if (user == null) return;
+
     userId = user.id;
     final data = await SupabaseService.client
         .from('profiles')
         .select()
         .eq('id', user.id)
         .maybeSingle();
+
     if (data != null) {
       setState(() {
         name = data['name'] ?? '';
@@ -76,6 +90,8 @@ class _AccountScreenState extends State<AccountScreen> {
         governorate = data['governorate'] ?? '';
         avatarUrl = data['avatar_url'];
         address = data['address'] ?? '';
+
+        // Update controllers
         nameController.text = name;
         emailController.text = email;
         phoneController.text = phone;
@@ -95,9 +111,10 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Future<void> _saveChanges() async {
     if (userId == null) return;
+
     _showLoadingDialog();
     try {
-      final response = await SupabaseService.client
+      await SupabaseService.client
           .from('profiles')
           .update({
             'name': nameController.text,
@@ -106,44 +123,46 @@ class _AccountScreenState extends State<AccountScreen> {
             'address': addressController.text,
           })
           .eq('id', userId);
-      print('update response: ' + response.toString());
+
       await _fetchProfile();
       Navigator.of(context).pop();
       setState(() {
         isEditing = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('تم حفظ التعديلات بنجاح!')));
+
+      _showSuccessMessage('تم حفظ التعديلات بنجاح!');
     } catch (e) {
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء الحفظ: $e')));
+      _showErrorMessage('حدث خطأ أثناء الحفظ: $e');
     }
   }
 
   Future<void> _uploadAndSaveImage(File image) async {
     if (userId == null) return;
+
     final fileExt = image.path.split('.').last;
     final filePath =
         'avatars/$userId.${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+
     try {
       _showLoadingDialog();
-      print('--- رفع الصورة إلى Storage ---');
-      final storageResponse = await SupabaseService.client.storage
+
+      // Upload to storage
+      await SupabaseService.client.storage
           .from('avatars')
           .upload(filePath, image as dynamic);
-      print('storage upload response: $storageResponse');
+
+      // Get public URL
       final publicUrl = SupabaseService.client.storage
           .from('avatars')
           .getPublicUrl(filePath);
-      print('publicUrl: $publicUrl');
-      final updateResponse = await SupabaseService.client
+
+      // Update profile
+      await SupabaseService.client
           .from('profiles')
           .update({'avatar_url': publicUrl})
           .eq('id', userId);
-      print('avatar_url update response: $updateResponse');
+
       await _fetchProfile();
       Navigator.of(context).pop();
       setState(() {
@@ -151,8 +170,53 @@ class _AccountScreenState extends State<AccountScreen> {
       });
     } catch (e) {
       Navigator.of(context).pop();
-      print('Error uploading image: $e');
+      _showErrorMessage('خطأ في رفع الصورة: $e');
     }
+  }
+
+  void _toggleEdit() {
+    setState(() {
+      isEditing = !isEditing;
+      if (!isEditing) {
+        // Reset to original values when canceling edit
+        nameController.text = name;
+        emailController.text = email;
+        phoneController.text = phone;
+        addressController.text = address;
+        selectedGovernorate = governorate;
+      }
+    });
+  }
+
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+
+    if (pickedFile != null) {
+      setState(() {
+        _imageFile = File(pickedFile.path);
+      });
+      await _uploadAndSaveImage(_imageFile!);
+    }
+  }
+
+  void _showSuccessMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _logout() {
+    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
   @override
@@ -164,266 +228,220 @@ class _AccountScreenState extends State<AccountScreen> {
     super.dispose();
   }
 
-  void _toggleEdit() {
-    setState(() {
-      isEditing = !isEditing;
-      if (!isEditing) {
-        // عند إلغاء التعديل، أعد القيم القديمة
-        nameController.text = name;
-        emailController.text = email;
-        phoneController.text = phone;
-        addressController.text = address;
-        selectedGovernorate = governorate;
-      }
-    });
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(appBar: _buildAppBar(), body: _buildBody());
   }
 
-  // منطق اختيار صورة من المعرض
-  Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? pickedFile = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: _primaryColor,
+      elevation: 0,
+      actions: [
+        IconButton(
+          icon: Icon(isEditing ? Icons.close : Icons.edit),
+          tooltip: isEditing ? 'إلغاء' : 'تعديل',
+          onPressed: _toggleEdit,
+        ),
+      ],
     );
-    if (pickedFile != null) {
-      setState(() {
-        _imageFile = File(pickedFile.path);
-      });
-      await _uploadAndSaveImage(_imageFile!);
+  }
+
+  Widget _buildBody() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [_primaryColor, _backgroundColor],
+        ),
+      ),
+      child: Center(
+        child: SingleChildScrollView(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildAvatarSection(),
+                const SizedBox(height: 18),
+                _buildProfileFields(),
+                const SizedBox(height: 28),
+                _buildActionButton(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatarSection() {
+    return Stack(
+      alignment: Alignment.bottomRight,
+      children: [
+        CircleAvatar(
+          radius: 44,
+          backgroundColor: _primaryColor,
+          backgroundImage: _getAvatarImage(),
+          child: _getAvatarChild(),
+        ),
+        if (isEditing) _buildCameraButton(),
+      ],
+    );
+  }
+
+  ImageProvider? _getAvatarImage() {
+    if (_imageFile != null) {
+      return FileImage(_imageFile!);
+    } else if (avatarUrl != null && avatarUrl!.isNotEmpty) {
+      return NetworkImage(avatarUrl!);
+    }
+    return null;
+  }
+
+  Widget? _getAvatarChild() {
+    if (_imageFile == null && (avatarUrl == null || avatarUrl!.isEmpty)) {
+      return const Icon(Icons.person, size: 48, color: Colors.white);
+    }
+    return null;
+  }
+
+  Widget _buildCameraButton() {
+    return Positioned(
+      bottom: 0,
+      right: 0,
+      child: InkWell(
+        onTap: _pickImage,
+        child: Container(
+          decoration: BoxDecoration(
+            color: _secondaryColor,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+          ),
+          padding: const EdgeInsets.all(6),
+          child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileFields() {
+    return Column(
+      children: [
+        _buildField(
+          icon: Icons.person,
+          label: 'الاسم الكامل',
+          controller: nameController,
+          value: name,
+        ),
+        const SizedBox(height: 12),
+        _buildField(
+          icon: Icons.email,
+          label: 'البريد الإلكتروني',
+          controller: emailController,
+          value: email,
+        ),
+        const SizedBox(height: 12),
+        _buildField(
+          icon: Icons.phone,
+          label: 'رقم الهاتف',
+          controller: phoneController,
+          value: phone,
+        ),
+        const SizedBox(height: 12),
+        _buildGovernorateField(),
+        const SizedBox(height: 12),
+        _buildField(
+          icon: Icons.home,
+          label: 'العنوان',
+          controller: addressController,
+          value: address,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildField({
+    required IconData icon,
+    required String label,
+    required TextEditingController controller,
+    required String value,
+  }) {
+    if (isEditing) {
+      return TextFormField(
+        controller: controller,
+        decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
+      );
+    } else {
+      return ListTile(
+        leading: Icon(icon, color: _secondaryColor),
+        title: Text(
+          value,
+          style: label == 'الاسم الكامل'
+              ? const TextStyle(fontWeight: FontWeight.bold)
+              : null,
+        ),
+      );
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF8ED6EC),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(isEditing ? Icons.close : Icons.edit),
-            tooltip: isEditing ? 'إلغاء' : 'تعديل',
-            onPressed: _toggleEdit,
-          ),
-        ],
-      ),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF8ED6EC), Color(0xFFF6F3EA)],
+  Widget _buildGovernorateField() {
+    if (isEditing) {
+      return DropdownButtonFormField<String>(
+        value: selectedGovernorate,
+        decoration: const InputDecoration(
+          labelText: 'المحافظة',
+          prefixIcon: Icon(Icons.location_city),
+        ),
+        items: _syrianGovernorates
+            .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+            .toList(),
+        onChanged: (value) {
+          setState(() {
+            selectedGovernorate = value;
+          });
+        },
+      );
+    } else {
+      return ListTile(
+        leading: const Icon(Icons.location_city, color: Color(0xFF23B3C6)),
+        title: Text(governorate),
+      );
+    }
+  }
+
+  Widget _buildActionButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: isEditing ? _saveChanges : _logout,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isEditing ? null : _secondaryColor,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
-        child: Center(
-          child: SingleChildScrollView(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      CircleAvatar(
-                        radius: 44,
-                        backgroundColor: const Color(0xFF8ED6EC),
-                        backgroundImage: _imageFile != null
-                            ? FileImage(_imageFile!)
-                            : (avatarUrl != null && avatarUrl!.isNotEmpty
-                                  ? NetworkImage(avatarUrl!) as ImageProvider
-                                  : null),
-                        child:
-                            _imageFile == null &&
-                                (avatarUrl == null || avatarUrl!.isEmpty)
-                            ? const Icon(
-                                Icons.person,
-                                size: 48,
-                                color: Colors.white,
-                              )
-                            : null,
-                      ),
-                      if (isEditing)
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: InkWell(
-                            onTap: _pickImage,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF23B3C6),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 2,
-                                ),
-                              ),
-                              padding: const EdgeInsets.all(6),
-                              child: const Icon(
-                                Icons.camera_alt,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  isEditing
-                      ? TextFormField(
-                          controller: nameController,
-                          decoration: const InputDecoration(
-                            labelText: 'الاسم الكامل',
-                            prefixIcon: Icon(Icons.person),
-                          ),
-                        )
-                      : ListTile(
-                          leading: const Icon(
-                            Icons.person,
-                            color: Color(0xFF23B3C6),
-                          ),
-                          title: Text(
-                            name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                  const SizedBox(height: 12),
-                  isEditing
-                      ? TextFormField(
-                          controller: emailController,
-                          decoration: const InputDecoration(
-                            labelText: 'البريد الإلكتروني',
-                            prefixIcon: Icon(Icons.email),
-                          ),
-                        )
-                      : ListTile(
-                          leading: const Icon(
-                            Icons.email,
-                            color: Color(0xFF23B3C6),
-                          ),
-                          title: Text(email),
-                        ),
-                  const SizedBox(height: 12),
-                  isEditing
-                      ? TextFormField(
-                          controller: phoneController,
-                          decoration: const InputDecoration(
-                            labelText: 'رقم الهاتف',
-                            prefixIcon: Icon(Icons.phone),
-                          ),
-                        )
-                      : ListTile(
-                          leading: const Icon(
-                            Icons.phone,
-                            color: Color(0xFF23B3C6),
-                          ),
-                          title: Text(phone),
-                        ),
-                  const SizedBox(height: 12),
-                  isEditing
-                      ? DropdownButtonFormField<String>(
-                          value: selectedGovernorate,
-                          decoration: const InputDecoration(
-                            labelText: 'المحافظة',
-                            prefixIcon: Icon(Icons.location_city),
-                          ),
-                          items: _syrianGovernorates
-                              .map(
-                                (g) =>
-                                    DropdownMenuItem(value: g, child: Text(g)),
-                              )
-                              .toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              selectedGovernorate = value;
-                            });
-                          },
-                        )
-                      : ListTile(
-                          leading: const Icon(
-                            Icons.location_city,
-                            color: Color(0xFF23B3C6),
-                          ),
-                          title: Text(governorate),
-                        ),
-                  const SizedBox(height: 12),
-                  isEditing
-                      ? TextFormField(
-                          controller: addressController,
-                          decoration: const InputDecoration(
-                            labelText: 'العنوان',
-                            prefixIcon: Icon(Icons.home),
-                          ),
-                        )
-                      : ListTile(
-                          leading: const Icon(
-                            Icons.home,
-                            color: Color(0xFF23B3C6),
-                          ),
-                          title: Text(address),
-                        ),
-                  if (isEditing) ...[
-                    const SizedBox(height: 28),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _saveChanges,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'حفظ التعديلات',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (!isEditing) ...[
-                    const SizedBox(height: 28),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // TODO: تنفيذ منطق تسجيل الخروج (مثلاً حذف التوكن من التخزين المحلي)
-                          Navigator.of(
-                            context,
-                          ).pushNamedAndRemoveUntil('/login', (route) => false);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF23B3C6),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'تسجيل خروج',
-                          style: TextStyle(fontSize: 16, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+        child: Text(
+          isEditing ? 'حفظ التعديلات' : 'تسجيل خروج',
+          style: TextStyle(
+            fontSize: 16,
+            color: isEditing ? null : Colors.white,
           ),
         ),
       ),
