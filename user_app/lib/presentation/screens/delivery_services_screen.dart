@@ -84,6 +84,9 @@ class _DeliveryServicesScreenState extends State<DeliveryServicesScreen> {
 
       // تفريغ النموذج
       _formKey.currentState!.reset();
+      _cargoTypeController.clear();
+      _locationController.clear();
+      _descriptionController.clear();
       setState(() {
         _selectedImage = null;
         _selectedWeight = null;

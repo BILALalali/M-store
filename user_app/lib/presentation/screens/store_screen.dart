@@ -69,6 +69,9 @@ class _StoreScreenState extends State<StoreScreen> {
 
       // تفريغ النموذج
       _formKey.currentState!.reset();
+      _productNameController.clear();
+      _quantityController.clear();
+      _descriptionController.clear();
       setState(() {
         _selectedImage = null;
       });
