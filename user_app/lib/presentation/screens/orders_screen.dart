@@ -747,9 +747,11 @@ class ChatCard extends StatelessWidget {
               offset: const Offset(0, 2),
             ),
           ],
-          // إضافة حدود مميزة لطلبات الجملة
+          // إضافة حدود مميزة لطلبات الجملة والتوصيل
           border: order.orderType == OrderType.wholesale
               ? Border.all(color: const Color(0xFF1EC6D9), width: 2)
+              : order.orderType == OrderType.delivery
+              ? Border.all(color: const Color(0xFF2E3A59), width: 2)
               : null,
         ),
         child: Column(
@@ -767,14 +769,20 @@ class ChatCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: order.orderType == OrderType.wholesale
                             ? const Color(0xFF1EC6D9).withOpacity(0.2)
+                            : order.orderType == OrderType.delivery
+                            ? const Color(0xFF2E3A59).withOpacity(0.2)
                             : const Color(0xFF1EC6D9).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
                         order.orderType == OrderType.wholesale
                             ? Icons.local_shipping
+                            : order.orderType == OrderType.delivery
+                            ? Icons.local_shipping
                             : Icons.chat_bubble_outline,
-                        color: const Color(0xFF1EC6D9),
+                        color: order.orderType == OrderType.delivery
+                            ? const Color(0xFF2E3A59)
+                            : const Color(0xFF1EC6D9),
                         size: 24,
                       ),
                     ),
@@ -830,6 +838,27 @@ class ChatCard extends StatelessWidget {
                                 ),
                               ),
                             ),
+                          ] else if (order.orderType == OrderType.delivery) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2E3A59),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                'شحن',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Cairo',
+                                ),
+                              ),
+                            ),
                           ],
                         ],
                       ),
@@ -844,7 +873,7 @@ class ChatCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      // إضافة تفاصيل إضافية لطلبات الجملة
+                      // إضافة تفاصيل إضافية لطلبات الجملة والتوصيل
                       if (order.orderType == OrderType.wholesale &&
                           order.quantity != null) ...[
                         const SizedBox(height: 4),
@@ -856,6 +885,50 @@ class ChatCard extends StatelessWidget {
                             fontFamily: 'Cairo',
                             fontWeight: FontWeight.w600,
                           ),
+                        ),
+                      ] else if (order.orderType == OrderType.delivery &&
+                          order.description != null) ...[
+                        const SizedBox(height: 4),
+                        // استخراج الوزن من الوصف
+                        Builder(
+                          builder: (context) {
+                            final weightMatch = RegExp(
+                              r'الوزن: (\d+) كغ',
+                            ).firstMatch(order.description!);
+                            final locationMatch = RegExp(
+                              r'الموقع: (.+)',
+                            ).firstMatch(order.description!);
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (weightMatch != null)
+                                  Text(
+                                    'الوزن: ${weightMatch.group(1)} كغ',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF2E3A59),
+                                      fontFamily: 'Cairo',
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                if (locationMatch != null) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'الموقع: ${locationMatch.group(1)}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF2E3A59),
+                                      fontFamily: 'Cairo',
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ],
+                            );
+                          },
                         ),
                       ],
                     ],
@@ -894,7 +967,9 @@ class ChatCard extends StatelessWidget {
                 Text(
                   order.orderType == OrderType.wholesale
                       ? 'متابعة طلب الجملة'
-                      : 'فتح المحادثة',
+                      : order.orderType == OrderType.delivery
+                          ? 'متابعة طلب الشحن'
+                          : 'فتح المحادثة',
                   style: const TextStyle(
                     color: Color.fromARGB(255, 48, 161, 169),
                     fontWeight: FontWeight.bold,

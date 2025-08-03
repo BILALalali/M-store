@@ -4,20 +4,24 @@ import 'package:image_picker/image_picker.dart';
 import 'order_model.dart';
 import 'orders_screen.dart';
 
-class StoreScreen extends StatefulWidget {
-  StoreScreen({Key? key}) : super(key: key);
+class DeliveryServicesScreen extends StatefulWidget {
+  const DeliveryServicesScreen({Key? key}) : super(key: key);
 
   @override
-  State<StoreScreen> createState() => _StoreScreenState();
+  State<DeliveryServicesScreen> createState() => _DeliveryServicesScreenState();
 }
 
-class _StoreScreenState extends State<StoreScreen> {
+class _DeliveryServicesScreenState extends State<DeliveryServicesScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _productNameController = TextEditingController();
-  final _quantityController = TextEditingController();
+  final _cargoTypeController = TextEditingController();
+  final _locationController = TextEditingController();
   final _descriptionController = TextEditingController();
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
+
+  // قائمة أوزان الشحنات
+  final List<int> _weightOptions = List.generate(500, (index) => index + 1);
+  int? _selectedWeight;
 
   // ألوان الهوية البصرية
   static const Color primaryColor = Color(0xFF1EC6D9); // فيروزي
@@ -37,30 +41,41 @@ class _StoreScreenState extends State<StoreScreen> {
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
-      // إنشاء طلب جملة جديد
-      final wholesaleOrder = Order(
-        productName: _productNameController.text.trim(),
-        productImage: _selectedImage != null
-            ? _selectedImage!.path
-            : 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9', // صورة افتراضية
-        productId: 'wholesale_${DateTime.now().millisecondsSinceEpoch}',
+      // التحقق من وجود صورة
+      if (_selectedImage == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('يرجى اختيار صورة للشحنة'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+
+      // إنشاء طلب توصيل جديد
+      final deliveryOrder = Order(
+        productName: _cargoTypeController.text.trim(),
+        productImage: _selectedImage!.path,
+        productId: 'delivery_${DateTime.now().millisecondsSinceEpoch}',
         productUrl: '',
         date: DateTime.now(),
         status: OrderStatus.pending,
         userName: 'المستخدم الحالي',
-        orderType: OrderType.wholesale,
-        description: _descriptionController.text.trim(),
-        quantity: int.tryParse(_quantityController.text.trim()) ?? 0,
+        orderType: OrderType.delivery,
+        description:
+            '${_descriptionController.text.trim()}\nالوزن: ${_selectedWeight ?? 0} كغ\nالموقع: ${_locationController.text.trim()}',
+        quantity: 1,
       );
 
       // إضافة الطلب إلى قائمة الطلبات المؤكدة
-      OrdersScreen.confirmedOrders.add(wholesaleOrder);
+      OrdersScreen.confirmedOrders.add(deliveryOrder);
 
       // عرض رسالة نجاح
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'تم إرسال طلب الشحنة بنجاح! يمكنك متابعة الطلب من شاشة طلباتي',
+            'تم إرسال طلب التوصيل بنجاح! يمكنك متابعة الطلب من شاشة طلباتي',
           ),
           backgroundColor: primaryColor,
           duration: Duration(seconds: 3),
@@ -71,14 +86,15 @@ class _StoreScreenState extends State<StoreScreen> {
       _formKey.currentState!.reset();
       setState(() {
         _selectedImage = null;
+        _selectedWeight = null;
       });
     }
   }
 
   @override
   void dispose() {
-    _productNameController.dispose();
-    _quantityController.dispose();
+    _cargoTypeController.dispose();
+    _locationController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -122,7 +138,7 @@ class _StoreScreenState extends State<StoreScreen> {
                     ),
                     const SizedBox(width: 16),
                     const Text(
-                      'طلب شحنة الجملة',
+                      'خدمات التوصيل',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -132,9 +148,9 @@ class _StoreScreenState extends State<StoreScreen> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // العنوان الرئيسي
                 Container(
                   width: double.infinity,
@@ -163,7 +179,7 @@ class _StoreScreenState extends State<StoreScreen> {
                       ),
                       const SizedBox(height: 16),
                       const Text(
-                        'اطلب شحنة الجملة',
+                        'خدمات التوصيل',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -173,7 +189,7 @@ class _StoreScreenState extends State<StoreScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'املأ النموذج أدناه لطلب شحنة الجملة المطلوبة',
+                        'املأ النموذج أدناه لطلب خدمة التوصيل المطلوبة',
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.white70,
@@ -187,15 +203,15 @@ class _StoreScreenState extends State<StoreScreen> {
 
                 const SizedBox(height: 32),
 
-                // حقل اسم المنتج
+                // حقل نوع البضاعة
                 _buildTextField(
-                  controller: _productNameController,
-                  label: 'اسم المنتج',
-                  hint: 'أدخل اسم المنتج المطلوب',
+                  controller: _cargoTypeController,
+                  label: 'نوع البضاعة',
+                  hint: 'أدخل نوع البضاعة المراد توصيلها',
                   icon: Icons.inventory,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'يرجى إدخال اسم المنتج';
+                      return 'يرجى إدخال نوع البضاعة';
                     }
                     return null;
                   },
@@ -203,19 +219,20 @@ class _StoreScreenState extends State<StoreScreen> {
 
                 const SizedBox(height: 20),
 
-                // حقل الكمية
+                // حقل الوزن
+                _buildWeightDropdown(),
+
+                const SizedBox(height: 20),
+
+                // حقل المكان
                 _buildTextField(
-                  controller: _quantityController,
-                  label: 'الكمية المطلوبة',
-                  hint: 'أدخل الكمية المطلوبة',
-                  icon: Icons.numbers,
-                  keyboardType: TextInputType.number,
+                  controller: _locationController,
+                  label: 'مكان الشحنة',
+                  hint: 'أدخل عنوان مكان الشحنة',
+                  icon: Icons.location_on,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'يرجى إدخال الكمية المطلوبة';
-                    }
-                    if (int.tryParse(value) == null) {
-                      return 'يرجى إدخال رقم صحيح';
+                      return 'يرجى إدخال مكان الشحنة';
                     }
                     return null;
                   },
@@ -226,13 +243,13 @@ class _StoreScreenState extends State<StoreScreen> {
                 // حقل الوصف
                 _buildTextField(
                   controller: _descriptionController,
-                  label: 'وصف المنتج',
-                  hint: 'أدخل وصفاً مفصلاً للمنتج المطلوب',
+                  label: 'وصف الشحنة',
+                  hint: 'أدخل وصفاً مفصلاً للشحنة والتفاصيل المطلوبة',
                   icon: Icons.description,
                   maxLines: 4,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'يرجى إدخال وصف المنتج';
+                      return 'يرجى إدخال وصف الشحنة';
                     }
                     return null;
                   },
@@ -265,7 +282,7 @@ class _StoreScreenState extends State<StoreScreen> {
                         Icon(Icons.send, size: 24),
                         SizedBox(width: 12),
                         Text(
-                          'إرسال طلب الشحنة',
+                          'إرسال طلب التوصيل',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -293,7 +310,7 @@ class _StoreScreenState extends State<StoreScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'سيتم التواصل معك خلال 24 ساعة لتأكيد الطلب وتحديد التفاصيل',
+                          'سيتم التواصل معك خلال 24 ساعة لتأكيد طلب التوصيل وتحديد السعر',
                           style: TextStyle(
                             color: textColor,
                             fontSize: 14,
@@ -356,6 +373,61 @@ class _StoreScreenState extends State<StoreScreen> {
     );
   }
 
+  Widget _buildWeightDropdown() {
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: DropdownButtonFormField<int>(
+        value: _selectedWeight,
+        decoration: InputDecoration(
+          labelText: 'وزن الشحنة',
+          hintText: 'اختر وزن الشحنة',
+          prefixIcon: Icon(Icons.scale, color: primaryColor),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.transparent,
+          labelStyle: const TextStyle(color: primaryColor, fontFamily: 'Cairo'),
+          hintStyle: TextStyle(color: Colors.grey[400], fontFamily: 'Cairo'),
+        ),
+        items: _weightOptions.map((int weight) {
+          return DropdownMenuItem<int>(
+            value: weight,
+            child: Text(
+              '$weight كغ',
+              style: const TextStyle(color: textColor, fontFamily: 'Cairo'),
+            ),
+          );
+        }).toList(),
+        onChanged: (int? newValue) {
+          setState(() {
+            _selectedWeight = newValue;
+          });
+        },
+        validator: (value) {
+          if (value == null) {
+            return 'يرجى اختيار وزن الشحنة';
+          }
+          return null;
+        },
+        dropdownColor: cardColor,
+        icon: Icon(Icons.arrow_drop_down, color: primaryColor),
+        style: const TextStyle(color: textColor, fontFamily: 'Cairo'),
+      ),
+    );
+  }
+
   Widget _buildImagePicker() {
     return Container(
       decoration: BoxDecoration(
@@ -379,7 +451,7 @@ class _StoreScreenState extends State<StoreScreen> {
                 Icon(Icons.image, color: primaryColor),
                 const SizedBox(width: 12),
                 const Text(
-                  'صورة مشابهة للمنتج (اختياري)',
+                  'صورة الشحنة *',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,

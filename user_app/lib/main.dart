@@ -7,6 +7,7 @@ import 'presentation/screens/register_screen.dart';
 import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/main_screen.dart';
 import 'presentation/screens/other_services_screen.dart';
+import 'presentation/screens/delivery_services_screen.dart';
 import 'presentation/screens/chat_screen.dart';
 
 void main() async {
@@ -14,7 +15,7 @@ void main() async {
   await SupabaseService.init();
   runApp(const MyApp());
 }
-
+ 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -28,8 +29,7 @@ class MyApp extends StatelessWidget {
         const OtherServicePlaceholderScreen(title: 'دفع فاتورة'),
     '/service2': (context) =>
         const OtherServicePlaceholderScreen(title: 'تحويل رصيد'),
-    '/service3': (context) =>
-        const OtherServicePlaceholderScreen(title: 'خدمات التوصيل'),
+    '/service3': (context) => const DeliveryServicesScreen(),
     '/service4': (context) =>
         const OtherServicePlaceholderScreen(title: 'شحن كروت ألعاب'),
     '/chat': (context) => const ChatScreen(),

@@ -297,7 +297,7 @@ class ProductCardTwoColumns extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // صورة المنتج
-          Expanded(
+          Flexible(
             flex: 3,
             child: ClipRRect(
               borderRadius: const BorderRadius.only(
@@ -331,7 +331,7 @@ class ProductCardTwoColumns extends StatelessWidget {
             ),
           ),
           // معلومات المنتج
-          Expanded(
+          Flexible(
             flex: 2,
             child: Padding(
               padding: const EdgeInsets.all(6.0),
@@ -572,7 +572,7 @@ class _ScrollingTextBannerState extends State<ScrollingTextBanner>
         child: Stack(
           children: [
             // النص المتحرك
-            Expanded(
+            Positioned.fill(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(44),
                 child: SlideTransition(
