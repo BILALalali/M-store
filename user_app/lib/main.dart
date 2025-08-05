@@ -9,13 +9,14 @@ import 'presentation/screens/main_screen.dart';
 import 'presentation/screens/other_services_screen.dart';
 import 'presentation/screens/delivery_services_screen.dart';
 import 'presentation/screens/chat_screen.dart';
+import 'presentation/screens/game_cards_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SupabaseService.init();
   runApp(const MyApp());
 }
- 
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -30,8 +31,7 @@ class MyApp extends StatelessWidget {
     '/service2': (context) =>
         const OtherServicePlaceholderScreen(title: 'تحويل رصيد'),
     '/service3': (context) => const DeliveryServicesScreen(),
-    '/service4': (context) =>
-        const OtherServicePlaceholderScreen(title: 'شحن كروت ألعاب'),
+    '/game-cards': (context) => const GameCardsScreen(),
     '/chat': (context) => const ChatScreen(),
   };
 

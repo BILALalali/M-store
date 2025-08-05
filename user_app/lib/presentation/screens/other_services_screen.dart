@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'mobile_credit_screen.dart';
+import 'game_cards_screen.dart';
 
 class OtherServicesScreen extends StatelessWidget {
   const OtherServicesScreen({super.key});
@@ -25,7 +26,7 @@ class OtherServicesScreen extends StatelessWidget {
     {
       'title': 'شحن كروت ألعاب',
       'icon': Icons.videogame_asset,
-      'route': '/service4',
+      'route': '/game-cards',
     },
   ];
 
@@ -105,6 +106,13 @@ class OtherServicesScreen extends StatelessWidget {
                             context,
                             MaterialPageRoute(
                               builder: (context) => const MobileCreditScreen(),
+                            ),
+                          );
+                        } else if (service['route'] == '/game-cards') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const GameCardsScreen(),
                             ),
                           );
                         } else {
