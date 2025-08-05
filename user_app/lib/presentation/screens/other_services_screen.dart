@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'mobile_credit_screen.dart';
 
 class OtherServicesScreen extends StatelessWidget {
   const OtherServicesScreen({super.key});
 
   // ألوان الهوية البصرية - نقلها خارج build method
-  static const Color _primaryColor = Color(0xFF1EC6D9);
   static const Color _tertiaryColor = Color(0xFF00CED1);
   static const Color _backgroundColor = Color.fromARGB(255, 241, 240, 235);
   static const Color _overlayColor = Color.fromARGB(41, 240, 234, 208);
@@ -12,7 +12,11 @@ class OtherServicesScreen extends StatelessWidget {
   // قائمة الخدمات - نقلها خارج build method
   static const List<Map<String, dynamic>> _services = [
     {'title': 'تواصل معنا', 'icon': Icons.support_agent, 'route': '/chat'},
-    {'title': 'تحويل رصيد', 'icon': Icons.swap_horiz, 'route': '/service2'},
+    {
+      'title': 'تحويل رصيد الجوال',
+      'icon': Icons.phone_android,
+      'route': '/mobile-credit',
+    },
     {
       'title': 'خدمات التوصيل',
       'icon': Icons.local_shipping,
@@ -95,10 +99,21 @@ class OtherServicesScreen extends StatelessWidget {
                     return ServiceCard(
                       title: service['title'] as String,
                       icon: service['icon'] as IconData,
-                      onTap: () => Navigator.pushNamed(
-                        context,
-                        service['route'] as String,
-                      ),
+                      onTap: () {
+                        if (service['route'] == '/mobile-credit') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const MobileCreditScreen(),
+                            ),
+                          );
+                        } else {
+                          Navigator.pushNamed(
+                            context,
+                            service['route'] as String,
+                          );
+                        }
+                      },
                     );
                   },
                 ),

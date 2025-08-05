@@ -1,6 +1,6 @@
 enum OrderStatus { pending, confirmed, cancelled }
 
-enum OrderType { retail, wholesale, delivery }
+enum OrderType { retail, wholesale, delivery, mobileCredit }
 
 class Order {
   final String productName;

@@ -67,6 +67,9 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     if (widget.order.orderType == OrderType.wholesale) {
       welcomeMessage =
           'مرحباً! تم استلام طلب الجملة الخاص بك لـ "${widget.order.productName}". سنقوم بمراجعة الطلب والرد عليك في أقرب وقت ممكن.';
+    } else if (widget.order.orderType == OrderType.mobileCredit) {
+      welcomeMessage =
+          'مرحباً! تم استلام طلب تحويل الرصيد الخاص بك لـ "${widget.order.productName}". سنقوم بمعالجة الطلب والرد عليك في أقرب وقت ممكن.';
     } else {
       welcomeMessage =
           'مرحباً! تم تأكيد طلبك لـ "${widget.order.productName}". انتظر ردنا في أقرب وقت ممكن';
@@ -215,8 +218,12 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             child: Icon(
               widget.order.orderType == OrderType.wholesale
                   ? Icons.local_shipping
+                  : widget.order.orderType == OrderType.mobileCredit
+                  ? Icons.phone_android
                   : Icons.shopping_cart,
-              color: primaryColor,
+              color: widget.order.orderType == OrderType.mobileCredit
+                  ? const Color(0xFF4CAF50)
+                  : primaryColor,
             ),
           ),
           const SizedBox(width: 12),
@@ -230,6 +237,8 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                       child: Text(
                         widget.order.orderType == OrderType.wholesale
                             ? 'طلب جملة - ${widget.order.productName}'
+                            : widget.order.orderType == OrderType.mobileCredit
+                            ? 'طلب رصيد - ${widget.order.productName}'
                             : 'طلب ${widget.order.productName}',
                         style: const TextStyle(
                           fontSize: 16,
@@ -253,6 +262,28 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                           'جملة',
                           style: TextStyle(
                             color: Color(0xFF1EC6D9),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Cairo',
+                          ),
+                        ),
+                      ),
+                    ] else if (widget.order.orderType ==
+                        OrderType.mobileCredit) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'رصيد',
+                          style: TextStyle(
+                            color: Color(0xFF4CAF50),
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             fontFamily: 'Cairo',

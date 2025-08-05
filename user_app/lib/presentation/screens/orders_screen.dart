@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'order_model.dart';
 import 'order_chat_screen.dart';
 import 'product_model.dart';
-import 'dart:io';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -425,6 +424,18 @@ class _OrdersScreenState extends State<OrdersScreen>
   void _confirmOrder(BuildContext context) {
     if (OrdersScreen.pendingProducts.isEmpty) return;
 
+    // تحديد نوع الطلب بناءً على المنتجات
+    OrderType orderType = OrderType.retail;
+    if (OrdersScreen.pendingProducts.any((p) => p.category == 'تحويل رصيد')) {
+      orderType = OrderType.mobileCredit;
+    } else if (OrdersScreen.pendingProducts.any(
+      (p) => p.category == 'خدمات التوصيل',
+    )) {
+      orderType = OrderType.delivery;
+    } else if (OrdersScreen.pendingProducts.length > 1) {
+      orderType = OrderType.wholesale;
+    }
+
     // إنشاء طلب واحد يحتوي على جميع المنتجات
     final order = Order(
       productName: OrdersScreen.pendingProducts.map((p) => p.name).join(', '),
@@ -436,6 +447,7 @@ class _OrdersScreenState extends State<OrdersScreen>
       date: DateTime.now(),
       status: OrderStatus.pending,
       userName: 'المستخدم الحالي',
+      orderType: orderType,
     );
 
     // إضافة الطلب إلى قائمة الطلبات المؤكدة
@@ -710,21 +722,6 @@ class ChatCard extends StatelessWidget {
     }
   }
 
-  Widget _buildProductImage(String imageUrl, double size) {
-    return Image.network(
-      imageUrl,
-      width: size,
-      height: size,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => Container(
-        width: size,
-        height: size,
-        color: Colors.grey[200],
-        child: const Icon(Icons.image, size: 28, color: Colors.grey),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -742,7 +739,7 @@ class ChatCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.08),
+              color: Colors.grey.withValues(alpha: 0.08),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -771,6 +768,8 @@ class ChatCard extends StatelessWidget {
                             ? const Color(0xFF1EC6D9).withOpacity(0.2)
                             : order.orderType == OrderType.delivery
                             ? const Color(0xFF2E3A59).withOpacity(0.2)
+                            : order.orderType == OrderType.mobileCredit
+                            ? const Color(0xFF4CAF50).withOpacity(0.2)
                             : const Color(0xFF1EC6D9).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -779,9 +778,13 @@ class ChatCard extends StatelessWidget {
                             ? Icons.local_shipping
                             : order.orderType == OrderType.delivery
                             ? Icons.local_shipping
+                            : order.orderType == OrderType.mobileCredit
+                            ? Icons.phone_android
                             : Icons.chat_bubble_outline,
                         color: order.orderType == OrderType.delivery
                             ? const Color(0xFF2E3A59)
+                            : order.orderType == OrderType.mobileCredit
+                            ? const Color(0xFF4CAF50)
                             : const Color(0xFF1EC6D9),
                         size: 24,
                       ),
@@ -851,6 +854,28 @@ class ChatCard extends StatelessWidget {
                               ),
                               child: const Text(
                                 'شحن',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Cairo',
+                                ),
+                              ),
+                            ),
+                          ] else if (order.orderType ==
+                              OrderType.mobileCredit) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF4CAF50),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                'رصيد',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -968,8 +993,10 @@ class ChatCard extends StatelessWidget {
                   order.orderType == OrderType.wholesale
                       ? 'متابعة طلب الجملة'
                       : order.orderType == OrderType.delivery
-                          ? 'متابعة طلب الشحن'
-                          : 'فتح المحادثة',
+                      ? 'متابعة طلب الشحن'
+                      : order.orderType == OrderType.mobileCredit
+                      ? 'متابعة طلب الرصيد'
+                      : 'فتح المحادثة',
                   style: const TextStyle(
                     color: Color.fromARGB(255, 48, 161, 169),
                     fontWeight: FontWeight.bold,

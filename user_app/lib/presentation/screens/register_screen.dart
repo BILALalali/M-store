@@ -54,22 +54,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  Future<String?> _uploadImage(File image, String userId) async {
-    final fileExt = image.path.split('.').last;
-    final filePath =
-        'avatars/$userId.${DateTime.now().millisecondsSinceEpoch}.$fileExt';
-    final storageResponse = await SupabaseService.client.storage
-        .from('avatars')
-        .upload(filePath, image as dynamic);
-    if (storageResponse.isEmpty) {
-      final publicUrl = SupabaseService.client.storage
-          .from('avatars')
-          .getPublicUrl(filePath);
-      return publicUrl;
-    }
-    return null;
-  }
-
   void _showLoadingDialog(BuildContext context) {
     showDialog(
       context: context,

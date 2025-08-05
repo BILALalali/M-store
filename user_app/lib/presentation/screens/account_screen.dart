@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../core/services/supabase_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -16,7 +15,6 @@ class _AccountScreenState extends State<AccountScreen> {
   static const Color _primaryColor = Color(0xFF8ED6EC);
   static const Color _secondaryColor = Color(0xFF23B3C6);
   static const Color _backgroundColor = Color(0xFFF6F3EA);
-  static const Color _accentColor = Color(0xFFE91E63);
 
   // State variables
   bool isEditing = false;
