@@ -120,7 +120,7 @@ class _AccountScreenState extends State<AccountScreen> {
             'governorate': selectedGovernorate,
             'address': addressController.text,
           })
-          .eq('id', userId);
+          .eq('id', userId!);
 
       await _fetchProfile();
       Navigator.of(context).pop();
@@ -159,7 +159,7 @@ class _AccountScreenState extends State<AccountScreen> {
       await SupabaseService.client
           .from('profiles')
           .update({'avatar_url': publicUrl})
-          .eq('id', userId);
+          .eq('id', userId!);
 
       await _fetchProfile();
       Navigator.of(context).pop();

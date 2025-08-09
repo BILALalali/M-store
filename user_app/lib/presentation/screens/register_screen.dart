@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/services/supabase_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -38,21 +36,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'الرقة',
     'القنيطرة',
   ];
-
-  File? _selectedImage;
-  final ImagePicker _picker = ImagePicker();
-
-  Future<void> _pickImage() async {
-    final pickedFile = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 70,
-    );
-    if (pickedFile != null) {
-      setState(() {
-        _selectedImage = File(pickedFile.path);
-      });
-    }
-  }
 
   void _showLoadingDialog(BuildContext context) {
     showDialog(
@@ -96,21 +79,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    GestureDetector(
-                      onTap: _pickImage,
-                      child: CircleAvatar(
-                        radius: 32,
-                        backgroundColor: const Color(0xFF8ED6EC),
-                        backgroundImage: _selectedImage != null
-                            ? FileImage(_selectedImage!)
-                            : null,
-                        child: _selectedImage == null
-                            ? const Icon(
-                                Icons.camera_alt,
-                                size: 36,
-                                color: Colors.white,
-                              )
-                            : null,
+                    // لوجو التطبيق
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF8ED6EC),
+                      ),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/logo.png',
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 18),
