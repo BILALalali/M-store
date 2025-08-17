@@ -2,105 +2,10 @@ import 'package:flutter/material.dart';
 import 'product_details_screen.dart';
 import 'product_model.dart';
 import 'util_screen.dart';
+import '../../core/services/product_service.dart';
 
 class HomeScreen extends StatefulWidget {
   HomeScreen({Key? key}) : super(key: key);
-
-  // قائمة المنتجات متاحة بشكل ثابت
-  static List<Product> get products => [
-    Product(
-      name: 'سامسونج جالاكسي S23',
-      images: [
-        'https://images.samsung.com/is/image/samsung/p6pim/levant/galaxy-s23/gallery/levant-galaxy-s23-s911-sm-s911bzgdmea-thumb-535978237',
-        'https://images.samsung.com/is/image/samsung/p6pim/levant/galaxy-s23/gallery/levant-galaxy-s23-s911-sm-s911bzgdmea-2-thumb',
-        'https://images.samsung.com/is/image/samsung/p6pim/levant/galaxy-s23/gallery/levant-galaxy-s23-s911-sm-s911bzgdmea-3-thumb',
-      ],
-      price: 1200.0,
-      quantity: 3,
-      category: 'موبايلات',
-      description:
-          'هاتف ذكي متطور بشاشة AMOLED وكاميرا عالية الدقة وسعة بطارية كبيرة.',
-    ),
-    Product(
-      name: 'شاومي ريدمي نوت 12',
-      images: [
-        'https://fdn2.gsmarena.com/vv/pics/xiaomi/xiaomi-redmi-note-12-4g-1.jpg',
-        'https://fdn2.gsmarena.com/vv/pics/xiaomi/xiaomi-redmi-note-12-4g-2.jpg',
-      ],
-      price: 350.0,
-      quantity: 5,
-      category: 'موبايلات',
-      description:
-          'موبايل اقتصادي بشاشة كبيرة وبطارية تدوم طويلاً وكاميرا ثلاثية.',
-    ),
-    Product(
-      name: 'آيفون 14 برو',
-      images: [
-        'https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/iphone-14-pro-max-deep-purple-select?wid=940&hei=1112&fmt=png-alpha&.v=1660753619946',
-        'https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/iphone-14-pro-max-silver-select?wid=940&hei=1112&fmt=png-alpha&.v=1660753619946',
-      ],
-      price: 1800.0,
-      quantity: 2,
-      category: 'موبايلات',
-      description:
-          'أحدث هواتف آبل مع شاشة ProMotion وكاميرا احترافية ومعالج قوي.',
-    ),
-    Product(
-      name: 'كفر شفاف آيفون',
-      images: [
-        'https://images.unsplash.com/photo-1517336714731-489689fd1ca8',
-        'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?2',
-      ],
-      price: 10.0,
-      quantity: 10,
-      category: 'كفرات وحمايات',
-      description:
-          'كفر شفاف عالي الجودة يوفر حماية ممتازة مع الحفاظ على شكل الجهاز.',
-    ),
-    Product(
-      name: 'شاحن سريع 25W',
-      images: ['https://images.unsplash.com/photo-1510557880182-3d4d3c1b3ed4'],
-      price: 20.0,
-      quantity: 7,
-      category: 'شواحن وكوابل',
-      description: 'شاحن سريع بقوة 25 واط متوافق مع معظم أجهزة أندرويد.',
-    ),
-    Product(
-      name: 'سماعة بلوتوث',
-      images: [
-        'https://images.unsplash.com/photo-1511367461989-f85a21fda167',
-        'https://images.unsplash.com/photo-1511367461989-f85a21fda167?2',
-      ],
-      price: 35.0,
-      quantity: 5,
-      category: 'سماعات',
-      description: 'سماعة لاسلكية بصوت نقي وعزل ضوضاء ومدة تشغيل طويلة.',
-    ),
-    Product(
-      name: 'بطاقة شحن MTN 5000',
-      images: ['https://cdn-icons-png.flaticon.com/512/1041/1041916.png'],
-      price: 5000.0,
-      quantity: 15,
-      category: 'بطاقات وشحن رصيد',
-      description: 'بطاقة شحن رصيد بقيمة 5000 ل.س لشبكة MTN.',
-    ),
-    Product(
-      name: 'كابل USB-C أصلي',
-      images: ['https://images.unsplash.com/photo-1519125323398-675f0ddb6308'],
-      price: 8.0,
-      quantity: 20,
-      category: 'شواحن وكوابل',
-      description: 'كابل USB-C أصلي لنقل البيانات والشحن السريع.',
-    ),
-    Product(
-      name: 'حامل موبايل للسيارة',
-      images: ['https://images.unsplash.com/photo-1509395176047-4a66953fd231'],
-      price: 15.0,
-      quantity: 8,
-      category: 'إكسسوارات أخرى',
-      description: 'حامل عملي لتثبيت الموبايل في السيارة بأمان وسهولة.',
-    ),
-  ];
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -110,10 +15,132 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   String selectedCategory = 'الكل';
 
+  // متغيرات لإدارة حالة التطبيق
+  List<Product> _products = [];
+  List<String> _categories = [];
+  bool _isLoading = true;
+  bool _isSearching = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialData();
+  }
+
+  // تحميل البيانات الأولية
+  Future<void> _loadInitialData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      // تحميل المنتجات والفئات في نفس الوقت
+      final futures = await Future.wait([
+        ProductService.getAllProducts(),
+        ProductService.getCategories(),
+      ]);
+
+              setState(() {
+          _products = futures[0] as List<Product>;
+          // جلب الفئات من قاعدة البيانات (مع التأكد من عدم تكرار "الكل")
+          final dbCategories = futures[1] as List<String>;
+          // إضافة "الكل" فقط إذا لم تكن موجودة في قاعدة البيانات
+          if (!dbCategories.contains('الكل')) {
+            _categories = ['الكل', ...dbCategories];
+          } else {
+            _categories = dbCategories;
+          }
+          _isLoading = false;
+        });
+    } catch (e) {
+      print('خطأ في تحميل البيانات: $e');
+      setState(() {
+        _errorMessage =
+            'حدث خطأ في تحميل البيانات. سيتم استخدام البيانات المحلية.';
+        _isLoading = false;
+      });
+
+      // محاولة تحميل البيانات المحلية
+      try {
+        final localProducts = await ProductService.getAllProducts();
+        final localCategories = await ProductService.getCategories();
+
+        setState(() {
+          _products = localProducts;
+          _categories = localCategories;
+          _errorMessage = null;
+        });
+      } catch (localError) {
+        print('خطأ في تحميل البيانات المحلية: $localError');
+        setState(() {
+          _errorMessage = 'فشل في تحميل البيانات. يرجى المحاولة مرة أخرى.';
+        });
+      }
+    }
+  }
+
+  // البحث في المنتجات
+  Future<void> _searchProducts(String query) async {
+    if (query.trim().isEmpty) {
+      await _loadInitialData();
+      return;
+    }
+
+    try {
+      setState(() {
+        _isSearching = true;
+        _errorMessage = null;
+      });
+
+      final searchResults = await ProductService.searchProducts(query);
+
+      setState(() {
+        _products = searchResults;
+        _isSearching = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'حدث خطأ في البحث: $e';
+        _isSearching = false;
+      });
+    }
+  }
+
+  // تحميل المنتجات حسب الفئة
+  Future<void> _loadProductsByCategory(String category) async {
+    if (category == 'الكل') {
+      await _loadInitialData();
+      return;
+    }
+
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      final categoryProducts = await ProductService.getProductsByCategory(
+        category,
+      );
+
+      setState(() {
+        _products = categoryProducts;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'حدث خطأ في تحميل الفئة: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
   // تصفية المنتجات حسب البحث والفئة
   List<Product> get filteredProducts {
     String search = _searchController.text.trim();
-    return HomeScreen.products.where((product) {
+    return _products.where((product) {
       final matchesCategory =
           selectedCategory == 'الكل' || product.category == selectedCategory;
       final matchesSearch =
@@ -150,7 +177,14 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: CustomSearchBar(
                 controller: _searchController,
-                onChanged: () => setState(() {}),
+                onChanged: () {
+                  final value = _searchController.text;
+                  if (value.trim().isEmpty) {
+                    _loadInitialData();
+                  } else {
+                    _searchProducts(value);
+                  }
+                },
               ),
             ),
             // المحتوى القابل للتمرير
@@ -166,8 +200,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                       child: CategoryChips(
                         selectedCategory: selectedCategory,
+                        dynamicCategories: _categories.isNotEmpty
+                            ? _categories
+                            : null,
                         onCategoryChanged: (category) {
                           setState(() => selectedCategory = category);
+                          _loadProductsByCategory(category);
                         },
                       ),
                     ),
@@ -184,35 +222,101 @@ class _HomeScreenState extends State<HomeScreen> {
                       maxHeight: 60,
                     ),
                   ),
-                  // قائمة المنتجات في عمودين
-                  SliverPadding(
-                    padding: const EdgeInsets.all(16.0),
-                    sliver: SliverGrid(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 0.75,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                          ),
-                      delegate: SliverChildBuilderDelegate((context, index) {
-                        final product = filteredProducts[index];
-                        return InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    ProductDetailsScreen(product: product),
+                  // عرض حالة التحميل أو الخطأ
+                  if (_isLoading)
+                    const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    )
+                  else if (_errorMessage != null)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32.0),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                size: 48,
+                                color: Colors.red[300],
                               ),
-                            );
-                          },
-                          child: ProductCardTwoColumns(product: product),
-                        );
-                      }, childCount: filteredProducts.length),
+                              const SizedBox(height: 16),
+                              Text(
+                                _errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.red[300],
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: _loadInitialData,
+                                child: const Text('إعادة المحاولة'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (_products.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32.0),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.inventory_2_outlined,
+                                size: 48,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'لا توجد منتجات متاحة حالياً',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    // قائمة المنتجات في عمودين
+                    SliverPadding(
+                      padding: const EdgeInsets.all(16.0),
+                      sliver: SliverGrid(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.75,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                            ),
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final product = filteredProducts[index];
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      ProductDetailsScreen(product: product),
+                                ),
+                              );
+                            },
+                            child: ProductCardTwoColumns(product: product),
+                          );
+                        }, childCount: filteredProducts.length),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),

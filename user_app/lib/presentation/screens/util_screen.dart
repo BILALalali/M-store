@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'product_model.dart';
+import '../../core/services/advertisement_service.dart';
+import 'advertisement_model.dart';
 
 class UtilScreen {
   // ألوان الهوية البصرية
@@ -7,23 +9,11 @@ class UtilScreen {
   static const Color beigeColor = Color(0xFFF5EEDC); // بيج
   static const Color backgroundColor = Color(0xFFF7F7F7); // رمادي فاتح
 
-  // قائمة الفئات المتخصصة
-  static const List<String> categories = [
-    'الكل',
-    'موبايلات',
-    'كفرات وحمايات',
-    'شواحن وكوابل',
-    'سماعات',
-    'بطاقات وشحن رصيد',
-    'إكسسوارات أخرى',
-  ];
+  // قائمة فارغة للفئات (سيتم ملؤها من قاعدة البيانات)
+  static const List<String> categories = [];
 
-  // قائمة صور إعلانات
-  static const List<String> bannerImages = [
-    'https://images.unsplash.com/photo-1465101046530-73398c7f28ca',
-    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9',
-    'https://images.unsplash.com/photo-1517336714731-489689fd1ca8',
-  ];
+  // قائمة صور إعلانات (فارغة - ستأتي من قاعدة البيانات)
+  static const List<String> bannerImages = [];
 
   // حساب الأحجام المتجاوبة
   static double getResponsiveSize(BuildContext context, double percentage) {
@@ -40,23 +30,28 @@ class UtilScreen {
 class CategoryChips extends StatelessWidget {
   final String selectedCategory;
   final Function(String) onCategoryChanged;
+  final List<String>? dynamicCategories; // فئات ديناميكية من قاعدة البيانات
 
   const CategoryChips({
     Key? key,
     required this.selectedCategory,
     required this.onCategoryChanged,
+    this.dynamicCategories, // اختياري
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    // استخدام الفئات الديناميكية إذا كانت متوفرة، وإلا استخدم الفئات الثابتة
+    final categories = dynamicCategories ?? UtilScreen.categories;
+
     return SizedBox(
       height: 40,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: UtilScreen.categories.length,
+        itemCount: categories.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
-          final cat = UtilScreen.categories[index];
+          final cat = categories[index];
           final isSelected = cat == selectedCategory;
           return ChoiceChip(
             label: Text(cat, style: const TextStyle(fontFamily: 'Cairo')),
@@ -118,15 +113,56 @@ class _BannerAdsState extends State<BannerAds> {
   int _currentBanner = 0;
   final PageController _bannerController = PageController();
 
+  // متغيرات للإعلانات من قاعدة البيانات
+  List<dynamic> _advertisements = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
   @override
   void initState() {
     super.initState();
-    _startBannerTimer();
+    _loadAdvertisements();
+  }
+
+  // تحميل الإعلانات من قاعدة البيانات
+  Future<void> _loadAdvertisements() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      print('بدء تحميل الإعلانات...');
+
+      // جلب الإعلانات من قاعدة البيانات
+      final advertisements =
+          await AdvertisementService.getActiveAdvertisements();
+
+      print('تم جلب ${advertisements.length} إعلان');
+
+      setState(() {
+        _advertisements = advertisements;
+        _isLoading = false;
+      });
+
+      // بدء التمرير التلقائي إذا كان هناك إعلانات
+      if (_advertisements.isNotEmpty) {
+        _startBannerTimer();
+      }
+    } catch (e) {
+      print('خطأ في تحميل الإعلانات: $e');
+      setState(() {
+        _errorMessage = 'فشل في تحميل الإعلانات: $e';
+        _isLoading = false;
+      });
+    }
   }
 
   void _startBannerTimer() {
+    if (_advertisements.isEmpty) return;
+
     Future.delayed(const Duration(seconds: 7), () {
-      if (mounted && _currentBanner < UtilScreen.bannerImages.length - 1) {
+      if (mounted && _currentBanner < _advertisements.length - 1) {
         setState(() {
           _currentBanner++;
         });
@@ -159,6 +195,58 @@ class _BannerAdsState extends State<BannerAds> {
   Widget build(BuildContext context) {
     final fontSizeBody = UtilScreen.getResponsiveFontSize(context, 0.042);
 
+    // عرض حالة التحميل أو الخطأ
+    if (_isLoading) {
+      return const Column(
+        children: [
+          SizedBox(height: 200),
+          Center(child: CircularProgressIndicator()),
+        ],
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Column(
+        children: [
+          const SizedBox(height: 200),
+          Center(
+            child: Column(
+              children: [
+                Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
+                const SizedBox(height: 16),
+                Text(
+                  _errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.red[300], fontSize: 16),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    // إذا لم تكن هناك إعلانات
+    if (_advertisements.isEmpty) {
+      return const Column(
+        children: [
+          SizedBox(height: 200),
+          Center(
+            child: Column(
+              children: [
+                Icon(Icons.campaign_outlined, size: 48, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'لا توجد إعلانات متاحة',
+                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
     return Column(
       children: [
         // بانر الإعلانات
@@ -172,8 +260,10 @@ class _BannerAdsState extends State<BannerAds> {
                 _currentBanner = index;
               });
             },
-            itemCount: UtilScreen.bannerImages.length,
+            itemCount: _advertisements.length,
             itemBuilder: (context, index) {
+              final advertisement = _advertisements[index] as Advertisement;
+
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
@@ -191,7 +281,7 @@ class _BannerAdsState extends State<BannerAds> {
                   child: Stack(
                     children: [
                       Image.network(
-                        UtilScreen.bannerImages[index],
+                        advertisement.imageUrl,
                         width: double.infinity,
                         height: double.infinity,
                         fit: BoxFit.cover,
@@ -223,7 +313,7 @@ class _BannerAdsState extends State<BannerAds> {
                         left: 16,
                         right: 16,
                         child: Text(
-                          'مساحة إعلانية ',
+                          advertisement.title,
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: fontSizeBody,
@@ -250,7 +340,7 @@ class _BannerAdsState extends State<BannerAds> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(
-            UtilScreen.bannerImages.length,
+            _advertisements.length,
             (index) => Container(
               width: 8,
               height: 8,

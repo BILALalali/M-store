@@ -70,11 +70,17 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   Future<void> _fetchProfile() async {
-    final user = SupabaseService.client.auth.currentUser;
+    // التحقق من أن Supabase متوفر
+    if (SupabaseService.client == null) {
+      print('Supabase غير متوفر');
+      return;
+    }
+    
+    final user = SupabaseService.client!.auth.currentUser;
     if (user == null) return;
 
     userId = user.id;
-    final data = await SupabaseService.client
+    final data = await SupabaseService.client!
         .from('profiles')
         .select()
         .eq('id', user.id)
@@ -112,7 +118,12 @@ class _AccountScreenState extends State<AccountScreen> {
 
     _showLoadingDialog();
     try {
-      await SupabaseService.client
+      // التحقق من أن Supabase متوفر
+      if (SupabaseService.client == null) {
+        throw Exception('Supabase غير متوفر');
+      }
+      
+      await SupabaseService.client!
           .from('profiles')
           .update({
             'name': nameController.text,
@@ -145,18 +156,23 @@ class _AccountScreenState extends State<AccountScreen> {
     try {
       _showLoadingDialog();
 
+      // التحقق من أن Supabase متوفر
+      if (SupabaseService.client == null) {
+        throw Exception('Supabase غير متوفر');
+      }
+
       // Upload to storage
-      await SupabaseService.client.storage
+      await SupabaseService.client!.storage
           .from('avatars')
           .upload(filePath, image as dynamic);
 
       // Get public URL
-      final publicUrl = SupabaseService.client.storage
+      final publicUrl = SupabaseService.client!.storage
           .from('avatars')
           .getPublicUrl(filePath);
 
       // Update profile
-      await SupabaseService.client
+      await SupabaseService.client!
           .from('profiles')
           .update({'avatar_url': publicUrl})
           .eq('id', userId!);

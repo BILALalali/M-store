@@ -408,12 +408,15 @@ class _GameCardsScreenState extends State<GameCardsScreen> {
   void _addToOrders(GameCard card) {
     // إنشاء منتج من الكارت لإضافته إلى قائمة الطلبات
     final product = Product(
+      id: 'game-${card.typeName}-${card.value.toInt()}',
       name: 'كارت ${card.typeName} - ${card.value.toInt()}\$',
       images: [card.imageUrl],
       price: card.price,
       quantity: 1,
       category: 'شحن كروت ألعاب',
       description: '${card.description} - ${card.typeName}',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
 
     // التحقق من أن المنتج غير موجود بالفعل في القائمة

@@ -16,36 +16,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   final PageController _pageController = PageController();
   static const Color backgroundColor = Color(0xFFF7F7F7);
 
-  // قائمة المنتجات الوهمية للمنتجات المشابهة
-  static List<Product> get mockProducts => [
-    Product(
-      name: 'سامسونج جالاكسي S23',
-      images: [
-        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9',
-        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?ixlib=rb-4.0.3',
-      ],
-      price: 1200.0,
-      quantity: 3,
-      category: 'موبايلات',
-      description: 'هاتف ذكي متطور بشاشة AMOLED وكاميرا عالية الدقة.',
-    ),
-    Product(
-      name: 'شاومي ريدمي نوت 12',
-      images: ['https://images.unsplash.com/photo-1511707171634-5f897ff02aa9'],
-      price: 350.0,
-      quantity: 5,
-      category: 'موبايلات',
-      description: 'موبايل اقتصادي بشاشة كبيرة وبطارية تدوم طويلاً.',
-    ),
-    Product(
-      name: 'كفر شفاف آيفون',
-      images: ['https://images.unsplash.com/photo-1517336714731-489689fd1ca8'],
-      price: 10.0,
-      quantity: 10,
-      category: 'كفرات وحمايات',
-      description: 'كفر شفاف عالي الجودة يوفر حماية ممتازة.',
-    ),
-  ];
+  // قائمة فارغة للمنتجات المشابهة (سيتم ملؤها من قاعدة البيانات)
+  static List<Product> get mockProducts => [];
 
   // جلب المنتجات المشابهة من نفس الفئة (عدا المنتج الحالي)
   List<Product> getSimilarProducts() {
@@ -65,7 +37,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       setState(() {
         OrdersScreen.pendingProducts.add(widget.product);
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('تم إضافة المنتج إلى قائمة الطلب'),

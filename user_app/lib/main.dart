@@ -13,7 +13,15 @@ import 'presentation/screens/game_cards_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SupabaseService.init();
+
+  try {
+    await SupabaseService.init();
+    print('تم الاتصال بقاعدة البيانات بنجاح');
+  } catch (e) {
+    print('فشل في الاتصال بقاعدة البيانات: $e');
+    print('سيتم استخدام البيانات المحلية');
+  }
+
   runApp(const MyApp());
 }
 

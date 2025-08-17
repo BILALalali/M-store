@@ -108,20 +108,25 @@ class LoginScreen extends StatelessWidget {
                       onPressed: () async {
                         _showLoadingDialog(context);
                         try {
-                          final response = await SupabaseService.client.auth
+                          // التحقق من أن Supabase متوفر
+                          if (SupabaseService.client == null) {
+                            throw Exception('Supabase غير متوفر');
+                          }
+                          
+                          final response = await SupabaseService.client!.auth
                               .signInWithPassword(
                                 email: _emailController.text.trim(),
                                 password: _passwordController.text,
                               );
                           final user = response.user;
                           if (user != null) {
-                            final profileResponse = await SupabaseService.client
+                            final profileResponse = await SupabaseService.client!
                                 .from('profiles')
                                 .select()
                                 .eq('id', user.id)
                                 .maybeSingle();
                             if (profileResponse == null) {
-                              await SupabaseService.client
+                              await SupabaseService.client!
                                   .from('profiles')
                                   .upsert({
                                     'id': user.id,

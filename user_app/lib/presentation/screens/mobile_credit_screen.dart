@@ -411,12 +411,15 @@ class _MobileCreditScreenState extends State<MobileCreditScreen> {
   void _addToOrders(MobilePackage package) {
     // إنشاء منتج من الباقة لإضافته إلى قائمة الطلبات
     final product = Product(
+      id: 'mobile-${package.operatorName}-${package.value.toInt()}',
       name: 'باقة ${package.operatorName} - ${package.value.toInt()} ليرة',
       images: [package.imageUrl],
       price: package.price,
       quantity: 1,
       category: 'تحويل رصيد',
       description: '${package.description} - ${package.operatorName}',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
 
     // التحقق من أن المنتج غير موجود بالفعل في القائمة

@@ -201,7 +201,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           _showLoadingDialog(context);
                           if (_formKey.currentState!.validate()) {
                             try {
-                              final response = await SupabaseService.client.auth
+                              // التحقق من أن Supabase متوفر
+                              if (SupabaseService.client == null) {
+                                throw Exception('Supabase غير متوفر');
+                              }
+                              
+                              final response = await SupabaseService.client!.auth
                                   .signUp(
                                     email: _emailController.text.trim(),
                                     password: _passwordController.text,
