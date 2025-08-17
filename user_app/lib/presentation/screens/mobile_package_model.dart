@@ -1,220 +1,388 @@
 import 'package:flutter/material.dart';
+import '../../core/services/supabase_service.dart';
 
 enum MobileOperator { syriatel, mtn, other, all }
 
-class MobilePackage {
-  final String id;
+class MobileOperatorModel {
+  final int id;
   final String name;
-  final double price;
-  final double value;
-  final MobileOperator operator;
-  final String description;
-  final String imageUrl;
+  final String displayNameAr;
+  final String displayNameEn;
+  final String? logoUrl;
   final bool isActive;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  MobileOperatorModel({
+    required this.id,
+    required this.name,
+    required this.displayNameAr,
+    required this.displayNameEn,
+    this.logoUrl,
+    required this.isActive,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory MobileOperatorModel.fromJson(Map<String, dynamic> json) {
+    return MobileOperatorModel(
+      id: json['id'],
+      name: json['name'],
+      displayNameAr: json['display_name_ar'],
+      displayNameEn: json['display_name_en'],
+      logoUrl: json['logo_url'],
+      isActive: json['is_active'] ?? true,
+      createdAt: DateTime.parse(json['created_at']),
+      updatedAt: DateTime.parse(json['updated_at']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'display_name_ar': displayNameAr,
+      'display_name_en': displayNameEn,
+      'logo_url': logoUrl,
+      'is_active': isActive,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
+}
+
+class MobilePackage {
+  final int id;
+  final int operatorId;
+  final String packageName;
+  final double packageValue;
+  final double packagePrice;
+  final String? descriptionAr;
+  final String? descriptionEn;
+  final bool isActive;
+  final int sortOrder;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  
+  // معلومات إضافية من جدول المشغلين
+  MobileOperatorModel? operator;
 
   MobilePackage({
     required this.id,
-    required this.name,
-    required this.price,
-    required this.value,
-    required this.operator,
-    required this.description,
-    required this.imageUrl,
+    required this.operatorId,
+    required this.packageName,
+    required this.packageValue,
+    required this.packagePrice,
+    this.descriptionAr,
+    this.descriptionEn,
     this.isActive = true,
+    this.sortOrder = 0,
+    required this.createdAt,
+    required this.updatedAt,
+    this.operator,
   });
 
-  // بيانات وهمية للعرض (سيتم استبدالها بقاعدة البيانات لاحقاً)
-  static List<MobilePackage> get mockPackages => [
+  factory MobilePackage.fromJson(Map<String, dynamic> json) {
+    return MobilePackage(
+      id: json['id'],
+      operatorId: json['operator_id'],
+      packageName: json['package_name'],
+      packageValue: double.parse(json['package_value'].toString()),
+      packagePrice: double.parse(json['package_price'].toString()),
+      descriptionAr: json['description_ar'],
+      descriptionEn: json['description_en'],
+      isActive: json['is_active'] ?? true,
+      sortOrder: json['sort_order'] ?? 0,
+      createdAt: DateTime.parse(json['created_at']),
+      updatedAt: DateTime.parse(json['updated_at']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'operator_id': operatorId,
+      'package_name': packageName,
+      'package_value': packageValue,
+      'package_price': packagePrice,
+      'description_ar': descriptionAr,
+      'description_en': descriptionEn,
+      'is_active': isActive,
+      'sort_order': sortOrder,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
+
+  // الحصول على الباقات من قاعدة البيانات
+  static Future<List<MobilePackage>> getPackagesFromDatabase() async {
+    try {
+      final client = SupabaseService.client;
+      if (client == null) {
+        print('Supabase غير متصل، سيتم استخدام البيانات المحلية');
+        return getMockPackages();
+      }
+
+      final response = await client
+          .from('mobile_packages')
+          .select('''
+            *,
+            mobile_operators (
+              id,
+              name,
+              display_name_ar,
+              display_name_en,
+              logo_url,
+              is_active
+            )
+          ''')
+          .eq('is_active', true)
+          .order('sort_order')
+          .order('package_value');
+
+      if (response == null) return [];
+
+      List<MobilePackage> packages = [];
+      for (var row in response) {
+        final package = MobilePackage.fromJson(row);
+        
+        // إضافة معلومات المشغل
+        if (row['mobile_operators'] != null) {
+          package.operator = MobileOperatorModel.fromJson(row['mobile_operators']);
+        }
+        
+        packages.add(package);
+      }
+
+      return packages;
+    } catch (e) {
+      print('خطأ في جلب الباقات من قاعدة البيانات: $e');
+      return getMockPackages();
+    }
+  }
+
+  // الحصول على الباقات حسب المشغل
+  static Future<List<MobilePackage>> getPackagesByOperatorFromDatabase(MobileOperator operator) async {
+    try {
+      final allPackages = await getPackagesFromDatabase();
+      
+      if (operator == MobileOperator.all) {
+        return allPackages;
+      }
+
+      return allPackages.where((package) {
+        if (package.operator == null) return false;
+        
+        switch (operator) {
+          case MobileOperator.syriatel:
+            return package.operator!.name == 'syriatel';
+          case MobileOperator.mtn:
+            return package.operator!.name == 'mtn';
+          case MobileOperator.other:
+            return !['syriatel', 'mtn'].contains(package.operator!.name);
+          default:
+            return true;
+        }
+      }).toList();
+    } catch (e) {
+      print('خطأ في تصفية الباقات حسب المشغل: $e');
+      return getMockPackages().where((package) {
+        if (operator == MobileOperator.all) return true;
+        return package.operator == operator;
+      }).toList();
+    }
+  }
+
+  // الحصول على المشغلين من قاعدة البيانات
+  static Future<List<MobileOperatorModel>> getOperatorsFromDatabase() async {
+    try {
+      final client = SupabaseService.client;
+      if (client == null) {
+        print('Supabase غير متصل');
+        return [];
+      }
+
+      final response = await client
+          .from('mobile_operators')
+          .select('*')
+          .eq('is_active', true)
+          .order('name');
+
+      if (response == null) return [];
+
+      return response
+          .map((row) => MobileOperatorModel.fromJson(row))
+          .toList();
+    } catch (e) {
+      print('خطأ في جلب المشغلين من قاعدة البيانات: $e');
+      return [];
+    }
+  }
+
+  // بيانات وهمية للعرض (سيتم استخدامها كاحتياطي)
+  static List<MobilePackage> getMockPackages() => [
     // SyriaTel packages
     MobilePackage(
-      id: 'syriatel_50',
-      name: 'SyriaTel',
-      price: 52.50,
-      value: 50.0,
-      operator: MobileOperator.syriatel,
-      description: 'قيمة الباقة: 50 ليرة سورية',
-      imageUrl: 'assets/syriatel_icon.png',
+      id: 1,
+      operatorId: 1,
+      packageName: 'SyriaTel',
+      packageValue: 50.0,
+      packagePrice: 52.50,
+      descriptionAr: 'قيمة الباقة: 50 ليرة سورية',
+      descriptionEn: 'Package Value: 50 Syrian Lira',
+      sortOrder: 1,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     ),
     MobilePackage(
-      id: 'syriatel_100',
-      name: 'SyriaTel',
-      price: 105.00,
-      value: 100.0,
-      operator: MobileOperator.syriatel,
-      description: 'قيمة الباقة: 100 ليرة سورية',
-      imageUrl: 'assets/syriatel_icon.png',
+      id: 2,
+      operatorId: 1,
+      packageName: 'SyriaTel',
+      packageValue: 100.0,
+      packagePrice: 105.00,
+      descriptionAr: 'قيمة الباقة: 100 ليرة سورية',
+      descriptionEn: 'Package Value: 100 Syrian Lira',
+      sortOrder: 2,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     ),
     MobilePackage(
-      id: 'syriatel_200',
-      name: 'SyriaTel',
-      price: 210.00,
-      value: 200.0,
-      operator: MobileOperator.syriatel,
-      description: 'قيمة الباقة: 200 ليرة سورية',
-      imageUrl: 'assets/syriatel_icon.png',
+      id: 3,
+      operatorId: 1,
+      packageName: 'SyriaTel',
+      packageValue: 200.0,
+      packagePrice: 210.00,
+      descriptionAr: 'قيمة الباقة: 200 ليرة سورية',
+      descriptionEn: 'Package Value: 200 Syrian Lira',
+      sortOrder: 3,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     ),
     MobilePackage(
-      id: 'syriatel_500',
-      name: 'SyriaTel',
-      price: 525.00,
-      value: 500.0,
-      operator: MobileOperator.syriatel,
-      description: 'قيمة الباقة: 500 ليرة سورية',
-      imageUrl: 'assets/syriatel_icon.png',
+      id: 4,
+      operatorId: 1,
+      packageName: 'SyriaTel',
+      packageValue: 500.0,
+      packagePrice: 525.00,
+      descriptionAr: 'قيمة الباقة: 500 ليرة سورية',
+      descriptionEn: 'Package Value: 500 Syrian Lira',
+      sortOrder: 4,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     ),
 
     // MTN packages
     MobilePackage(
-      id: 'mtn_50',
-      name: 'MTN Syria',
-      price: 52.00,
-      value: 50.0,
-      operator: MobileOperator.mtn,
-      description: 'قيمة الباقة: 50 ليرة سورية',
-      imageUrl: 'assets/mtn_icon.png',
+      id: 5,
+      operatorId: 2,
+      packageName: 'MTN Syria',
+      packageValue: 50.0,
+      packagePrice: 52.00,
+      descriptionAr: 'قيمة الباقة: 50 ليرة سورية',
+      descriptionEn: 'Package Value: 50 Syrian Lira',
+      sortOrder: 1,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     ),
     MobilePackage(
-      id: 'mtn_100',
-      name: 'MTN Syria',
-      price: 104.00,
-      value: 100.0,
-      operator: MobileOperator.mtn,
-      description: 'قيمة الباقة: 100 ليرة سورية',
-      imageUrl: 'assets/mtn_icon.png',
+      id: 6,
+      operatorId: 2,
+      packageName: 'MTN Syria',
+      packageValue: 100.0,
+      packagePrice: 104.00,
+      descriptionAr: 'قيمة الباقة: 100 ليرة سورية',
+      descriptionEn: 'Package Value: 100 Syrian Lira',
+      sortOrder: 2,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     ),
     MobilePackage(
-      id: 'mtn_200',
-      name: 'MTN Syria',
-      price: 208.00,
-      value: 200.0,
-      operator: MobileOperator.mtn,
-      description: 'قيمة الباقة: 200 ليرة سورية',
-      imageUrl: 'assets/mtn_icon.png',
+      id: 7,
+      operatorId: 2,
+      packageName: 'MTN Syria',
+      packageValue: 200.0,
+      packagePrice: 208.00,
+      descriptionAr: 'قيمة الباقة: 200 ليرة سورية',
+      descriptionEn: 'Package Value: 200 Syrian Lira',
+      sortOrder: 3,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     ),
     MobilePackage(
-      id: 'mtn_500',
-      name: 'MTN Syria',
-      price: 520.00,
-      value: 500.0,
-      operator: MobileOperator.mtn,
-      description: 'قيمة الباقة: 500 ليرة سورية',
-      imageUrl: 'assets/mtn_icon.png',
-    ),
-
-    // Other operators - Wafa Telecom
-    MobilePackage(
-      id: 'wafa_50',
-      name: 'Wafa Telecom',
-      price: 53.00,
-      value: 50.0,
-      operator: MobileOperator.other,
-      description: 'قيمة الباقة: 50 ليرة سورية',
-      imageUrl: 'assets/wafa_icon.png',
-    ),
-    MobilePackage(
-      id: 'wafa_100',
-      name: 'Wafa Telecom',
-      price: 106.00,
-      value: 100.0,
-      operator: MobileOperator.other,
-      description: 'قيمة الباقة: 100 ليرة سورية',
-      imageUrl: 'assets/wafa_icon.png',
-    ),
-    MobilePackage(
-      id: 'wafa_200',
-      name: 'Wafa Telecom',
-      price: 212.00,
-      value: 200.0,
-      operator: MobileOperator.other,
-      description: 'قيمة الباقة: 200 ليرة سورية',
-      imageUrl: 'assets/wafa_icon.png',
-    ),
-    
-    // Other operators - Areeba
-    MobilePackage(
-      id: 'areeba_50',
-      name: 'Areeba',
-      price: 54.00,
-      value: 50.0,
-      operator: MobileOperator.other,
-      description: 'قيمة الباقة: 50 ليرة سورية',
-      imageUrl: 'assets/areeba_icon.png',
-    ),
-    MobilePackage(
-      id: 'areeba_100',
-      name: 'Areeba',
-      price: 108.00,
-      value: 100.0,
-      operator: MobileOperator.other,
-      description: 'قيمة الباقة: 100 ليرة سورية',
-      imageUrl: 'assets/areeba_icon.png',
-    ),
-    MobilePackage(
-      id: 'areeba_300',
-      name: 'Areeba',
-      price: 324.00,
-      value: 300.0,
-      operator: MobileOperator.other,
-      description: 'قيمة الباقة: 300 ليرة سورية',
-      imageUrl: 'assets/areeba_icon.png',
-    ),
-    
-    // Other operators - Syriatel Plus
-    MobilePackage(
-      id: 'syriatel_plus_50',
-      name: 'Syriatel Plus',
-      price: 55.00,
-      value: 50.0,
-      operator: MobileOperator.other,
-      description: 'قيمة الباقة: 50 ليرة سورية',
-      imageUrl: 'assets/syriatel_plus_icon.png',
-    ),
-    MobilePackage(
-      id: 'syriatel_plus_150',
-      name: 'Syriatel Plus',
-      price: 165.00,
-      value: 150.0,
-      operator: MobileOperator.other,
-      description: 'قيمة الباقة: 150 ليرة سورية',
-      imageUrl: 'assets/syriatel_plus_icon.png',
+      id: 8,
+      operatorId: 2,
+      packageName: 'MTN Syria',
+      packageValue: 500.0,
+      packagePrice: 520.00,
+      descriptionAr: 'قيمة الباقة: 500 ليرة سورية',
+      descriptionEn: 'Package Value: 500 Syrian Lira',
+      sortOrder: 4,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     ),
   ];
 
-  // الحصول على الباقات حسب المشغل
+  // الحصول على الباقات حسب المشغل (للتوافق مع الكود القديم)
   static List<MobilePackage> getPackagesByOperator(MobileOperator operator) {
+    final packages = getMockPackages();
     if (operator == MobileOperator.all) {
-      return mockPackages;
+      return packages;
     }
-    return mockPackages
-        .where((package) => package.operator == operator)
-        .toList();
+    return packages.where((package) {
+      switch (operator) {
+        case MobileOperator.syriatel:
+          return package.operatorId == 1;
+        case MobileOperator.mtn:
+          return package.operatorId == 2;
+        case MobileOperator.other:
+          return package.operatorId > 2;
+        default:
+          return true;
+      }
+    }).toList();
   }
 
   // الحصول على اسم المشغل بالعربية
   String get operatorName {
-    switch (operator) {
-      case MobileOperator.syriatel:
+    if (operator != null) {
+      return operator!.displayNameAr;
+    }
+    
+    // احتياطي للبيانات القديمة
+    switch (operatorId) {
+      case 1:
         return 'SyriaTel';
-      case MobileOperator.mtn:
+      case 2:
         return 'MTN Syria';
-      case MobileOperator.other:
-        return name; // استخدام اسم المشغل المحدد في البيانات
-      case MobileOperator.all:
-        return 'الكل';
+      default:
+        return packageName;
     }
   }
 
   // الحصول على أيقونة المشغل
   IconData get operatorIcon {
-    switch (operator) {
-      case MobileOperator.syriatel:
-        return Icons.phone_android;
-      case MobileOperator.mtn:
-        return Icons.phone_android;
-      case MobileOperator.other:
-        return Icons.phone_android;
-      case MobileOperator.all:
-        return Icons.all_inclusive;
+    return Icons.phone_android;
+  }
+
+  // الحصول على وصف الباقة
+  String get description {
+    return descriptionAr ?? 'قيمة الباقة: ${packageValue.toInt()} ليرة سورية';
+  }
+
+  // الحصول على السعر
+  double get price => packagePrice;
+
+  // الحصول على القيمة
+  double get value => packageValue;
+
+  // الحصول على معرف الباقة
+  String get idString => id.toString();
+
+  // الحصول على صورة الباقة
+  String get imageUrl {
+    if (operator?.logoUrl != null) {
+      return operator!.logoUrl!;
     }
+    return 'assets/phone_icon.png';
   }
 }

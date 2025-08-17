@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'mobile_package_model.dart';
 import 'orders_screen.dart';
 import 'product_model.dart';
+import '../../core/services/mobile_packages_service.dart';
 
 class MobileCreditScreen extends StatefulWidget {
   const MobileCreditScreen({super.key});
@@ -12,10 +13,95 @@ class MobileCreditScreen extends StatefulWidget {
 
 class _MobileCreditScreenState extends State<MobileCreditScreen> {
   MobileOperator _selectedOperator = MobileOperator.all;
+  List<MobilePackage> _packages = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   // ألوان التطبيق
   static const Color primaryColor = Color(0xFF1EC6D9);
   static const Color backgroundColor = Color(0xFFF7F7F7);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPackages();
+  }
+
+  // تحميل الباقات من قاعدة البيانات
+  Future<void> _loadPackages() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // اختبار الاتصال أولاً
+      final isConnected = await MobilePackagesService.testConnection();
+      if (!isConnected) {
+        setState(() {
+          _errorMessage =
+              'فشل في الاتصال بقاعدة البيانات. تأكد من إعدادات الشبكة.';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      List<MobilePackage> packages = [];
+
+      if (_selectedOperator == MobileOperator.all) {
+        packages = await MobilePackagesService.getAllPackages();
+      } else {
+        switch (_selectedOperator) {
+          case MobileOperator.syriatel:
+            packages = await MobilePackagesService.getPackagesByOperator(
+              'syriatel',
+            );
+            break;
+          case MobileOperator.mtn:
+            packages = await MobilePackagesService.getPackagesByOperator('mtn');
+            break;
+          case MobileOperator.other:
+            // جلب جميع المشغلين ما عدا syriatel و mtn
+            final allPackages = await MobilePackagesService.getAllPackages();
+            packages = allPackages.where((package) {
+              if (package.operator == null) return false;
+              return !['syriatel', 'mtn'].contains(package.operator!.name);
+            }).toList();
+            break;
+          default:
+            packages = await MobilePackagesService.getAllPackages();
+        }
+      }
+
+      if (packages.isEmpty) {
+        setState(() {
+          _errorMessage =
+              'لا توجد باقات متاحة في قاعدة البيانات. تأكد من إضافة البيانات.';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _packages = packages;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('خطأ في تحميل الباقات: $e');
+      setState(() {
+        _errorMessage = 'حدث خطأ في تحميل الباقات: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  // تحديث الباقات عند تغيير المشغل
+  void _onOperatorChanged(MobileOperator operator) {
+    setState(() {
+      _selectedOperator = operator;
+    });
+    _loadPackages();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,11 +180,7 @@ class _MobileCreditScreenState extends State<MobileCreditScreen> {
     final isSelected = _selectedOperator == operator;
 
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedOperator = operator;
-        });
-      },
+      onTap: () => _onOperatorChanged(operator),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
@@ -140,9 +222,60 @@ class _MobileCreditScreenState extends State<MobileCreditScreen> {
   }
 
   Widget _buildPackagesList() {
-    final packages = MobilePackage.getPackagesByOperator(_selectedOperator);
+    if (_isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: primaryColor),
+            SizedBox(height: 16),
+            Text(
+              'جاري تحميل الباقات...',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+                fontFamily: 'Cairo',
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
-    if (packages.isEmpty) {
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(
+              _errorMessage!,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.red,
+                fontFamily: 'Cairo',
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadPackages,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text(
+                'إعادة المحاولة',
+                style: TextStyle(fontFamily: 'Cairo'),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_packages.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -162,13 +295,16 @@ class _MobileCreditScreenState extends State<MobileCreditScreen> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: packages.length,
-      itemBuilder: (context, index) {
-        final package = packages[index];
-        return _buildPackageCard(package);
-      },
+    return RefreshIndicator(
+      onRefresh: _loadPackages,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: _packages.length,
+        itemBuilder: (context, index) {
+          final package = _packages[index];
+          return _buildPackageCard(package);
+        },
+      ),
     );
   }
 
