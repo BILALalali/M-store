@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../core/services/support_chat_service.dart';
+import '../../core/services/supabase_service.dart';
 
 /// أنواع الرسائل المدعومة
 enum MessageType { text, image }
@@ -13,6 +15,7 @@ class ChatMessage {
   final DateTime timestamp;
   final MessageType type;
   final String? filePath;
+  final String? imageUrl;
 
   const ChatMessage({
     required this.text,
@@ -20,6 +23,7 @@ class ChatMessage {
     required this.timestamp,
     required this.type,
     this.filePath,
+    this.imageUrl,
   });
 }
 
@@ -39,6 +43,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // قائمة الرسائل
   final List<ChatMessage> _messages = [];
+  String? _conversationId;
+  StreamSubscription? _sub;
+  bool _isLoading = true;
 
   // ألوان التطبيق
   static const Color turquoise = Color(0xFF6FD8E8);
@@ -47,47 +54,80 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeWelcomeMessage();
+    _initConversation();
   }
 
   @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _sub?.cancel();
     super.dispose();
   }
 
-  /// إضافة رسالة الترحيب الأولية
-  void _initializeWelcomeMessage() {
-    _messages.add(
-      ChatMessage(
-        text: 'مرحباً! كيف يمكنني مساعدتك اليوم؟',
-        isFromUser: false,
-        timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
-        type: MessageType.text,
-      ),
-    );
+  Future<void> _initConversation() async {
+    try {
+      setState(() => _isLoading = true);
+      if (!SupabaseService.isInitialized || SupabaseService.client == null) {
+        throw Exception('Supabase غير متصل');
+      }
+      final convId =
+          await SupportChatService.getOrCreateConversationForCurrentUser();
+      _conversationId = convId;
+      final rows = await SupportChatService.fetchMessages(convId);
+      final uid = SupabaseService.client!.auth.currentUser?.id;
+      _messages.clear();
+      for (final row in rows) {
+        final isFromUser =
+            row['sender_type'] == 'user' && row['sender_id'] == uid;
+        final type = (row['type'] == 'image')
+            ? MessageType.image
+            : MessageType.text;
+        _messages.add(
+          ChatMessage(
+            text: row['message'] ?? '',
+            isFromUser: isFromUser,
+            timestamp: DateTime.parse(row['created_at']),
+            type: type,
+            imageUrl: row['media_url'],
+          ),
+        );
+      }
+      _sub = await SupportChatService.subscribeToMessages(convId, (row) {
+        final uidNow = SupabaseService.client!.auth.currentUser?.id;
+        final isFromUser =
+            row['sender_type'] == 'user' && row['sender_id'] == uidNow;
+        final type = (row['type'] == 'image')
+            ? MessageType.image
+            : MessageType.text;
+        setState(() {
+          _messages.add(
+            ChatMessage(
+              text: row['message'] ?? '',
+              isFromUser: isFromUser,
+              timestamp: DateTime.parse(row['created_at']),
+              type: type,
+              imageUrl: row['media_url'],
+            ),
+          );
+        });
+        _scrollToBottom();
+      });
+      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showErrorSnackBar('فشل تحميل المحادثة: $e');
+    }
   }
 
   /// إرسال رسالة نصية
   void _sendMessage() {
     final messageText = _messageController.text.trim();
     if (messageText.isEmpty) return;
-
-    setState(() {
-      _messages.add(
-        ChatMessage(
-          text: messageText,
-          isFromUser: true,
-          timestamp: DateTime.now(),
-          type: MessageType.text,
-        ),
-      );
-    });
-
+    if (_conversationId == null) return;
+    SupportChatService.sendTextMessage(_conversationId!, messageText);
     _messageController.clear();
     _scrollToBottom();
-    _simulateAdminResponse();
   }
 
   /// محاكاة رد الإدارة
@@ -130,8 +170,11 @@ class _ChatScreenState extends State<ChatScreen> {
         imageQuality: 80,
       );
 
-      if (image != null) {
-        _addImageMessage(image.path, 'صورة');
+      if (image != null && _conversationId != null) {
+        await SupportChatService.sendImageMessage(
+          _conversationId!,
+          File(image.path),
+        );
       }
     } catch (e) {
       _showErrorSnackBar('خطأ في اختيار الصورة: $e');
@@ -146,29 +189,18 @@ class _ChatScreenState extends State<ChatScreen> {
         imageQuality: 80,
       );
 
-      if (image != null) {
-        _addImageMessage(image.path, 'صورة من الكاميرا');
+      if (image != null && _conversationId != null) {
+        await SupportChatService.sendImageMessage(
+          _conversationId!,
+          File(image.path),
+        );
       }
     } catch (e) {
       _showErrorSnackBar('خطأ في التقاط الصورة: $e');
     }
   }
 
-  /// إضافة رسالة صورة
-  void _addImageMessage(String filePath, String text) {
-    setState(() {
-      _messages.add(
-        ChatMessage(
-          text: text,
-          isFromUser: true,
-          timestamp: DateTime.now(),
-          type: MessageType.image,
-          filePath: filePath,
-        ),
-      );
-    });
-    _scrollToBottom();
-  }
+  // لم نعد نضيف محلياً، ستصل الرسالة عبر الاشتراك
 
   /// عرض رسالة خطأ
   void _showErrorSnackBar(String message) {
@@ -184,7 +216,11 @@ class _ChatScreenState extends State<ChatScreen> {
       backgroundColor: beige,
       body: Column(
         children: [
-          Expanded(child: _buildMessagesList()),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildMessagesList(),
+          ),
           _buildMessageInput(),
         ],
       ),
@@ -323,15 +359,26 @@ class _ChatScreenState extends State<ChatScreen> {
           fontSize: 16,
         ),
       );
-    } else if (message.type == MessageType.image && message.filePath != null) {
+    } else if (message.type == MessageType.image) {
+      final isLocal = message.filePath != null && message.filePath!.isNotEmpty;
+      final widgetImage = isLocal
+          ? Image.file(
+              File(message.filePath!),
+              width: 200,
+              height: 200,
+              fit: BoxFit.cover,
+            )
+          : (message.imageUrl != null
+                ? Image.network(
+                    message.imageUrl!,
+                    width: 200,
+                    height: 200,
+                    fit: BoxFit.cover,
+                  )
+                : const SizedBox.shrink());
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Image.file(
-          File(message.filePath!),
-          width: 200,
-          height: 200,
-          fit: BoxFit.cover,
-        ),
+        child: widgetImage,
       );
     }
     return const SizedBox.shrink();
