@@ -2,218 +2,125 @@ import 'package:flutter/material.dart';
 
 enum GameCardType { steam, psn, xbox, nintendo, other, all }
 
+class GameCardProviderModel {
+  final int id;
+  final String name; // steam, psn, xbox, ...
+  final String displayNameAr;
+  final String displayNameEn;
+  final String? logoUrl;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  GameCardProviderModel({
+    required this.id,
+    required this.name,
+    required this.displayNameAr,
+    required this.displayNameEn,
+    this.logoUrl,
+    required this.isActive,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory GameCardProviderModel.fromJson(Map<String, dynamic> json) {
+    return GameCardProviderModel(
+      id: json['id'],
+      name: json['name'],
+      displayNameAr: json['display_name_ar'],
+      displayNameEn: json['display_name_en'],
+      logoUrl: json['logo_url'],
+      isActive: json['is_active'] ?? true,
+      createdAt: DateTime.parse(json['created_at']),
+      updatedAt: DateTime.parse(json['updated_at']),
+    );
+  }
+}
+
 class GameCard {
-  final String id;
-  final String name;
+  final int id;
+  final int providerId;
+  final String cardName;
   final double price;
   final double value;
-  final GameCardType type;
-  final String description;
-  final String imageUrl;
+  final String? descriptionAr;
+  final String? descriptionEn;
   final bool isActive;
+  final int sortOrder;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  GameCardProviderModel? provider;
 
   GameCard({
     required this.id,
-    required this.name,
+    required this.providerId,
+    required this.cardName,
     required this.price,
     required this.value,
-    required this.type,
-    required this.description,
-    required this.imageUrl,
+    this.descriptionAr,
+    this.descriptionEn,
     this.isActive = true,
+    this.sortOrder = 0,
+    required this.createdAt,
+    required this.updatedAt,
+    this.provider,
   });
 
-  // بيانات وهمية للعرض (سيتم استبدالها بقاعدة البيانات لاحقاً)
-  static List<GameCard> get mockCards => [
-        // Steam cards
-        GameCard(
-          id: 'steam_50',
-          name: 'Steam',
-          price: 52.50,
-          value: 50.0,
-          type: GameCardType.steam,
-          description: 'Steam Gift Card - 50\$',
-          imageUrl: 'assets/steam_icon.png',
-        ),
-        GameCard(
-          id: 'steam_100',
-          name: 'Steam',
-          price: 105.00,
-          value: 100.0,
-          type: GameCardType.steam,
-          description: 'Steam Gift Card - 100\$',
-          imageUrl: 'assets/steam_icon.png',
-        ),
-        GameCard(
-          id: 'steam_200',
-          name: 'Steam',
-          price: 210.00,
-          value: 200.0,
-          type: GameCardType.steam,
-          description: 'Steam Gift Card - 200\$',
-          imageUrl: 'assets/steam_icon.png',
-        ),
+  factory GameCard.fromJson(Map<String, dynamic> json) {
+    return GameCard(
+      id: json['id'],
+      providerId: json['provider_id'],
+      cardName: json['card_name'],
+      price: double.parse(json['card_price'].toString()),
+      value: double.parse(json['card_value'].toString()),
+      descriptionAr: json['description_ar'],
+      descriptionEn: json['description_en'],
+      isActive: json['is_active'] ?? true,
+      sortOrder: json['sort_order'] ?? 0,
+      createdAt: DateTime.parse(json['created_at']),
+      updatedAt: DateTime.parse(json['updated_at']),
+    );
+  }
 
-        // PlayStation Network cards
+  // بيانات وهمية احتياطية
+  static List<GameCard> getMockCards() => [
         GameCard(
-          id: 'psn_50',
-          name: 'PlayStation Network',
+          id: 1,
+          providerId: 1,
+          cardName: 'Steam',
+          price: 52.50,
+          value: 50,
+          descriptionAr: 'Steam Gift Card - 50\$',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+        GameCard(
+          id: 2,
+          providerId: 2,
+          cardName: 'PlayStation Network',
           price: 52.00,
-          value: 50.0,
-          type: GameCardType.psn,
-          description: 'PSN Gift Card - 50\$',
-          imageUrl: 'assets/psn_icon.png',
-        ),
-        GameCard(
-          id: 'psn_100',
-          name: 'PlayStation Network',
-          price: 104.00,
-          value: 100.0,
-          type: GameCardType.psn,
-          description: 'PSN Gift Card - 100\$',
-          imageUrl: 'assets/psn_icon.png',
-        ),
-        GameCard(
-          id: 'psn_200',
-          name: 'PlayStation Network',
-          price: 208.00,
-          value: 200.0,
-          type: GameCardType.psn,
-          description: 'PSN Gift Card - 200\$',
-          imageUrl: 'assets/psn_icon.png',
-        ),
-
-        // Xbox cards
-        GameCard(
-          id: 'xbox_50',
-          name: 'Xbox',
-          price: 53.00,
-          value: 50.0,
-          type: GameCardType.xbox,
-          description: 'Xbox Gift Card - 50\$',
-          imageUrl: 'assets/xbox_icon.png',
-        ),
-        GameCard(
-          id: 'xbox_100',
-          name: 'Xbox',
-          price: 106.00,
-          value: 100.0,
-          type: GameCardType.xbox,
-          description: 'Xbox Gift Card - 100\$',
-          imageUrl: 'assets/xbox_icon.png',
-        ),
-        GameCard(
-          id: 'xbox_200',
-          name: 'Xbox',
-          price: 212.00,
-          value: 200.0,
-          type: GameCardType.xbox,
-          description: 'Xbox Gift Card - 200\$',
-          imageUrl: 'assets/xbox_icon.png',
-        ),
-
-        // Nintendo cards
-        GameCard(
-          id: 'nintendo_50',
-          name: 'Nintendo',
-          price: 54.00,
-          value: 50.0,
-          type: GameCardType.nintendo,
-          description: 'Nintendo eShop Card - 50\$',
-          imageUrl: 'assets/nintendo_icon.png',
-        ),
-        GameCard(
-          id: 'nintendo_100',
-          name: 'Nintendo',
-          price: 108.00,
-          value: 100.0,
-          type: GameCardType.nintendo,
-          description: 'Nintendo eShop Card - 100\$',
-          imageUrl: 'assets/nintendo_icon.png',
-        ),
-
-        // Other cards - Google Play
-        GameCard(
-          id: 'google_play_50',
-          name: 'Google Play',
-          price: 52.50,
-          value: 50.0,
-          type: GameCardType.other,
-          description: 'Google Play Gift Card - 50\$',
-          imageUrl: 'assets/google_play_icon.png',
-        ),
-        GameCard(
-          id: 'google_play_100',
-          name: 'Google Play',
-          price: 105.00,
-          value: 100.0,
-          type: GameCardType.other,
-          description: 'Google Play Gift Card - 100\$',
-          imageUrl: 'assets/google_play_icon.png',
-        ),
-
-        // Other cards - App Store
-        GameCard(
-          id: 'app_store_50',
-          name: 'App Store',
-          price: 53.00,
-          value: 50.0,
-          type: GameCardType.other,
-          description: 'App Store Gift Card - 50\$',
-          imageUrl: 'assets/app_store_icon.png',
-        ),
-        GameCard(
-          id: 'app_store_100',
-          name: 'App Store',
-          price: 106.00,
-          value: 100.0,
-          type: GameCardType.other,
-          description: 'App Store Gift Card - 100\$',
-          imageUrl: 'assets/app_store_icon.png',
+          value: 50,
+          descriptionAr: 'PSN Gift Card - 50\$',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
         ),
       ];
 
-  // الحصول على الكروت حسب النوع
-  static List<GameCard> getCardsByType(GameCardType type) {
-    if (type == GameCardType.all) {
-      return mockCards;
-    }
-    return mockCards.where((card) => card.type == type).toList();
-  }
+  // توافق مع واجهة العرض الحالية
+  String get typeName => provider?.displayNameAr ?? cardName;
 
-  // الحصول على اسم النوع بالعربية
-  String get typeName {
-    switch (type) {
-      case GameCardType.steam:
-        return 'Steam';
-      case GameCardType.psn:
-        return 'PlayStation Network';
-      case GameCardType.xbox:
-        return 'Xbox';
-      case GameCardType.nintendo:
-        return 'Nintendo';
-      case GameCardType.other:
-        return name; // استخدام اسم الكارت المحدد في البيانات
-      case GameCardType.all:
-        return 'الكل';
-    }
-  }
+  String get description =>
+      descriptionAr ?? descriptionEn ?? 'قيمة الكارت: ${value.toInt()}\$';
 
-  // الحصول على أيقونة النوع
+  String get imageUrl => provider?.logoUrl ?? 'assets/gamepad_icon.png';
+
   IconData get typeIcon {
-    switch (type) {
-      case GameCardType.steam:
-        return Icons.games;
-      case GameCardType.psn:
-        return Icons.gamepad;
-      case GameCardType.xbox:
-        return Icons.sports_esports;
-      case GameCardType.nintendo:
-        return Icons.videogame_asset;
-      case GameCardType.other:
-        return Icons.card_giftcard;
-      case GameCardType.all:
-        return Icons.all_inclusive;
-    }
+    final key = provider?.name.toLowerCase() ?? cardName.toLowerCase();
+    if (key.contains('steam')) return Icons.games;
+    if (key.contains('psn') || key.contains('playstation')) return Icons.gamepad;
+    if (key.contains('xbox')) return Icons.sports_esports;
+    if (key.contains('nintendo')) return Icons.videogame_asset;
+    return Icons.card_giftcard;
   }
-} 
+}

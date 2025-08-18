@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'game_card_model.dart';
+import '../../core/services/game_cards_service.dart';
 import 'orders_screen.dart';
 import 'product_model.dart';
 
@@ -16,6 +17,10 @@ class _GameCardsScreenState extends State<GameCardsScreen> {
   static const Color backgroundColor = Color(
     0xFFF0F8FF,
   ); // خلفية زرقاء فاتحة جداً
+
+  List<GameCard> _cards = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -68,10 +73,56 @@ class _GameCardsScreenState extends State<GameCardsScreen> {
     );
   }
 
-  Widget _buildCardsList() {
-    final cards = GameCard.mockCards;
+  @override
+  void initState() {
+    super.initState();
+    _loadCards();
+  }
 
-    if (cards.isEmpty) {
+  Future<void> _loadCards() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final cards = await GameCardsService.getAllCards();
+      setState(() {
+        _cards = cards;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'تعذر تحميل الكروت: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Widget _buildCardsList() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: primaryColor));
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 12),
+            Text(_errorMessage!, style: const TextStyle(fontFamily: 'Cairo')),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _loadCards,
+              style: ElevatedButton.styleFrom(backgroundColor: primaryColor, foregroundColor: Colors.white),
+              child: const Text('إعادة المحاولة', style: TextStyle(fontFamily: 'Cairo')),
+            )
+          ],
+        ),
+      );
+    }
+
+    if (_cards.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -91,14 +142,16 @@ class _GameCardsScreenState extends State<GameCardsScreen> {
       );
     }
 
-    return ListView.builder(
+    return RefreshIndicator(
+      onRefresh: _loadCards,
+      child: ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: cards.length,
+      itemCount: _cards.length,
       itemBuilder: (context, index) {
-        final card = cards[index];
+        final card = _cards[index];
         return _buildCardItem(card);
       },
-    );
+    ));
   }
 
   Widget _buildCardItem(GameCard card) {
