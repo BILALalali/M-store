@@ -450,7 +450,7 @@ class ProductCardTwoColumns extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    '${product.price.toStringAsFixed(1)} ل.س',
+                    _formatPrice(product),
                     style: TextStyle(
                       fontSize: fontSizePrice,
                       color: Colors.black87,
@@ -499,59 +499,37 @@ class AppHeader extends StatelessWidget {
         ],
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // اسم الشركة في سطر واحد
-          Expanded(
-            child: Text(
-              'AL-MOSTAFA COMPANY',
-              style: TextStyle(
-                fontSize: fontSizeTitle,
-                fontWeight: FontWeight.bold,
-                color: UtilScreen.primaryColor,
-                fontFamily: 'Cairo',
-                letterSpacing: 1.5,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 1),
-          // اللوجو في الجهة اليمنى
+          // اللوجو
           Container(
             width: logoSize,
             height: logoSize,
             decoration: BoxDecoration(
+              color: Colors.white,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: UtilScreen.primaryColor.withOpacity(0.2),
+                  color: Colors.grey.withOpacity(0.2),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
               ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                'assets/logo.png',
-                width: logoSize,
-                height: logoSize,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  width: logoSize,
-                  height: logoSize,
-                  decoration: BoxDecoration(
-                    color: UtilScreen.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.store,
-                    size: logoSize * 0.5,
-                    color: UtilScreen.primaryColor,
-                  ),
-                ),
+            child: const Center(
+              child: Icon(Icons.account_circle, size: 36, color: Colors.teal),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // اسم التطبيق
+          Expanded(
+            child: Text(
+              'AL-MOSTAFA COMPANY',
+              style: TextStyle(
+                color: UtilScreen.primaryColor,
+                fontSize: fontSizeTitle,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Cairo',
+                letterSpacing: 2,
               ),
             ),
           ),
@@ -559,6 +537,14 @@ class AppHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatPrice(Product p) {
+  final amount = p.price.toStringAsFixed(1);
+  final code = (p.currency).toUpperCase();
+  if (code == 'USD') return '\u200E\$' + amount; // اتجاه LTR لرمز $
+  if (code == 'TL') return amount + ' TL';
+  return amount + ' ل.س';
 }
 
 // كلاس مساعد لجعل الهيدر ثابت

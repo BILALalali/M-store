@@ -30,6 +30,15 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         .toList();
   }
 
+  String _formatPrice(Product p) {
+    final amount = p.price.toStringAsFixed(1);
+    final code = (p.currency).toUpperCase();
+    if (code == 'USD')
+      return '\u200E\$' + amount; // يظهر كـ $123.4 مع اتجاه LTR
+    if (code == 'TL') return amount + ' TL';
+    return amount + ' ل.س';
+  }
+
   // إضافة المنتج إلى قائمة الطلبات
   void _addToCart() {
     // التحقق من أن المنتج غير موجود بالفعل في القائمة
@@ -246,14 +255,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        const Icon(
-                          Icons.attach_money,
-                          color: primaryColor,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 4),
                         Text(
-                          '${product.price.toStringAsFixed(1)} ل.س',
+                          _formatPrice(product),
                           style: TextStyle(
                             fontSize: screenWidth * 0.048,
                             fontWeight: FontWeight.bold,
@@ -427,7 +431,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      '${p.price.toStringAsFixed(1)} ل.س',
+                                      _formatPrice(p),
                                       style: const TextStyle(
                                         color: primaryColor,
                                         fontWeight: FontWeight.w600,

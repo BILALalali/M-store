@@ -265,13 +265,19 @@ class _OrdersScreenState extends State<OrdersScreen>
                               fontFamily: 'Cairo',
                             ),
                           ),
-                          Text(
-                            '${_calculateTotal().toStringAsFixed(2)} ل.س',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color.fromARGB(255, 51, 116, 123),
-                              fontFamily: 'Cairo',
+                          Flexible(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              reverse: true,
+                              child: Text(
+                                _formatTotalsString(),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color.fromARGB(255, 51, 116, 123),
+                                  fontFamily: 'Cairo',
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -414,11 +420,42 @@ class _OrdersScreenState extends State<OrdersScreen>
     );
   }
 
-  double _calculateTotal() {
-    return OrdersScreen.pendingProducts.fold(
-      0.0,
-      (sum, product) => sum + product.price,
-    );
+  // تجميع الإجمالي حسب العملة
+  Map<String, double> _calculateTotalsByCurrency() {
+    final Map<String, double> totals = {};
+    for (final p in OrdersScreen.pendingProducts) {
+      final code = (p.currency).toUpperCase();
+      totals[code] = (totals[code] ?? 0) + p.price;
+    }
+    return totals;
+  }
+
+  // تنسيق سطر الإجمالي بحسب العملات المختلفة
+  String _formatTotalsString() {
+    final totals = _calculateTotalsByCurrency();
+    if (totals.isEmpty) return '0';
+
+    String format(String code, double amount) {
+      final value = amount.toStringAsFixed(2);
+      switch (code) {
+        case 'USD':
+          return '\u200E\$' + value; // اتجاه LTR + $
+        case 'TL':
+          return value + ' TL';
+        case 'SYP':
+        default:
+          return value + ' ل.س';
+      }
+    }
+
+    // إذا كان هناك عملة واحدة فقط
+    if (totals.length == 1) {
+      final entry = totals.entries.first;
+      return format(entry.key, entry.value);
+    }
+
+    // أكثر من عملة: عرض مجمّع مفصول بعلامة +
+    return totals.entries.map((e) => format(e.key, e.value)).join(' + ');
   }
 
   void _confirmOrder(BuildContext context) {
@@ -568,7 +605,7 @@ class PendingProductCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${product.price.toStringAsFixed(2)} ل.س',
+                  _formatProductPrice(product),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -588,6 +625,21 @@ class PendingProductCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// تنسيق سعر منتج مفرد بحسب العملة
+String _formatProductPrice(Product p) {
+  final value = p.price.toStringAsFixed(2);
+  final code = (p.currency).toUpperCase();
+  switch (code) {
+    case 'USD':
+      return '\u200E\$' + value;
+    case 'TL':
+      return value + ' TL';
+    case 'SYP':
+    default:
+      return value + ' ل.س';
   }
 }
 

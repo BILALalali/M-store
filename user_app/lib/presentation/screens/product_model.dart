@@ -3,6 +3,7 @@ class Product {
   final String name;
   final List<String> images;
   final double price;
+  final String currency; // USD, TL, SYP
   final int quantity;
   final String category;
   final String description;
@@ -16,6 +17,7 @@ class Product {
     required this.name,
     required this.images,
     required this.price,
+    this.currency = 'SYP',
     required this.quantity,
     required this.category,
     required this.description,
@@ -32,11 +34,16 @@ class Product {
       name: map['name'] ?? '',
       images: List<String>.from(map['images'] ?? []),
       price: (map['price'] ?? 0.0).toDouble(),
+      currency: (map['currency'] ?? 'SYP').toString(),
       quantity: map['quantity'] ?? 0,
       category: map['category'] ?? '',
       description: map['description'] ?? '',
-      createdAt: DateTime.parse(map['created_at'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(map['updated_at'] ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        map['created_at'] ?? DateTime.now().toIso8601String(),
+      ),
+      updatedAt: DateTime.parse(
+        map['updated_at'] ?? DateTime.now().toIso8601String(),
+      ),
       isActive: map['is_active'] ?? true,
       adminId: map['admin_id'],
     );
@@ -49,6 +56,7 @@ class Product {
       'name': name,
       'images': images,
       'price': price,
+      'currency': currency,
       'quantity': quantity,
       'category': category,
       'description': description,
@@ -65,6 +73,7 @@ class Product {
     String? name,
     List<String>? images,
     double? price,
+    String? currency,
     int? quantity,
     String? category,
     String? description,
@@ -78,6 +87,7 @@ class Product {
       name: name ?? this.name,
       images: images ?? this.images,
       price: price ?? this.price,
+      currency: currency ?? this.currency,
       quantity: quantity ?? this.quantity,
       category: category ?? this.category,
       description: description ?? this.description,
@@ -86,5 +96,19 @@ class Product {
       isActive: isActive ?? this.isActive,
       adminId: adminId ?? this.adminId,
     );
+  }
+
+  // رمز العملة للعرض
+  String get currencySymbol {
+    switch (currency.toUpperCase()) {
+      case 'USD':
+      case 'USDT':
+        return '4'; // سيتم استبداله بـ $
+      case 'TL':
+        return 'TL';
+      case 'SYP':
+      default:
+        return 'ل.س';
+    }
   }
 }
