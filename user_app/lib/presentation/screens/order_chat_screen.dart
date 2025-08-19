@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'order_model.dart';
+import '../../core/services/order_chat_service.dart';
 
 /// أنواع الرسائل المدعومة
 enum MessageType { text, image }
@@ -42,6 +43,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
   // قائمة الرسائل
   final List<OrderChatMessage> _messages = [];
+  StreamSubscription? _sub;
 
   // ألوان التطبيق
   static const Color primaryColor = Color(0xFF1EC6D9);
@@ -51,12 +53,14 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
   void initState() {
     super.initState();
     _initializeWelcomeMessage();
+    _bootstrapRealtime();
   }
 
   @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _sub?.cancel();
     super.dispose();
   }
 
@@ -103,27 +107,14 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
     _messageController.clear();
     _scrollToBottom();
-    _simulateAdminResponse();
+    // احفظ في Supabase إن كانت المحادثة موجودة
+    final conversationId = widget.order.conversationId;
+    if (conversationId != null) {
+      OrderChatService.sendText(conversationId, messageText);
+    }
   }
 
-  /// محاكاة رد الإدارة
-  void _simulateAdminResponse() {
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _messages.add(
-            OrderChatMessage(
-              text: 'شكراً لك! سنقوم بمراجعة طلبك والرد عليك قريباً.',
-              isFromUser: false,
-              timestamp: DateTime.now(),
-              type: MessageType.text,
-            ),
-          );
-        });
-        _scrollToBottom();
-      }
-    });
-  }
+  // تم الاستغناء عن محاكاة رد الإدارة بعد ربط Supabase
 
   /// التمرير إلى أسفل المحادثة
   void _scrollToBottom() {
@@ -184,6 +175,11 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
       );
     });
     _scrollToBottom();
+
+    final conversationId = widget.order.conversationId;
+    if (conversationId != null) {
+      OrderChatService.sendImage(conversationId, File(filePath));
+    }
   }
 
   /// عرض رسالة خطأ
@@ -205,6 +201,47 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
           _buildMessageInput(),
         ],
       ),
+    );
+  }
+
+  // تحميل الرسائل الأولى والاشتراك بالتحديثات
+  Future<void> _bootstrapRealtime() async {
+    final conversationId = widget.order.conversationId;
+    if (conversationId == null) return;
+
+    try {
+      final rows = await OrderChatService.fetchMessages(conversationId);
+      for (final r in rows) {
+        _messages.add(_mapRowToMessage(r));
+      }
+      setState(() {});
+      _scrollToBottom();
+
+      _sub = OrderChatService.subscribeToMessages(conversationId, (row) {
+        final msg = _mapRowToMessage(row);
+        setState(() {
+          _messages.add(msg);
+        });
+        _scrollToBottom();
+      });
+    } catch (e) {
+      // تجاهل الخطأ، المحادثة تعمل محلياً
+    }
+  }
+
+  OrderChatMessage _mapRowToMessage(Map<String, dynamic> row) {
+    final isFromUser = (row['sender_type'] ?? '') == 'user';
+    final type = (row['type'] ?? 'text') == 'image'
+        ? MessageType.image
+        : MessageType.text;
+    final tsString =
+        (row['created_at'] ?? DateTime.now().toIso8601String()) as String;
+    return OrderChatMessage(
+      text: (row['message'] ?? '') as String,
+      isFromUser: isFromUser,
+      timestamp: DateTime.parse(tsString),
+      type: type,
+      filePath: row['media_url'] as String?,
     );
   }
 
@@ -537,14 +574,18 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         ),
       );
     } else if (message.type == MessageType.image && message.filePath != null) {
+      final path = message.filePath!;
+      final isRemote = path.startsWith('http');
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Image.file(
-          File(message.filePath!),
-          width: 200,
-          height: 200,
-          fit: BoxFit.cover,
-        ),
+        child: isRemote
+            ? Image.network(path, width: 220, height: 220, fit: BoxFit.cover)
+            : Image.file(
+                File(path),
+                width: 220,
+                height: 220,
+                fit: BoxFit.cover,
+              ),
       );
     }
     return const SizedBox.shrink();

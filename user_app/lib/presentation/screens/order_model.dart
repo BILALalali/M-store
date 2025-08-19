@@ -3,6 +3,9 @@ enum OrderStatus { pending, confirmed, cancelled }
 enum OrderType { retail, wholesale, delivery, mobileCredit }
 
 class Order {
+  // معرّفات من قاعدة البيانات
+  final String? orderId;
+  final String? conversationId;
   final String productName;
   final String productImage;
   final String productId;
@@ -16,6 +19,8 @@ class Order {
   final int? quantity; // للطلبات الجملة
 
   Order({
+    this.orderId,
+    this.conversationId,
     required this.productName,
     required this.productImage,
     required this.productId,

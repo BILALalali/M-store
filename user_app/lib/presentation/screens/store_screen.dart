@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'order_model.dart';
+// تم استبدال إنشاء الطلب بخدمة Supabase ولا حاجة لاستخدام النموذج هنا مباشرة
 import 'orders_screen.dart';
+import '../../core/services/order_chat_service.dart';
 
 class StoreScreen extends StatefulWidget {
   StoreScreen({Key? key}) : super(key: key);
@@ -35,26 +36,27 @@ class _StoreScreenState extends State<StoreScreen> {
     }
   }
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      // إنشاء طلب جملة جديد
-      final wholesaleOrder = Order(
-        productName: _productNameController.text.trim(),
-        productImage: _selectedImage != null
-            ? _selectedImage!.path
-            : 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9', // صورة افتراضية
-        productId: 'wholesale_${DateTime.now().millisecondsSinceEpoch}',
-        productUrl: '',
-        date: DateTime.now(),
-        status: OrderStatus.pending,
-        userName: 'المستخدم الحالي',
-        orderType: OrderType.wholesale,
-        description: _descriptionController.text.trim(),
-        quantity: int.tryParse(_quantityController.text.trim()) ?? 0,
-      );
+      try {
+        final created = await OrderChatService.createWholesaleOrder(
+          productName: _productNameController.text.trim(),
+          quantity: int.tryParse(_quantityController.text.trim()) ?? 0,
+          description: _descriptionController.text.trim(),
+          imageFile: _selectedImage,
+        );
 
-      // إضافة الطلب إلى قائمة الطلبات المؤكدة
-      OrdersScreen.confirmedOrders.add(wholesaleOrder);
+        // إضافة الطلب إلى قائمة الطلبات المؤكدة محلياً للعرض
+        OrdersScreen.confirmedOrders.add(created);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تعذر إرسال الطلب: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
       // عرض رسالة نجاح
       ScaffoldMessenger.of(context).showSnackBar(
@@ -135,9 +137,9 @@ class _StoreScreenState extends State<StoreScreen> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // العنوان الرئيسي
                 Container(
                   width: double.infinity,

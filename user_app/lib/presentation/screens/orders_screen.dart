@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'order_model.dart';
 import 'order_chat_screen.dart';
 import 'product_model.dart';
+import '../../core/services/order_chat_service.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -35,6 +36,8 @@ class _OrdersScreenState extends State<OrdersScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
+    // تحميل طلبات الجملة من Supabase
+    _loadWholesaleOrders();
     // بدء التحريك إذا كانت هناك رسائل غير مقروءة
     if (_hasUnreadMessages()) {
       _pulseController.repeat(reverse: true);
@@ -45,6 +48,25 @@ class _OrdersScreenState extends State<OrdersScreen>
   void dispose() {
     _pulseController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadWholesaleOrders() async {
+    try {
+      final fetched = await OrderChatService.fetchWholesaleOrdersForCurrentUser();
+      if (fetched.isNotEmpty) {
+        setState(() {
+          // دمج مع أي محادثات حالية بدون تكرار حسب orderId
+          final existingIds = OrdersScreen.confirmedOrders
+              .map((o) => o.orderId)
+              .toSet();
+          for (final o in fetched) {
+            if (!existingIds.contains(o.orderId)) {
+              OrdersScreen.confirmedOrders.add(o);
+            }
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -745,7 +767,6 @@ class ChatCard extends StatelessWidget {
       case OrderStatus.cancelled:
         return Colors.red;
       case OrderStatus.pending:
-      default:
         return Colors.orange;
     }
   }
@@ -757,7 +778,6 @@ class ChatCard extends StatelessWidget {
       case OrderStatus.cancelled:
         return Icons.cancel;
       case OrderStatus.pending:
-      default:
         return Icons.schedule;
     }
   }
@@ -769,7 +789,6 @@ class ChatCard extends StatelessWidget {
       case OrderStatus.cancelled:
         return 'تم الإلغاء';
       case OrderStatus.pending:
-      default:
         return 'قيد المراجعة';
     }
   }
