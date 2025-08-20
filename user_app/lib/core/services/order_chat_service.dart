@@ -31,8 +31,12 @@ class OrderChatService {
       // إذا كانت الحاوية موجودة بالفعل، نتجاهل الخطأ
       if (e.toString().contains('already exists') ||
           e.toString().contains('duplicate key') ||
-          e.toString().contains('bucket already exists')) {
-        print('الحاوية موجودة بالفعل: $_attachmentsBucket');
+          e.toString().contains('bucket already exists') ||
+          e.toString().contains('row-level security policy') ||
+          e.toString().contains('403') ||
+          e.toString().contains('Unauthorized')) {
+        print('الحاوية موجودة بالفعل أو لا توجد صلاحيات لإنشائها: $_attachmentsBucket');
+        // لا نعيد رمي الخطأ، نستمر لأن الحاوية قد تكون موجودة بالفعل
       } else {
         print('فشل في إنشاء الحاوية: $e');
         // لا نعيد رمي الخطأ، نستمر لأن الحاوية قد تكون موجودة بالفعل
@@ -52,6 +56,15 @@ class OrderChatService {
           'orders/$userId/${DateTime.now().millisecondsSinceEpoch}.$ext';
 
       print('محاولة رفع الصورة إلى: $storagePath');
+
+      // التحقق من وجود الحاوية أولاً
+      try {
+        await _client.storage.from(_attachmentsBucket).list(path: 'orders');
+        print('الحاوية متاحة للاستخدام');
+      } catch (e) {
+        print('الحاوية غير متاحة، محاولة إنشاؤها: $e');
+        await _ensureStorageBucket();
+      }
 
       // رفع الصورة
       await _client.storage
@@ -170,12 +183,17 @@ class OrderChatService {
         final ext = imageFile.path.split('.').last;
         final storagePath =
             'orders/${user.id}/${DateTime.now().millisecondsSinceEpoch}.$ext';
+        
+        print('محاولة رفع صورة الجملة إلى: $storagePath');
+        
         await _client.storage
             .from(_attachmentsBucket)
             .upload(storagePath, imageFile);
         imageUrl = _client.storage
             .from(_attachmentsBucket)
             .getPublicUrl(storagePath);
+            
+        print('تم رفع صورة الجملة بنجاح: $imageUrl');
       } catch (e) {
         // لا نفشل إذا فشل رفع الصورة
         print('فشل في رفع صورة الجملة: $e');

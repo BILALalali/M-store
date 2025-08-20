@@ -45,7 +45,7 @@ class SupportChatService {
         .from(_messages)
         .select('*')
         .eq('conversation_id', conversationId)
-        .order('created_at');
+        .order('created_at', ascending: true); // ترتيب من الأقدم إلى الأحدث
     return rows as List<dynamic>;
   }
 
@@ -111,7 +111,7 @@ class SupportChatService {
         .from(_messages)
         .stream(primaryKey: ['id'])
         .eq('conversation_id', conversationId)
-        .order('created_at')
+        .order('created_at', ascending: true) // ترتيب من الأقدم إلى الأحدث
         .listen((rows) {
           for (final row in rows) {
             final id = row['id'];
