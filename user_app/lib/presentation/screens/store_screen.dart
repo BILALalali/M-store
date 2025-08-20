@@ -20,6 +20,9 @@ class _StoreScreenState extends State<StoreScreen> {
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
 
+  // إضافة متغير حالة للتحميل
+  bool _isLoading = false;
+
   // ألوان الهوية البصرية
   static const Color primaryColor = Color(0xFF1EC6D9); // فيروزي
   static const Color accentColor = Color(0xFF2E3A59); // أزرق داكن
@@ -38,6 +41,13 @@ class _StoreScreenState extends State<StoreScreen> {
 
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
+      // منع الإرسال المتعدد
+      if (_isLoading) return;
+
+      setState(() {
+        _isLoading = true;
+      });
+
       try {
         final created = await OrderChatService.createWholesaleOrder(
           productName: _productNameController.text.trim(),
@@ -48,6 +58,26 @@ class _StoreScreenState extends State<StoreScreen> {
 
         // إضافة الطلب إلى قائمة الطلبات المؤكدة محلياً للعرض
         OrdersScreen.confirmedOrders.add(created);
+
+        // عرض رسالة نجاح
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تم إرسال طلب الشحنة بنجاح! يمكنك متابعة الطلب من شاشة طلباتي',
+            ),
+            backgroundColor: primaryColor,
+            duration: Duration(seconds: 3),
+          ),
+        );
+
+        // تفريغ النموذج
+        _formKey.currentState!.reset();
+        _productNameController.clear();
+        _quantityController.clear();
+        _descriptionController.clear();
+        setState(() {
+          _selectedImage = null;
+        });
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -55,28 +85,12 @@ class _StoreScreenState extends State<StoreScreen> {
             backgroundColor: Colors.red,
           ),
         );
-        return;
+      } finally {
+        // إعادة تعيين حالة التحميل
+        setState(() {
+          _isLoading = false;
+        });
       }
-
-      // عرض رسالة نجاح
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'تم إرسال طلب الشحنة بنجاح! يمكنك متابعة الطلب من شاشة طلباتي',
-          ),
-          backgroundColor: primaryColor,
-          duration: Duration(seconds: 3),
-        ),
-      );
-
-      // تفريغ النموذج
-      _formKey.currentState!.reset();
-      _productNameController.clear();
-      _quantityController.clear();
-      _descriptionController.clear();
-      setState(() {
-        _selectedImage = null;
-      });
     }
   }
 
@@ -255,30 +269,55 @@ class _StoreScreenState extends State<StoreScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _submitForm,
+                    onPressed: _isLoading ? null : _submitForm,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryColor,
+                      backgroundColor: _isLoading ? Colors.grey : primaryColor,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
                       elevation: 4,
                     ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.send, size: 24),
-                        SizedBox(width: 12),
-                        Text(
-                          'إرسال طلب الشحنة',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Cairo',
+                    child: _isLoading
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'جاري الإرسال...',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: 'Cairo',
+                                ),
+                              ),
+                            ],
+                          )
+                        : const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.send, size: 24),
+                              SizedBox(width: 12),
+                              Text(
+                                'إرسال طلب الشحنة',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: 'Cairo',
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
 
@@ -343,6 +382,7 @@ class _StoreScreenState extends State<StoreScreen> {
         keyboardType: keyboardType,
         maxLines: maxLines,
         validator: validator,
+        enabled: !_isLoading,
         style: const TextStyle(color: textColor, fontFamily: 'Cairo'),
         decoration: InputDecoration(
           labelText: label,
@@ -413,11 +453,13 @@ class _StoreScreenState extends State<StoreScreen> {
                     top: 8,
                     right: 8,
                     child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedImage = null;
-                        });
-                      },
+                      onTap: _isLoading
+                          ? null
+                          : () {
+                              setState(() {
+                                _selectedImage = null;
+                              });
+                            },
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
@@ -442,11 +484,21 @@ class _StoreScreenState extends State<StoreScreen> {
             child: SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: _pickImage,
-                icon: const Icon(Icons.add_photo_alternate),
+                onPressed: _isLoading ? null : _pickImage,
+                icon: Icon(
+                  _isLoading
+                      ? Icons.hourglass_empty
+                      : Icons.add_photo_alternate,
+                  color: _isLoading ? Colors.grey : primaryColor,
+                ),
                 label: Text(
-                  _selectedImage == null ? 'اختر صورة' : 'تغيير الصورة',
-                  style: const TextStyle(fontFamily: 'Cairo'),
+                  _isLoading
+                      ? 'جاري التحميل...'
+                      : (_selectedImage == null ? 'اختر صورة' : 'تغيير الصورة'),
+                  style: TextStyle(
+                    fontFamily: 'Cairo',
+                    color: _isLoading ? Colors.grey : primaryColor,
+                  ),
                 ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: primaryColor,
