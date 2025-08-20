@@ -36,8 +36,8 @@ class _OrdersScreenState extends State<OrdersScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // تحميل طلبات الجملة من Supabase
-    _loadWholesaleOrders();
+    // تحميل طلبات الجملة وطلبات التجزئة من Supabase
+    _loadOrdersFromSupabase();
     // بدء التحريك إذا كانت هناك رسائل غير مقروءة
     if (_hasUnreadMessages()) {
       _pulseController.repeat(reverse: true);
@@ -50,9 +50,13 @@ class _OrdersScreenState extends State<OrdersScreen>
     super.dispose();
   }
 
-  Future<void> _loadWholesaleOrders() async {
+  Future<void> _loadOrdersFromSupabase() async {
     try {
-      final fetched = await OrderChatService.fetchWholesaleOrdersForCurrentUser();
+      final results = await Future.wait<List<Order>>([
+        OrderChatService.fetchWholesaleOrdersForCurrentUser(),
+        OrderChatService.fetchRetailOrdersForCurrentUser(),
+      ]);
+      final fetched = [...results[0], ...results[1]];
       if (fetched.isNotEmpty) {
         setState(() {
           // دمج مع أي محادثات حالية بدون تكرار حسب orderId
@@ -495,22 +499,40 @@ class _OrdersScreenState extends State<OrdersScreen>
       orderType = OrderType.wholesale;
     }
 
-    // إنشاء طلب واحد يحتوي على جميع المنتجات
-    final order = Order(
-      productName: OrdersScreen.pendingProducts.map((p) => p.name).join(', '),
-      productImage: OrdersScreen.pendingProducts.first.images.isNotEmpty
-          ? OrdersScreen.pendingProducts.first.images.first
-          : '',
-      productId: OrdersScreen.pendingProducts.map((p) => p.name).join('_'),
-      productUrl: '',
-      date: DateTime.now(),
-      status: OrderStatus.pending,
-      userName: 'المستخدم الحالي',
-      orderType: orderType,
-    );
+    // إنشاء خيط محادثة محفوظ في Supabase لهذا الطلب
+    final products = OrdersScreen.pendingProducts;
+    final names = products.map((p) => p.name).toList();
+    final firstImage = products.first.images.isNotEmpty
+        ? products.first.images.first
+        : '';
 
-    // إضافة الطلب إلى قائمة الطلبات المؤكدة
-    OrdersScreen.confirmedOrders.add(order);
+    OrderChatService.createRetailOrderThread(
+          productNames: names,
+          productImage: firstImage,
+          orderType: orderType,
+          description: null,
+        )
+        .then((created) {
+          setState(() {
+            OrdersScreen.confirmedOrders.add(created);
+          });
+        })
+        .catchError((_) {
+          // في حالة الفشل سنُنشئ نموذج محلي فقط حتى لا نخسر تجربة المستخدم
+          final fallback = Order(
+            productName: names.join(', '),
+            productImage: firstImage,
+            productId: names.join('_'),
+            productUrl: '',
+            date: DateTime.now(),
+            status: OrderStatus.pending,
+            userName: 'المستخدم الحالي',
+            orderType: orderType,
+          );
+          setState(() {
+            OrdersScreen.confirmedOrders.add(fallback);
+          });
+        });
 
     // مسح قائمة المنتجات المؤقتة
     OrdersScreen.pendingProducts.clear();

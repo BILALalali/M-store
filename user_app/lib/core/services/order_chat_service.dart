@@ -11,9 +11,25 @@ class OrderChatService {
   static const String _ordersTable = 'wholesale_requests';
   static const String _conversationsTable = 'wholesale_conversations';
   static const String _messagesTable = 'wholesale_messages';
+  // جداول الطلبات العادية/التوصيل/الرصيد (موحدة)
+  static const String _retailThreadsTable = 'order_threads';
+  static const String _retailMessagesTable = 'order_messages';
   static const String _attachmentsBucket = 'wholesale_attachments';
 
   static SupabaseClient get _client => SupabaseService.client!;
+
+  // تحديد جدول الرسائل حسب مصدر المحادثة (جملة أم عادي)
+  static Future<String> _resolveMessagesTable(String conversationId) async {
+    try {
+      final existsWholesale = await _client
+          .from(_conversationsTable)
+          .select('id')
+          .eq('id', conversationId)
+          .maybeSingle();
+      if (existsWholesale != null) return _messagesTable;
+    } catch (_) {}
+    return _retailMessagesTable;
+  }
 
   /// إنشاء طلب جملة مع محادثة مرتبطة وإرجاع نموذج `Order`
   static Future<Order> createWholesaleOrder({
@@ -172,11 +188,12 @@ class OrderChatService {
   static Future<List<Map<String, dynamic>>> fetchMessages(
     String conversationId,
   ) async {
+    final table = await _resolveMessagesTable(conversationId);
     final rows = await _client
-        .from(_messagesTable)
+        .from(table)
         .select('*')
         .eq('conversation_id', conversationId)
-        .order('created_at');
+        .order('created_at', ascending: true);
     return (rows as List).cast<Map<String, dynamic>>();
   }
 
@@ -185,22 +202,71 @@ class OrderChatService {
     String conversationId,
     void Function(Map<String, dynamic> row) onInsert,
   ) {
-    return _client
+    // لا يدعم stream اختيار الجدول ديناميكياً قبل await، فنبني اشتراكين ونفلتر
+    final streamWholesale = _client
         .from(_messagesTable)
         .stream(primaryKey: ['id'])
         .eq('conversation_id', conversationId)
-        .order('created_at')
-        .listen((rows) {
-          for (final row in rows) {
-            onInsert(row);
-          }
-        });
+        .order('created_at', ascending: true);
+    final streamRetail = _client
+        .from(_retailMessagesTable)
+        .stream(primaryKey: ['id'])
+        .eq('conversation_id', conversationId)
+        .order('created_at', ascending: true);
+
+    // تحضير مجموعة معرفات الرسائل الموجودة لتجنب التكرار عند بدء الاشتراك
+    final seenIds = <String>{};
+    () async {
+      try {
+        final existing = await fetchMessages(conversationId);
+        for (final row in existing) {
+          final id = row['id'];
+          if (id is String) seenIds.add(id);
+        }
+      } catch (_) {}
+    }();
+
+    // دمج بسيط: نستمع للأول والثاني ونصبّ الأحداث في متحكم واحد
+    StreamSubscription<List<Map<String, dynamic>>>? sub1;
+    StreamSubscription<List<Map<String, dynamic>>>? sub2;
+    StreamController<List<Map<String, dynamic>>>? controller;
+    controller = StreamController<List<Map<String, dynamic>>>(
+      onCancel: () {
+        try {
+          sub1?.cancel();
+        } catch (_) {}
+        try {
+          sub2?.cancel();
+        } catch (_) {}
+        try {
+          controller?.close();
+        } catch (_) {}
+      },
+    );
+
+    sub1 = streamWholesale.listen((rows) => controller?.add(rows));
+    sub2 = streamRetail.listen((rows) => controller?.add(rows));
+
+    final c = controller!;
+    final combined = c.stream.listen((rows) {
+      for (final row in rows) {
+        final id = row['id'];
+        if (id is String && !seenIds.contains(id)) {
+          seenIds.add(id);
+          onInsert(row);
+        }
+      }
+    });
+
+    // إرجاع الاشتراك المشترك؛ عند إلغائه سيُستدعى onCancel للـ controller
+    return combined;
   }
 
   /// إرسال رسالة نصية
   static Future<void> sendText(String conversationId, String text) async {
     final user = _client.auth.currentUser;
-    await _client.from(_messagesTable).insert({
+    final table = await _resolveMessagesTable(conversationId);
+    await _client.from(table).insert({
       'conversation_id': conversationId,
       'sender_type': 'user',
       'sender_id': user?.id,
@@ -227,7 +293,8 @@ class OrderChatService {
           .from(_attachmentsBucket)
           .getPublicUrl(storagePath);
 
-      await _client.from(_messagesTable).insert({
+      final table = await _resolveMessagesTable(conversationId);
+      await _client.from(table).insert({
         'conversation_id': conversationId,
         'sender_type': 'user',
         'sender_id': user?.id,
@@ -238,5 +305,103 @@ class OrderChatService {
     } catch (e) {
       rethrow;
     }
+  }
+
+  // ===== الطلبات العادية: إنشاء محادثة عند تأكيد الطلب من الشاشة الرئيسية =====
+  static Future<Order> createRetailOrderThread({
+    required List<String> productNames,
+    required String productImage,
+    required OrderType orderType,
+    String? description,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw Exception('المستخدم غير مسجل دخول');
+
+    final title = productNames.join(', ');
+
+    final threadRow = await _client
+        .from(_retailThreadsTable)
+        .insert({
+          'user_id': user.id,
+          'title': title,
+          'product_names': productNames,
+          'summary': description ?? '',
+          'order_type': orderType.name,
+          'status': 'pending',
+          'image_url': productImage,
+        })
+        .select('id, created_at, title, image_url')
+        .single();
+
+    final threadId = threadRow['id'] as String;
+
+    return Order(
+      orderId: threadId,
+      conversationId: threadId, // معرف المحادثة = معرف الخيط
+      productName: title,
+      productImage: (threadRow['image_url'] ?? '') as String,
+      productId: threadId,
+      productUrl: '',
+      date: DateTime.parse(threadRow['created_at'] as String),
+      status: OrderStatus.pending,
+      userName: user.email ?? user.id,
+      orderType: orderType,
+      description: description,
+      quantity: null,
+    );
+  }
+
+  static Future<List<Order>> fetchRetailOrdersForCurrentUser() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return [];
+
+    final rows = await _client
+        .from(_retailThreadsTable)
+        .select('id, title, image_url, status, created_at, order_type, summary')
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false);
+
+    if (rows is! List) return [];
+
+    OrderStatus _mapStatus(String? s) {
+      switch ((s ?? 'pending').toLowerCase()) {
+        case 'confirmed':
+          return OrderStatus.confirmed;
+        case 'cancelled':
+          return OrderStatus.cancelled;
+        default:
+          return OrderStatus.pending;
+      }
+    }
+
+    OrderType _mapType(String? s) {
+      switch ((s ?? 'retail').toLowerCase()) {
+        case 'delivery':
+          return OrderType.delivery;
+        case 'mobile_credit':
+          return OrderType.mobileCredit;
+        case 'wholesale':
+          return OrderType.wholesale;
+        default:
+          return OrderType.retail;
+      }
+    }
+
+    return rows.map((r) {
+      return Order(
+        orderId: r['id'] as String,
+        conversationId: r['id'] as String,
+        productName: (r['title'] ?? '') as String,
+        productImage: (r['image_url'] ?? '') as String,
+        productId: r['id'] as String,
+        productUrl: '',
+        date: DateTime.parse(r['created_at'] as String),
+        status: _mapStatus(r['status'] as String?),
+        userName: user.email ?? user.id,
+        orderType: _mapType(r['order_type'] as String?),
+        description: r['summary'] as String?,
+        quantity: null,
+      );
+    }).toList();
   }
 }
