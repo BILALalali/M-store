@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'order_model.dart';
 import 'orders_screen.dart';
+import '../../core/services/order_chat_service.dart';
 
 class DeliveryServicesScreen extends StatefulWidget {
   const DeliveryServicesScreen({Key? key}) : super(key: key);
@@ -23,6 +23,10 @@ class _DeliveryServicesScreenState extends State<DeliveryServicesScreen> {
   final List<int> _weightOptions = List.generate(500, (index) => index + 1);
   int? _selectedWeight;
 
+  // متغيرات حالة التحميل
+  bool _isLoading = false;
+  bool _isUploading = false;
+
   // ألوان الهوية البصرية
   static const Color primaryColor = Color(0xFF1EC6D9); // فيروزي
   static const Color accentColor = Color(0xFF2E3A59); // أزرق داكن
@@ -39,7 +43,7 @@ class _DeliveryServicesScreenState extends State<DeliveryServicesScreen> {
     }
   }
 
-  void _submitForm() {
+  void _submitForm() async {
     if (_formKey.currentState!.validate()) {
       // التحقق من وجود صورة
       if (_selectedImage == null) {
@@ -53,44 +57,66 @@ class _DeliveryServicesScreenState extends State<DeliveryServicesScreen> {
         return;
       }
 
-      // إنشاء طلب توصيل جديد
-      final deliveryOrder = Order(
-        productName: _cargoTypeController.text.trim(),
-        productImage: _selectedImage!.path,
-        productId: 'delivery_${DateTime.now().millisecondsSinceEpoch}',
-        productUrl: '',
-        date: DateTime.now(),
-        status: OrderStatus.pending,
-        userName: 'المستخدم الحالي',
-        orderType: OrderType.delivery,
-        description:
-            '${_descriptionController.text.trim()}\nالوزن: ${_selectedWeight ?? 0} كغ\nالموقع: ${_locationController.text.trim()}',
-        quantity: 1,
-      );
-
-      // إضافة الطلب إلى قائمة الطلبات المؤكدة
-      OrdersScreen.confirmedOrders.add(deliveryOrder);
-
-      // عرض رسالة نجاح
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'تم إرسال طلب التوصيل بنجاح! يمكنك متابعة الطلب من شاشة طلباتي',
-          ),
-          backgroundColor: primaryColor,
-          duration: Duration(seconds: 3),
-        ),
-      );
-
-      // تفريغ النموذج
-      _formKey.currentState!.reset();
-      _cargoTypeController.clear();
-      _locationController.clear();
-      _descriptionController.clear();
+      // بدء التحميل
       setState(() {
-        _selectedImage = null;
-        _selectedWeight = null;
+        _isLoading = true;
+        _isUploading = true;
       });
+
+      try {
+        // إنشاء طلب توصيل محفوظ في Supabase ثم إضافته لقائمة المحادثات
+        final cargoType = _cargoTypeController.text.trim();
+        final location = _locationController.text.trim();
+        final desc = _descriptionController.text.trim();
+        final weight = _selectedWeight ?? 0;
+
+        final created = await OrderChatService.createDeliveryRequest(
+          cargoType: cargoType,
+          weightKg: weight,
+          location: location,
+          description: desc,
+          imageFile: _selectedImage!,
+        );
+
+        // إضافة الطلب إلى قائمة المحادثات
+        OrdersScreen.confirmedOrders.add(created);
+
+        // عرض رسالة نجاح
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تم إرسال طلب التوصيل بنجاح! يمكنك متابعة الطلب من شاشة طلباتي',
+            ),
+            backgroundColor: primaryColor,
+            duration: Duration(seconds: 3),
+          ),
+        );
+
+        // تفريغ النموذج بعد النجاح
+        _formKey.currentState!.reset();
+        _cargoTypeController.clear();
+        _locationController.clear();
+        _descriptionController.clear();
+        setState(() {
+          _selectedImage = null;
+          _selectedWeight = null;
+        });
+      } catch (e) {
+        // عرض رسالة خطأ
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تعذر إرسال الطلب: $e'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      } finally {
+        // إنهاء التحميل
+        setState(() {
+          _isLoading = false;
+          _isUploading = false;
+        });
+      }
     }
   }
 
@@ -212,6 +238,7 @@ class _DeliveryServicesScreenState extends State<DeliveryServicesScreen> {
                   label: 'نوع البضاعة',
                   hint: 'أدخل نوع البضاعة المراد توصيلها',
                   icon: Icons.inventory,
+                  enabled: !_isLoading,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'يرجى إدخال نوع البضاعة';
@@ -233,6 +260,7 @@ class _DeliveryServicesScreenState extends State<DeliveryServicesScreen> {
                   label: 'مكان الشحنة',
                   hint: 'أدخل عنوان مكان الشحنة',
                   icon: Icons.location_on,
+                  enabled: !_isLoading,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'يرجى إدخال مكان الشحنة';
@@ -250,6 +278,7 @@ class _DeliveryServicesScreenState extends State<DeliveryServicesScreen> {
                   hint: 'أدخل وصفاً مفصلاً للشحنة والتفاصيل المطلوبة',
                   icon: Icons.description,
                   maxLines: 4,
+                  enabled: !_isLoading,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'يرجى إدخال وصف الشحنة';
@@ -265,12 +294,50 @@ class _DeliveryServicesScreenState extends State<DeliveryServicesScreen> {
 
                 const SizedBox(height: 32),
 
+                // مؤشر التحميل
+                if (_isUploading) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: primaryColor.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              primaryColor,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'جاري رفع الصورة وحفظ البيانات...',
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 14,
+                              fontFamily: 'Cairo',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
                 // زر الإرسال
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _submitForm,
+                    onPressed: _isLoading ? null : _submitForm,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryColor,
                       foregroundColor: Colors.white,
@@ -279,21 +346,46 @@ class _DeliveryServicesScreenState extends State<DeliveryServicesScreen> {
                       ),
                       elevation: 4,
                     ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.send, size: 24),
-                        SizedBox(width: 12),
-                        Text(
-                          'إرسال طلب التوصيل',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Cairo',
+                    child: _isLoading
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'جاري الإرسال...',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Cairo',
+                                ),
+                              ),
+                            ],
+                          )
+                        : const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.send, size: 24),
+                              SizedBox(width: 12),
+                              Text(
+                                'إرسال طلب التوصيل',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Cairo',
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
 
@@ -340,6 +432,7 @@ class _DeliveryServicesScreenState extends State<DeliveryServicesScreen> {
     TextInputType? keyboardType,
     int maxLines = 1,
     String? Function(String?)? validator,
+    bool enabled = true,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -372,61 +465,68 @@ class _DeliveryServicesScreenState extends State<DeliveryServicesScreen> {
           labelStyle: const TextStyle(color: primaryColor, fontFamily: 'Cairo'),
           hintStyle: TextStyle(color: Colors.grey[400], fontFamily: 'Cairo'),
         ),
+        enabled: enabled,
       ),
     );
   }
 
   Widget _buildWeightDropdown() {
-    return Container(
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: DropdownButtonFormField<int>(
-        value: _selectedWeight,
-        decoration: InputDecoration(
-          labelText: 'وزن الشحنة',
-          hintText: 'اختر وزن الشحنة',
-          prefixIcon: Icon(Icons.scale, color: primaryColor),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: Colors.transparent,
-          labelStyle: const TextStyle(color: primaryColor, fontFamily: 'Cairo'),
-          hintStyle: TextStyle(color: Colors.grey[400], fontFamily: 'Cairo'),
-        ),
-        items: _weightOptions.map((int weight) {
-          return DropdownMenuItem<int>(
-            value: weight,
-            child: Text(
-              '$weight كغ',
-              style: const TextStyle(color: textColor, fontFamily: 'Cairo'),
+    return AbsorbPointer(
+      absorbing: _isLoading,
+      child: Container(
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-          );
-        }).toList(),
-        onChanged: (int? newValue) {
-          setState(() {
-            _selectedWeight = newValue;
-          });
-        },
-        validator: (value) {
-          if (value == null) {
-            return 'يرجى اختيار وزن الشحنة';
-          }
-          return null;
-        },
-        dropdownColor: cardColor,
-        icon: Icon(Icons.arrow_drop_down, color: primaryColor),
-        style: const TextStyle(color: textColor, fontFamily: 'Cairo'),
+          ],
+        ),
+        child: DropdownButtonFormField<int>(
+          value: _selectedWeight,
+          decoration: InputDecoration(
+            labelText: 'وزن الشحنة',
+            hintText: 'اختر وزن الشحنة',
+            prefixIcon: Icon(Icons.scale, color: primaryColor),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            filled: true,
+            fillColor: Colors.transparent,
+            labelStyle: const TextStyle(
+              color: primaryColor,
+              fontFamily: 'Cairo',
+            ),
+            hintStyle: TextStyle(color: Colors.grey[400], fontFamily: 'Cairo'),
+          ),
+          items: _weightOptions.map((int weight) {
+            return DropdownMenuItem<int>(
+              value: weight,
+              child: Text(
+                '$weight كغ',
+                style: const TextStyle(color: textColor, fontFamily: 'Cairo'),
+              ),
+            );
+          }).toList(),
+          onChanged: (int? newValue) {
+            setState(() {
+              _selectedWeight = newValue;
+            });
+          },
+          validator: (value) {
+            if (value == null) {
+              return 'يرجى اختيار وزن الشحنة';
+            }
+            return null;
+          },
+          dropdownColor: cardColor,
+          icon: Icon(Icons.arrow_drop_down, color: primaryColor),
+          style: const TextStyle(color: textColor, fontFamily: 'Cairo'),
+        ),
       ),
     );
   }

@@ -217,7 +217,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
       setState(() {});
       _scrollToBottom();
 
-      _sub = OrderChatService.subscribeToMessages(conversationId, (row) {
+      _sub = await OrderChatService.subscribeToMessages(conversationId, (row) {
         final msg = _mapRowToMessage(row);
         setState(() {
           _messages.add(msg);

@@ -18,6 +18,60 @@ class OrderChatService {
 
   static SupabaseClient get _client => SupabaseService.client!;
 
+  /// التأكد من وجود حاوية التخزين
+  static Future<void> _ensureStorageBucket() async {
+    try {
+      // محاولة إنشاء الحاوية إذا لم تكن موجودة
+      await _client.storage.createBucket(
+        _attachmentsBucket,
+        const BucketOptions(public: true),
+      );
+      print('تم إنشاء حاوية التخزين: $_attachmentsBucket');
+    } catch (e) {
+      // إذا كانت الحاوية موجودة بالفعل، نتجاهل الخطأ
+      if (e.toString().contains('already exists') ||
+          e.toString().contains('duplicate key') ||
+          e.toString().contains('bucket already exists')) {
+        print('الحاوية موجودة بالفعل: $_attachmentsBucket');
+      } else {
+        print('فشل في إنشاء الحاوية: $e');
+        // لا نعيد رمي الخطأ، نستمر لأن الحاوية قد تكون موجودة بالفعل
+      }
+    }
+  }
+
+  /// رفع صورة إلى التخزين مع معالجة الأخطاء
+  static Future<String> _uploadImageToStorage(
+    File imageFile,
+    String userId,
+  ) async {
+    try {
+      // محاولة رفع الصورة إلى الحاوية الموجودة
+      final ext = imageFile.path.split('.').last.toLowerCase();
+      final storagePath =
+          'orders/$userId/${DateTime.now().millisecondsSinceEpoch}.$ext';
+
+      print('محاولة رفع الصورة إلى: $storagePath');
+
+      // رفع الصورة
+      await _client.storage
+          .from(_attachmentsBucket)
+          .upload(storagePath, imageFile);
+
+      // الحصول على الرابط العام
+      final imageUrl = _client.storage
+          .from(_attachmentsBucket)
+          .getPublicUrl(storagePath);
+
+      print('تم رفع الصورة بنجاح: $imageUrl');
+      return imageUrl;
+    } catch (e) {
+      print('فشل في رفع الصورة: $e');
+      // إرجاع سلسلة فارغة في حالة الفشل
+      return '';
+    }
+  }
+
   // تحديد جدول الرسائل حسب مصدر المحادثة (جملة أم عادي)
   static Future<String> _resolveMessagesTable(String conversationId) async {
     try {
@@ -29,6 +83,69 @@ class OrderChatService {
       if (existsWholesale != null) return _messagesTable;
     } catch (_) {}
     return _retailMessagesTable;
+  }
+
+  /// إنشاء طلب توصيل (Delivery) كمحادثة من نوع الطلبات العادية
+  /// يستخدم جدول `order_threads` ويُخزن الصورة في نفس الحاوية
+  static Future<Order> createDeliveryRequest({
+    required String cargoType,
+    required int weightKg,
+    required String location,
+    required String description,
+    required File imageFile,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw Exception('المستخدم غير مسجل دخول');
+
+    // رفع الصورة إلى التخزين إن أمكن
+    String imageUrl = '';
+    try {
+      // التأكد من وجود حاوية التخزين
+      await _ensureStorageBucket();
+
+      // رفع الصورة باستخدام الطريقة المساعدة
+      imageUrl = await _uploadImageToStorage(imageFile, user.id);
+    } catch (e) {
+      print('فشل في رفع الصورة: $e');
+      // لا نفشل إذا فشل رفع الصورة، نستمر بدون صورة
+      imageUrl = '';
+    }
+
+    final summary = StringBuffer()
+      ..writeln(description)
+      ..writeln('الوزن: $weightKg كغ')
+      ..write('الموقع: $location');
+
+    final threadRow = await _client
+        .from(_retailThreadsTable)
+        .insert({
+          'user_id': user.id,
+          'title': cargoType,
+          'product_names': [cargoType],
+          'summary': summary.toString(),
+          'order_type': OrderType.delivery.name,
+          'status': 'pending',
+          'image_url': imageUrl,
+        })
+        .select('id, created_at, title, image_url, summary')
+        .single();
+
+    final String threadId = threadRow['id'] as String;
+
+    return Order(
+      orderId: threadId,
+      conversationId: threadId,
+      productName: cargoType,
+      productImage: (threadRow['image_url'] ?? '') as String,
+      productId: threadId,
+      productUrl: '',
+      date: DateTime.parse(threadRow['created_at'] as String),
+      status: OrderStatus.pending,
+      userName: user.email ?? user.id,
+      orderType: OrderType.delivery,
+      description: threadRow['summary'] as String?,
+      quantity: null,
+    );
   }
 
   /// إنشاء طلب جملة مع محادثة مرتبطة وإرجاع نموذج `Order`
@@ -47,12 +164,8 @@ class OrderChatService {
     String imageUrl = '';
     if (imageFile != null) {
       try {
-        try {
-          await _client.storage.createBucket(
-            _attachmentsBucket,
-            const BucketOptions(public: true),
-          );
-        } catch (_) {}
+        // التأكد من وجود حاوية التخزين
+        await _ensureStorageBucket();
 
         final ext = imageFile.path.split('.').last;
         final storagePath =
@@ -65,6 +178,7 @@ class OrderChatService {
             .getPublicUrl(storagePath);
       } catch (e) {
         // لا نفشل إذا فشل رفع الصورة
+        print('فشل في رفع صورة الجملة: $e');
         imageUrl = '';
       }
     }
@@ -198,68 +312,30 @@ class OrderChatService {
   }
 
   /// الاشتراك في الرسائل بصيغة stream
-  static StreamSubscription<List<Map<String, dynamic>>> subscribeToMessages(
+  static Future<StreamSubscription<List<Map<String, dynamic>>>>
+  subscribeToMessages(
     String conversationId,
     void Function(Map<String, dynamic> row) onInsert,
-  ) {
-    // لا يدعم stream اختيار الجدول ديناميكياً قبل await، فنبني اشتراكين ونفلتر
-    final streamWholesale = _client
-        .from(_messagesTable)
+  ) async {
+    // تحديد جدول الرسائل أولاً
+    final table = await _resolveMessagesTable(conversationId);
+
+    // إنشاء stream للجدول المحدد فقط - نستمع فقط للرسائل الجديدة
+    // نستخدم timestamp الحالي لتجنب تكرار الرسائل الموجودة مسبقاً
+    final now = DateTime.now().toIso8601String();
+
+    return _client
+        .from(table)
         .stream(primaryKey: ['id'])
         .eq('conversation_id', conversationId)
-        .order('created_at', ascending: true);
-    final streamRetail = _client
-        .from(_retailMessagesTable)
-        .stream(primaryKey: ['id'])
-        .eq('conversation_id', conversationId)
-        .order('created_at', ascending: true);
-
-    // تحضير مجموعة معرفات الرسائل الموجودة لتجنب التكرار عند بدء الاشتراك
-    final seenIds = <String>{};
-    () async {
-      try {
-        final existing = await fetchMessages(conversationId);
-        for (final row in existing) {
-          final id = row['id'];
-          if (id is String) seenIds.add(id);
-        }
-      } catch (_) {}
-    }();
-
-    // دمج بسيط: نستمع للأول والثاني ونصبّ الأحداث في متحكم واحد
-    StreamSubscription<List<Map<String, dynamic>>>? sub1;
-    StreamSubscription<List<Map<String, dynamic>>>? sub2;
-    StreamController<List<Map<String, dynamic>>>? controller;
-    controller = StreamController<List<Map<String, dynamic>>>(
-      onCancel: () {
-        try {
-          sub1?.cancel();
-        } catch (_) {}
-        try {
-          sub2?.cancel();
-        } catch (_) {}
-        try {
-          controller?.close();
-        } catch (_) {}
-      },
-    );
-
-    sub1 = streamWholesale.listen((rows) => controller?.add(rows));
-    sub2 = streamRetail.listen((rows) => controller?.add(rows));
-
-    final c = controller!;
-    final combined = c.stream.listen((rows) {
-      for (final row in rows) {
-        final id = row['id'];
-        if (id is String && !seenIds.contains(id)) {
-          seenIds.add(id);
-          onInsert(row);
-        }
-      }
-    });
-
-    // إرجاع الاشتراك المشترك؛ عند إلغائه سيُستدعى onCancel للـ controller
-    return combined;
+        .gt('created_at', now) // فقط الرسائل الجديدة بعد الآن
+        .order('created_at', ascending: true)
+        .listen((rows) {
+          // معالجة كل صف جديد
+          for (final row in rows) {
+            onInsert(row);
+          }
+        });
   }
 
   /// إرسال رسالة نصية
@@ -279,30 +355,27 @@ class OrderChatService {
   static Future<void> sendImage(String conversationId, File file) async {
     final user = _client.auth.currentUser;
     try {
-      try {
-        await _client.storage.createBucket(
-          _attachmentsBucket,
-          const BucketOptions(public: true),
-        );
-      } catch (_) {}
-      final ext = file.path.split('.').last.toLowerCase();
-      final storagePath =
-          'messages/${user?.id}/${DateTime.now().millisecondsSinceEpoch}.$ext';
-      await _client.storage.from(_attachmentsBucket).upload(storagePath, file);
-      final url = _client.storage
-          .from(_attachmentsBucket)
-          .getPublicUrl(storagePath);
+      // التأكد من وجود حاوية التخزين
+      await _ensureStorageBucket();
 
-      final table = await _resolveMessagesTable(conversationId);
-      await _client.from(table).insert({
-        'conversation_id': conversationId,
-        'sender_type': 'user',
-        'sender_id': user?.id,
-        'type': 'image',
-        'media_url': url,
-        'message': 'صورة',
-      });
+      // رفع الصورة باستخدام الطريقة المساعدة
+      final url = await _uploadImageToStorage(file, user?.id ?? '');
+
+      if (url.isNotEmpty) {
+        final table = await _resolveMessagesTable(conversationId);
+        await _client.from(table).insert({
+          'conversation_id': conversationId,
+          'sender_type': 'user',
+          'sender_id': user?.id,
+          'type': 'image',
+          'media_url': url,
+          'message': 'صورة',
+        });
+      } else {
+        throw Exception('فشل في رفع الصورة');
+      }
     } catch (e) {
+      print('فشل في إرسال الصورة: $e');
       rethrow;
     }
   }
