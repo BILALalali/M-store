@@ -489,14 +489,18 @@ class _OrdersScreenState extends State<OrdersScreen>
 
     // تحديد نوع الطلب بناءً على المنتجات
     OrderType orderType = OrderType.retail;
+
+    // التحقق من نوع المنتجات أولاً
     if (OrdersScreen.pendingProducts.any((p) => p.category == 'تحويل رصيد')) {
       orderType = OrderType.mobileCredit;
     } else if (OrdersScreen.pendingProducts.any(
       (p) => p.category == 'خدمات التوصيل',
     )) {
       orderType = OrderType.delivery;
-    } else if (OrdersScreen.pendingProducts.length > 1) {
-      orderType = OrderType.wholesale;
+    } else {
+      // المنتجات العادية من الشاشة الرئيسية وكروت الألعاب تبقى retail
+      // حتى لو كان هناك أكثر من منتج واحد
+      orderType = OrderType.retail;
     }
 
     // إنشاء خيط محادثة محفوظ في Supabase لهذا الطلب
@@ -837,12 +841,17 @@ class ChatCard extends StatelessWidget {
               offset: const Offset(0, 2),
             ),
           ],
-          // إضافة حدود مميزة لطلبات الجملة والتوصيل
+          // إضافة حدود مميزة لطلبات الجملة والتوصيل والطلبات العادية
           border: order.orderType == OrderType.wholesale
               ? Border.all(color: const Color(0xFF1EC6D9), width: 2)
               : order.orderType == OrderType.delivery
               ? Border.all(color: const Color(0xFF2E3A59), width: 2)
-              : null,
+              : order.orderType == OrderType.mobileCredit
+              ? Border.all(color: const Color(0xFF4CAF50), width: 2)
+              : Border.all(
+                  color: const Color.fromARGB(207, 16, 164, 146),
+                  width: 2,
+                ), // لون برتقالي للطلبات العادية
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -863,7 +872,12 @@ class ChatCard extends StatelessWidget {
                             ? const Color(0xFF2E3A59).withOpacity(0.2)
                             : order.orderType == OrderType.mobileCredit
                             ? const Color(0xFF4CAF50).withOpacity(0.2)
-                            : const Color(0xFF1EC6D9).withOpacity(0.1),
+                            : const Color.fromARGB(
+                                207,
+                                91,
+                                152,
+                                163,
+                              ).withOpacity(0.2), // لون برتقالي للطلبات العادية
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -878,7 +892,14 @@ class ChatCard extends StatelessWidget {
                             ? const Color(0xFF2E3A59)
                             : order.orderType == OrderType.mobileCredit
                             ? const Color(0xFF4CAF50)
-                            : const Color(0xFF1EC6D9),
+                            : order.orderType == OrderType.wholesale
+                            ? const Color(0xFF1EC6D9)
+                            : const Color.fromARGB(
+                                207,
+                                112,
+                                197,
+                                187,
+                              ), // لون برتقالي للطلبات العادية
                         size: 24,
                       ),
                     ),

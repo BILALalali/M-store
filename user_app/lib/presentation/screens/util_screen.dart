@@ -487,7 +487,7 @@ class AppHeader extends StatelessWidget {
     final fontSizeTitle = UtilScreen.getResponsiveFontSize(context, 0.050);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 21.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
       decoration: BoxDecoration(
         color: UtilScreen.backgroundColor,
         boxShadow: [
@@ -500,26 +500,6 @@ class AppHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // اللوجو
-          Container(
-            width: logoSize,
-            height: logoSize,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Center(
-              child: Icon(Icons.account_circle, size: 36, color: Colors.teal),
-            ),
-          ),
-          const SizedBox(width: 12),
           // اسم التطبيق
           Expanded(
             child: Text(
@@ -529,7 +509,33 @@ class AppHeader extends StatelessWidget {
                 fontSize: fontSizeTitle,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'Cairo',
-                letterSpacing: 2,
+                letterSpacing: 3,
+              ),
+            ),
+          ),
+          const SizedBox(width: 1),
+          // اللوجو
+          Container(
+            width: logoSize,
+            height: logoSize,
+            decoration: BoxDecoration(
+              color: const Color.fromARGB(0, 216, 241, 243),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.asset(
+                'assets/logo.png',
+                width: logoSize * 0.8,
+                height: logoSize * 0.8,
+                fit: BoxFit.contain,
               ),
             ),
           ),
