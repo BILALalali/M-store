@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/supabase_service.dart';
 import '../admin_main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -235,20 +236,27 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // محاكاة عملية تسجيل الدخول
-      await Future.delayed(const Duration(seconds: 1));
-
-      // بيانات تسجيل دخول افتراضية للاختبار
       String email = _emailController.text.trim();
       String password = _passwordController.text;
 
-      // للاختبار: قبول أي بريد إلكتروني وكلمة مرور 6 أحرف على الأقل
-      if (email.contains('@') && password.length >= 6) {
-        if (mounted) {
+      // استخدام خدمة Supabase
+      final supabaseService = SupabaseService();
+      final response = await supabaseService.signInWithCredentials(
+        email,
+        password,
+      );
+
+      if (response.user != null && mounted) {
+        // التحقق من أن المستخدم مدير
+        final isAdmin = await supabaseService.isAdmin();
+
+        if (isAdmin) {
           // انتقل للوحة الإدارة
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const AdminMainScreen()),
           );
+        } else {
+          throw Exception('هذا الحساب ليس لديه صلاحيات المدير');
         }
       } else {
         throw Exception('بيانات تسجيل الدخول غير صحيحة');

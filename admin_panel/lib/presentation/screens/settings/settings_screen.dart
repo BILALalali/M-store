@@ -23,11 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // رأس الصفحة
           Row(
             children: [
-              Icon(
-                Icons.settings,
-                size: 32,
-                color: AppColors.primary,
-              ),
+              Icon(Icons.settings, size: 32, color: AppColors.primary),
               const SizedBox(width: 16),
               Text(
                 'الإعدادات',
@@ -39,9 +35,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           Text(
             'تخصيص إعدادات النظام والحساب',
             style: TextStyle(
@@ -49,51 +45,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: AppColors.text.withValues(alpha: 0.7),
             ),
           ),
-          
+
           const SizedBox(height: 32),
-          
-          // إعدادات الحساب
+
+          // إعدادات الإشعارات
           _buildSettingsSection(
-            title: 'إعدادات الحساب',
-            icon: Icons.person,
-            children: [
-              _buildSettingsTile(
-                icon: Icons.lock,
-                title: 'تغيير كلمة المرور',
-                subtitle: 'تحديث كلمة المرور الخاصة بك',
-                onTap: () {
-                  // TODO: فتح نافذة تغيير كلمة المرور
-                },
-              ),
-              _buildSettingsTile(
-                icon: Icons.email,
-                title: 'تحديث البريد الإلكتروني',
-                subtitle: 'تغيير عنوان البريد الإلكتروني',
-                onTap: () {
-                  // TODO: فتح نافذة تحديث البريد الإلكتروني
-                },
-              ),
-              _buildSettingsTile(
-                icon: Icons.phone,
-                title: 'تحديث رقم الهاتف',
-                subtitle: 'تغيير رقم الهاتف',
-                onTap: () {
-                  // TODO: فتح نافذة تحديث رقم الهاتف
-                },
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // إعدادات النظام
-          _buildSettingsSection(
-            title: 'إعدادات النظام',
-            icon: Icons.tune,
+            title: 'إعدادات الإشعارات',
+            icon: Icons.notifications,
             children: [
               _buildSwitchTile(
                 icon: Icons.notifications,
-                title: 'الإشعارات',
+                title: 'الإشعارات العامة',
                 subtitle: 'تفعيل أو إلغاء الإشعارات',
                 value: _notificationsEnabled,
                 onChanged: (value) {
@@ -102,6 +64,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   });
                 },
               ),
+              _buildSwitchTile(
+                icon: Icons.email,
+                title: 'إشعارات البريد الإلكتروني',
+                subtitle: 'استلام إشعارات عبر البريد الإلكتروني',
+                value: true,
+                onChanged: (value) {
+                  // TODO: تفعيل/إلغاء إشعارات البريد الإلكتروني
+                },
+              ),
+              _buildSwitchTile(
+                icon: Icons.phone,
+                title: 'إشعارات الهاتف',
+                subtitle: 'استلام إشعارات عبر الهاتف',
+                value: false,
+                onChanged: (value) {
+                  // TODO: تفعيل/إلغاء إشعارات الهاتف
+                },
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          // إعدادات المظهر
+          _buildSettingsSection(
+            title: 'إعدادات المظهر',
+            icon: Icons.palette,
+            children: [
               _buildSwitchTile(
                 icon: Icons.dark_mode,
                 title: 'الوضع المظلم',
@@ -125,28 +115,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   });
                 },
               ),
+              _buildSwitchTile(
+                icon: Icons.auto_awesome,
+                title: 'الوضع التلقائي',
+                subtitle: 'تفعيل الميزات التلقائية',
+                value: false,
+                onChanged: (value) {
+                  // TODO: تفعيل/إلغاء الوضع التلقائي
+                },
+              ),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
+          // إعدادات متقدمة
+          _buildSettingsSection(
+            title: 'إعدادات متقدمة',
+            icon: Icons.settings_applications,
+            children: [
+              _buildSwitchTile(
+                icon: Icons.analytics,
+                title: 'تقارير مفصلة',
+                subtitle: 'عرض تقارير مفصلة للنظام',
+                value: true,
+                onChanged: (value) {
+                  // TODO: تفعيل/إلغاء التقارير المفصلة
+                },
+              ),
+              _buildSwitchTile(
+                icon: Icons.backup,
+                title: 'النسخ الاحتياطي التلقائي',
+                subtitle: 'إنشاء نسخ احتياطية تلقائية',
+                value: false,
+                onChanged: (value) {
+                  // TODO: تفعيل/إلغاء النسخ الاحتياطي التلقائي
+                },
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
           // إعدادات الأمان
           _buildSettingsSection(
             title: 'إعدادات الأمان',
             icon: Icons.security,
             children: [
-              _buildSettingsTile(
+              _buildSwitchTile(
+                icon: Icons.security,
+                title: 'المصادقة الثنائية',
+                subtitle: 'تفعيل المصادقة الثنائية للحساب',
+                value: false,
+                onChanged: (value) {
+                  // TODO: تفعيل/إلغاء المصادقة الثنائية
+                },
+              ),
+              _buildSwitchTile(
                 icon: Icons.login,
-                title: 'جلسات تسجيل الدخول',
-                subtitle: 'إدارة الجلسات النشطة',
-                onTap: () {
-                  // TODO: فتح نافذة إدارة الجلسات
+                title: 'تسجيل الدخول المتعدد',
+                subtitle: 'السماح بتسجيل دخول من أجهزة متعددة',
+                value: true,
+                onChanged: (value) {
+                  // TODO: تفعيل/إلغاء تسجيل الدخول المتعدد
                 },
               ),
               _buildSettingsTile(
                 icon: Icons.history,
                 title: 'سجل النشاط',
-                subtitle: 'عرض سجل تسجيل الدخول',
+                subtitle: 'عرض سجل تسجيل الدخول والأنشطة',
                 onTap: () {
                   // TODO: فتح نافذة سجل النشاط
                 },
@@ -187,7 +224,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             decoration: BoxDecoration(
               color: AppColors.cardBackground,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+              border: Border.all(
+                color: AppColors.accent.withValues(alpha: 0.2),
+              ),
             ),
             child: Column(children: children),
           ),
@@ -213,10 +252,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       title: Text(
         title,
-        style: TextStyle(
-          fontWeight: FontWeight.w500,
-          color: AppColors.text,
-        ),
+        style: TextStyle(fontWeight: FontWeight.w500, color: AppColors.text),
       ),
       subtitle: Text(
         subtitle,
@@ -252,10 +288,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       title: Text(
         title,
-        style: TextStyle(
-          fontWeight: FontWeight.w500,
-          color: AppColors.text,
-        ),
+        style: TextStyle(fontWeight: FontWeight.w500, color: AppColors.text),
       ),
       subtitle: Text(
         subtitle,
@@ -291,10 +324,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       title: Text(
         title,
-        style: TextStyle(
-          fontWeight: FontWeight.w500,
-          color: AppColors.text,
-        ),
+        style: TextStyle(fontWeight: FontWeight.w500, color: AppColors.text),
       ),
       subtitle: Text(
         subtitle,
@@ -307,10 +337,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         value: value,
         onChanged: onChanged,
         items: items.map((String item) {
-          return DropdownMenuItem<String>(
-            value: item,
-            child: Text(item),
-          );
+          return DropdownMenuItem<String>(value: item, child: Text(item));
         }).toList(),
         underline: Container(),
         icon: Icon(

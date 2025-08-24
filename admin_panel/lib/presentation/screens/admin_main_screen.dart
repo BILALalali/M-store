@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/admin_sidebar.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/services/auth_service.dart';
 import 'profile/profile_screen.dart';
 import 'settings/settings_screen.dart';
 import 'auth/login_screen.dart';
@@ -52,12 +53,46 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
               ),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.of(context).pop();
-                // انتقل لشاشة تسجيل الدخول
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
+
+                try {
+                  // استخدام خدمة المصادقة لتسجيل الخروج
+                  final authService = AuthService();
+                  await authService.signOut();
+
+                  if (mounted) {
+                    // انتقل لشاشة تسجيل الدخول
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (context) => const LoginScreen(),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  // تجاهل الأخطاء عند تسجيل الخروج
+                  print('خطأ في تسجيل الخروج: $e');
+
+                  // حتى لو حدث خطأ، انتقل لشاشة تسجيل الدخول
+                  if (mounted) {
+                    try {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (context) => const LoginScreen(),
+                        ),
+                      );
+                    } catch (navError) {
+                      print('خطأ في التنقل: $navError');
+                      // إعادة تشغيل التطبيق كحل أخير
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                          builder: (context) => const LoginScreen(),
+                        ),
+                        (route) => false,
+                      );
+                    }
+                  }
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.error,
@@ -214,35 +249,171 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
   }
 }
 
-// شاشة لوحة الإدارة البسيطة
-class DashboardScreen extends StatelessWidget {
+// شاشة لوحة الإدارة مع الإحصائيات
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
   @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final AuthService _authService = AuthService();
+  Map<String, dynamic> _stats = {};
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      final stats = await _authService.getDashboardStats();
+      setState(() {
+        _stats = stats;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(32),
-      child: Center(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // رأس الصفحة
+          Row(
+            children: [
+              Icon(Icons.dashboard, size: 32, color: AppColors.primary),
+              const SizedBox(width: 16),
+              Text(
+                'لوحة الإدارة',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          Text(
+            'نظرة عامة على النظام والإحصائيات',
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.text.withValues(alpha: 0.7),
+            ),
+          ),
+
+          const SizedBox(height: 32),
+
+          // بطاقات الإحصائيات
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator())
+          else
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 3,
+              crossAxisSpacing: 24,
+              mainAxisSpacing: 24,
+              childAspectRatio: 1.5,
+              children: [
+                _buildStatCard(
+                  'إجمالي الطلبات',
+                  '${_stats['orders_count'] ?? 0}',
+                  Icons.shopping_cart,
+                  AppColors.primary,
+                ),
+                _buildStatCard(
+                  'إجمالي المنتجات',
+                  '${_stats['products_count'] ?? 0}',
+                  Icons.inventory,
+                  AppColors.success,
+                ),
+                _buildStatCard(
+                  'إجمالي المستخدمين',
+                  '${_stats['users_count'] ?? 0}',
+                  Icons.people,
+                  AppColors.info,
+                ),
+                _buildStatCard(
+                  'إجمالي الإيرادات',
+                  '${_stats['total_revenue']?.toStringAsFixed(2) ?? '0.00'} ريال',
+                  Icons.attach_money,
+                  AppColors.warning,
+                ),
+                _buildStatCard(
+                  'الطلبات المعلقة',
+                  '${_stats['pending_orders'] ?? 0}',
+                  Icons.pending,
+                  AppColors.error,
+                ),
+                _buildStatCard(
+                  'الطلبات المكتملة',
+                  '${_stats['completed_orders'] ?? 0}',
+                  Icons.check_circle,
+                  AppColors.success,
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.dashboard, size: 80, color: AppColors.primary),
-            const SizedBox(height: 24),
+            Icon(icon, size: 40, color: color),
+            const SizedBox(height: 16),
             Text(
-              'لوحة الإدارة',
+              value,
               style: TextStyle(
                 fontSize: 28,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.bold,
                 color: AppColors.text,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Text(
-              'مرحباً بك في لوحة إدارة النظام',
+              title,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 14,
                 color: AppColors.text.withValues(alpha: 0.7),
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),

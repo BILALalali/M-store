@@ -1,0 +1,9 @@
+# انسخ هذا الملف إلى .env واملأ البيانات الفعلية
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_ANON_KEY=your_anon_key_here
+
+# كيفية الحصول على البيانات:
+# 1. اذهب إلى https://supabase.com
+# 2. اختر مشروعك
+# 3. اذهب إلى Settings > API
+# 4. انسخ Project URL و anon public key
