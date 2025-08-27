@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/admin_sidebar.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/services/auth_service.dart';
+import '../../core/services/supabase_service.dart';
 import 'profile/profile_screen.dart';
 import 'settings/settings_screen.dart';
 import 'auth/login_screen.dart';
@@ -57,9 +57,9 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
                 Navigator.of(context).pop();
 
                 try {
-                  // استخدام خدمة المصادقة لتسجيل الخروج
-                  final authService = AuthService();
-                  await authService.signOut();
+                  // استخدام خدمة Supabase لتسجيل الخروج
+                  final supabaseService = SupabaseService();
+                  await supabaseService.signOut();
 
                   if (mounted) {
                     // انتقل لشاشة تسجيل الدخول
@@ -258,7 +258,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  final AuthService _authService = AuthService();
+  final SupabaseService _supabaseService = SupabaseService();
   Map<String, dynamic> _stats = {};
   bool _isLoading = true;
 
@@ -270,7 +270,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _loadStats() async {
     try {
-      final stats = await _authService.getDashboardStats();
+      final stats = await _supabaseService.getDashboardStats();
       setState(() {
         _stats = stats;
         _isLoading = false;
@@ -294,12 +294,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               Icon(Icons.dashboard, size: 32, color: AppColors.primary),
               const SizedBox(width: 16),
-              Text(
-                'لوحة الإدارة',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.text,
+              Expanded(
+                child: Text(
+                  'لوحة الإدارة',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text,
+                  ),
                 ),
               ),
             ],

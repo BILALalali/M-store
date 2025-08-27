@@ -68,19 +68,6 @@ class AppTheme {
     ),
   );
 
-  static ThemeData get darkTheme => ThemeData(
-    useMaterial3: true,
-    fontFamily: 'Cairo',
-    scaffoldBackgroundColor: AppColors.sidebar,
-    primaryColor: AppColors.primary,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
-      primary: AppColors.primary,
-      secondary: AppColors.secondary,
-      surface: AppColors.sidebar,
-      onPrimary: Colors.white,
-      onSecondary: Colors.white,
-      brightness: Brightness.dark,
-    ),
-  );
+  // تم إزالة السمة الليلية - التطبيق يعمل بالنمط النهاري فقط
+  // static ThemeData get darkTheme => ThemeData(...);
 }

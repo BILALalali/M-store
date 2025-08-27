@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/supabase_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -11,23 +12,95 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isEditing = false;
+  bool _isLoading = true;
 
-  // بيانات المدير (يمكن ربطها بقاعدة البيانات لاحقاً)
-  final TextEditingController _nameController = TextEditingController(
-    text: 'أحمد محمد علي',
-  );
-  final TextEditingController _emailController = TextEditingController(
-    text: 'admin@mstore.com',
-  );
-  final TextEditingController _phoneController = TextEditingController(
-    text: '+966 50 123 4567',
-  );
-  final TextEditingController _roleController = TextEditingController(
-    text: 'مدير النظام',
-  );
-  final TextEditingController _departmentController = TextEditingController(
-    text: 'إدارة عامة',
-  );
+  // بيانات المدير
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _roleController = TextEditingController();
+  final TextEditingController _departmentController = TextEditingController();
+
+  final SupabaseService _supabaseService = SupabaseService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileData();
+  }
+
+  Future<void> _loadProfileData() async {
+    try {
+      final adminProfile = await _supabaseService.getAdminProfile();
+
+      if (adminProfile != null) {
+        setState(() {
+          _nameController.text = adminProfile['full_name'] ?? '';
+          _emailController.text = adminProfile['email'] ?? '';
+          _phoneController.text = adminProfile['phone'] ?? '';
+          _roleController.text = adminProfile['role'] ?? 'مدير النظام';
+          _departmentController.text = 'إدارة عامة';
+          _isLoading = false;
+        });
+      } else {
+        // استخدام بيانات افتراضية إذا لم يتم العثور على الملف الشخصي
+        setState(() {
+          _nameController.text = 'أحمد محمد علي';
+          _emailController.text = 'admin@mstore.com';
+          _phoneController.text = '+966 50 123 4567';
+          _roleController.text = 'مدير النظام';
+          _departmentController.text = 'إدارة عامة';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('خطأ في تحميل بيانات الملف الشخصي: $e');
+      // استخدام بيانات افتراضية في حالة الخطأ
+      setState(() {
+        _nameController.text = 'أحمد محمد علي';
+        _emailController.text = 'admin@mstore.com';
+        _phoneController.text = '+966 50 123 4567';
+        _roleController.text = 'مدير النظام';
+        _departmentController.text = 'إدارة عامة';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    try {
+      await _supabaseService.updateAdminProfile(
+        fullName: _nameController.text,
+        phone: _phoneController.text,
+      );
+
+      setState(() {
+        _isEditing = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('تم حفظ التغييرات بنجاح'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في حفظ التغييرات: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -41,6 +114,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return Container(
       padding: const EdgeInsets.all(32),
       child: SingleChildScrollView(
@@ -110,20 +187,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         ),
-        ElevatedButton.icon(
-          onPressed: () {
-            setState(() {
-              _isEditing = !_isEditing;
-            });
-          },
-          icon: Icon(_isEditing ? Icons.save : Icons.edit),
-          label: Text(_isEditing ? 'حفظ التغييرات' : 'تعديل'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _isEditing ? AppColors.success : AppColors.primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+        Flexible(
+          child: ElevatedButton.icon(
+            onPressed: _isEditing
+                ? _saveProfile
+                : () {
+                    setState(() {
+                      _isEditing = true;
+                    });
+                  },
+            icon: Icon(_isEditing ? Icons.save : Icons.edit),
+            label: Text(_isEditing ? 'حفظ التغييرات' : 'تعديل'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _isEditing ? AppColors.success : AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ),
@@ -153,12 +234,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Icon(Icons.person_outline, color: AppColors.primary, size: 24),
               const SizedBox(width: 12),
-              Text(
-                'المعلومات الشخصية',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
+              Expanded(
+                child: Text(
+                  'المعلومات الشخصية',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
                 ),
               ),
             ],
@@ -266,12 +349,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 size: 24,
               ),
               const SizedBox(width: 12),
-              Text(
-                'معلومات الحساب',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
+              Expanded(
+                child: Text(
+                  'معلومات الحساب',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
                 ),
               ),
             ],
@@ -316,12 +401,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Icon(Icons.security, color: AppColors.warning, size: 24),
               const SizedBox(width: 12),
-              Text(
-                'إعدادات الأمان',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
+              Expanded(
+                child: Text(
+                  'إعدادات الأمان',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
                 ),
               ),
             ],
@@ -381,12 +468,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Icon(Icons.analytics_outlined, color: AppColors.info, size: 24),
               const SizedBox(width: 12),
-              Text(
-                'إحصائيات النشاط',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
+              Expanded(
+                child: Text(
+                  'إحصائيات النشاط',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
                 ),
               ),
             ],

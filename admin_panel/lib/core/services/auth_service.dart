@@ -1,138 +1,195 @@
 import 'package:flutter/material.dart';
+import 'supabase_service.dart';
 
-class AuthService {
+class AuthService extends ChangeNotifier {
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
   AuthService._internal();
 
-  // بيانات المدير الأساسي
-  static const String _adminEmail = 'almostafa.0a1@gmail.com';
-  static const String _adminPassword = 'AB123/321';
-
-  // حالة تسجيل الدخول
+  final SupabaseService _supabaseService = SupabaseService();
+  
+  // حالة المصادقة
   bool _isAuthenticated = false;
-  String? _currentUserEmail;
+  bool _isAdmin = false;
+  bool _isLoading = false;
+  Map<String, dynamic>? _adminProfile;
+  String? _errorMessage;
 
   // Getters
   bool get isAuthenticated => _isAuthenticated;
-  String? get currentUserEmail => _currentUserEmail;
-  bool get isAdmin => _currentUserEmail == _adminEmail;
+  bool get isAdmin => _isAdmin;
+  bool get isLoading => _isLoading;
+  Map<String, dynamic>? get adminProfile => _adminProfile;
+  String? get errorMessage => _errorMessage;
+  String? get currentUserEmail => _supabaseService.currentUser?.email;
 
-  // تسجيل دخول المدير
-  Future<bool> signInAdmin() async {
+  // تهيئة الخدمة
+  Future<void> initialize() async {
     try {
-      // محاكاة تأخير الشبكة
-      await Future.delayed(const Duration(seconds: 1));
-
-      _isAuthenticated = true;
-      _currentUserEmail = _adminEmail;
-
-      print('تم تسجيل دخول المدير بنجاح: $_adminEmail');
-      return true;
+      await _supabaseService.initialize();
+      await _checkAuthStatus();
     } catch (e) {
-      print('خطأ في تسجيل دخول المدير: $e');
-      return false;
+      _setError('خطأ في تهيئة خدمة المصادقة: $e');
     }
   }
 
-  // تسجيل دخول ببيانات مخصصة
-  Future<bool> signInWithCredentials(String email, String password) async {
+  // التحقق من حالة المصادقة
+  Future<void> _checkAuthStatus() async {
     try {
-      // محاكاة تأخير الشبكة
-      await Future.delayed(const Duration(seconds: 1));
+      _setLoading(true);
+      _clearError();
 
-      // للاختبار: قبول أي بريد إلكتروني وكلمة مرور 6 أحرف على الأقل
-      if (email.contains('@') && password.length >= 6) {
-        _isAuthenticated = true;
-        _currentUserEmail = email;
+      final isAuth = _supabaseService.isAuthenticated;
+      _isAuthenticated = isAuth;
 
-        print('تم تسجيل الدخول بنجاح: $email');
-        return true;
+      if (isAuth) {
+        // التحقق من صلاحيات المدير
+        final isAdmin = await _supabaseService.isAdmin();
+        _isAdmin = isAdmin;
+
+        if (isAdmin) {
+          // جلب معلومات المدير
+          await _loadAdminProfile();
+        }
+      }
+
+      notifyListeners();
+    } catch (e) {
+      _setError('خطأ في التحقق من حالة المصادقة: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // تسجيل دخول المشرف
+  Future<bool> signInAdmin(String email, String password) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      // تسجيل الدخول
+      final response = await _supabaseService.signInWithCredentials(
+        email,
+        password,
+      );
+
+      if (response.user != null) {
+        // التحقق من أن المستخدم مدير
+        final isAdmin = await _supabaseService.isAdmin();
+        
+        if (isAdmin) {
+          _isAuthenticated = true;
+          _isAdmin = true;
+          
+          // جلب معلومات المدير
+          await _loadAdminProfile();
+          
+          notifyListeners();
+          return true;
+        } else {
+          // تسجيل الخروج إذا لم يكن مدير
+          await _supabaseService.signOut();
+          _setError('هذا الحساب ليس لديه صلاحيات المدير');
+          return false;
+        }
       } else {
-        throw Exception('بيانات تسجيل الدخول غير صحيحة');
+        _setError('بيانات تسجيل الدخول غير صحيحة');
+        return false;
       }
     } catch (e) {
-      print('خطأ في تسجيل الدخول: $e');
+      _handleAuthError(e);
       return false;
+    } finally {
+      _setLoading(false);
     }
   }
 
   // تسجيل الخروج
   Future<void> signOut() async {
     try {
-      // محاكاة تأخير الشبكة
-      await Future.delayed(const Duration(milliseconds: 500));
+      _setLoading(true);
+      _clearError();
 
+      await _supabaseService.signOut();
+      
+      // إعادة تعيين الحالة
       _isAuthenticated = false;
-      _currentUserEmail = null;
-
-      print('تم تسجيل الخروج بنجاح');
+      _isAdmin = false;
+      _adminProfile = null;
+      
+      notifyListeners();
     } catch (e) {
-      print('خطأ في تسجيل الخروج: $e');
-      rethrow;
+      _setError('خطأ في تسجيل الخروج: $e');
+    } finally {
+      _setLoading(false);
     }
   }
 
-  // تحديث معلومات المستخدم
-  Future<bool> updateUserProfile({String? fullName, String? phone}) async {
+  // تحديث معلومات المدير
+  Future<bool> updateAdminProfile({String? fullName, String? phone}) async {
     try {
-      // محاكاة تأخير الشبكة
-      await Future.delayed(const Duration(seconds: 1));
+      _setLoading(true);
+      _clearError();
 
-      print('تم تحديث الملف الشخصي بنجاح');
+      await _supabaseService.updateAdminProfile(
+        fullName: fullName,
+        phone: phone,
+      );
+
+      // إعادة تحميل معلومات المدير
+      await _loadAdminProfile();
+      
+      notifyListeners();
       return true;
     } catch (e) {
-      print('خطأ في تحديث الملف الشخصي: $e');
+      _setError('خطأ في تحديث الملف الشخصي: $e');
       return false;
+    } finally {
+      _setLoading(false);
     }
   }
 
   // تغيير كلمة المرور
   Future<bool> changePassword(String newPassword) async {
     try {
-      // محاكاة تأخير الشبكة
-      await Future.delayed(const Duration(seconds: 1));
+      _setLoading(true);
+      _clearError();
 
-      print('تم تغيير كلمة المرور بنجاح');
+      await _supabaseService.changePassword(newPassword);
       return true;
     } catch (e) {
-      print('خطأ في تغيير كلمة المرور: $e');
+      _setError('خطأ في تغيير كلمة المرور: $e');
       return false;
+    } finally {
+      _setLoading(false);
     }
   }
 
-  // الحصول على بيانات المستخدم
-  Map<String, dynamic> getUserData() {
-    if (!_isAuthenticated) {
-      return {};
+  // جلب معلومات المدير
+  Future<void> _loadAdminProfile() async {
+    try {
+      final profile = await _supabaseService.getAdminProfile();
+      if (profile != null) {
+        _adminProfile = {
+          'email': profile['email'] ?? '',
+          'full_name': profile['full_name'] ?? '',
+          'phone': profile['phone'] ?? '',
+          'role': profile['role'] ?? 'مدير النظام',
+          'avatar': profile['avatar'] ?? 'أ',
+          'is_active': profile['is_active'] ?? true,
+        };
+      }
+    } catch (e) {
+      print('خطأ في جلب معلومات المدير: $e');
     }
-
-    return {
-      'email': _currentUserEmail,
-      'full_name': 'أحمد محمد علي',
-      'phone': '+966 50 123 4567',
-      'role': 'مدير النظام',
-      'avatar': 'أ',
-    };
   }
 
   // الحصول على الإحصائيات
   Future<Map<String, dynamic>> getDashboardStats() async {
     try {
-      // محاكاة تأخير الشبكة
-      await Future.delayed(const Duration(seconds: 1));
-
-      // إحصائيات وهمية للاختبار
-      return {
-        'orders_count': 156,
-        'products_count': 89,
-        'users_count': 1247,
-        'total_revenue': 45678.90,
-        'pending_orders': 23,
-        'completed_orders': 133,
-      };
+      return await _supabaseService.getDashboardStats();
     } catch (e) {
-      print('خطأ في جلب الإحصائيات: $e');
+      _setError('خطأ في جلب الإحصائيات: $e');
       return {
         'orders_count': 0,
         'products_count': 0,
@@ -147,41 +204,9 @@ class AuthService {
   // الحصول على الطلبات
   Future<List<Map<String, dynamic>>> getOrders() async {
     try {
-      // محاكاة تأخير الشبكة
-      await Future.delayed(const Duration(seconds: 1));
-
-      // بيانات وهمية للاختبار
-      return [
-        {
-          'id': '1',
-          'order_number': 'ORD-001',
-          'customer_name': 'محمد أحمد',
-          'customer_email': 'mohamed@example.com',
-          'total_amount': 150.00,
-          'status': 'pending',
-          'created_at': DateTime.now().subtract(const Duration(days: 1)),
-        },
-        {
-          'id': '2',
-          'order_number': 'ORD-002',
-          'customer_name': 'فاطمة علي',
-          'customer_email': 'fatima@example.com',
-          'total_amount': 89.50,
-          'status': 'completed',
-          'created_at': DateTime.now().subtract(const Duration(days: 2)),
-        },
-        {
-          'id': '3',
-          'order_number': 'ORD-003',
-          'customer_name': 'علي حسن',
-          'customer_email': 'ali@example.com',
-          'total_amount': 234.75,
-          'status': 'processing',
-          'created_at': DateTime.now().subtract(const Duration(days: 3)),
-        },
-      ];
+      return await _supabaseService.getOrders();
     } catch (e) {
-      print('خطأ في جلب الطلبات: $e');
+      _setError('خطأ في جلب الطلبات: $e');
       return [];
     }
   }
@@ -189,39 +214,94 @@ class AuthService {
   // الحصول على المنتجات
   Future<List<Map<String, dynamic>>> getProducts() async {
     try {
-      // محاكاة تأخير الشبكة
-      await Future.delayed(const Duration(seconds: 1));
-
-      // بيانات وهمية للاختبار
-      return [
-        {
-          'id': '1',
-          'name': 'بطاقة شحن فري فاير',
-          'category': 'بطاقات الألعاب',
-          'price': 50.00,
-          'stock': 100,
-          'status': 'active',
-        },
-        {
-          'id': '2',
-          'name': 'بطاقة شحن موبايل ليجندز',
-          'category': 'بطاقات الألعاب',
-          'price': 75.00,
-          'stock': 75,
-          'status': 'active',
-        },
-        {
-          'id': '3',
-          'name': 'رصيد جوال',
-          'category': 'رصيد الجوال',
-          'price': 100.00,
-          'stock': 200,
-          'status': 'active',
-        },
-      ];
+      return await _supabaseService.getProducts();
     } catch (e) {
-      print('خطأ في جلب المنتجات: $e');
+      _setError('خطأ في جلب المنتجات: $e');
       return [];
     }
+  }
+
+  // الحصول على المستخدمين
+  Future<List<Map<String, dynamic>>> getUsers() async {
+    try {
+      return await _supabaseService.getUsers();
+    } catch (e) {
+      _setError('خطأ في جلب المستخدمين: $e');
+      return [];
+    }
+  }
+
+  // إنشاء حساب مدير جديد (للمطورين فقط)
+  Future<bool> createAdminAccount({
+    required String email,
+    required String password,
+    required String fullName,
+    String? phone,
+  }) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      await _supabaseService.createAdminAccount(
+        email: email,
+        password: password,
+        fullName: fullName,
+        phone: phone,
+      );
+
+      return true;
+    } catch (e) {
+      _setError('خطأ في إنشاء حساب المدير: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // معالجة أخطاء المصادقة
+  void _handleAuthError(dynamic error) {
+    String errorMessage = 'خطأ في تسجيل الدخول';
+
+    if (error.toString().contains('Invalid login credentials')) {
+      errorMessage = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+    } else if (error.toString().contains('Email not confirmed')) {
+      errorMessage = 'يرجى تأكيد البريد الإلكتروني أولاً';
+    } else if (error.toString().contains('Supabase غير مهيأ')) {
+      errorMessage = 'خطأ في الاتصال بالنظام. يرجى المحاولة مرة أخرى';
+    } else if (error.toString().contains('هذا الحساب ليس لديه صلاحيات المدير')) {
+      errorMessage = 'هذا الحساب ليس لديه صلاحيات المدير';
+    } else {
+      errorMessage = 'خطأ في تسجيل الدخول: $error';
+    }
+
+    _setError(errorMessage);
+  }
+
+  // تعيين حالة التحميل
+  void _setLoading(bool loading) {
+    _isLoading = loading;
+    notifyListeners();
+  }
+
+  // تعيين رسالة خطأ
+  void _setError(String error) {
+    _errorMessage = error;
+    notifyListeners();
+  }
+
+  // مسح رسالة الخطأ
+  void _clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  // إعادة تعيين الحالة
+  void reset() {
+    _isAuthenticated = false;
+    _isAdmin = false;
+    _isLoading = false;
+    _adminProfile = null;
+    _errorMessage = null;
+    notifyListeners();
   }
 }
