@@ -21,7 +21,7 @@ class AdminSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 280,
-      color: Colors.grey[900],
+      color: AppColors.sidebar,
       child: Column(
         children: [
           // Header
@@ -38,27 +38,48 @@ class AdminSidebar extends StatelessWidget {
   }
 
   Widget _buildHeader() {
-    return Container(
-      height: 80,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        border: Border(bottom: BorderSide(color: AppColors.accent)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.admin_panel_settings, color: Colors.white, size: 32),
-          const SizedBox(width: 12),
-          const Text(
-            'لوحة الإدارة',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCollapsed = constraints.maxWidth < 200;
+
+        return Container(
+          height: 80,
+          padding: EdgeInsets.all(isCollapsed ? 8 : 16),
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            border: Border(bottom: BorderSide(color: AppColors.accent)),
           ),
-        ],
-      ),
+          child: isCollapsed
+              ? Center(
+                  child: Icon(
+                    Icons.admin_panel_settings,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                )
+              : Row(
+                  children: [
+                    Icon(
+                      Icons.admin_panel_settings,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'لوحة الإدارة',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+        );
+      },
     );
   }
 
@@ -79,88 +100,155 @@ class AdminSidebar extends StatelessWidget {
   }
 
   Widget _buildFooter() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.accent)),
-      ),
-      child: Column(
-        children: [
-          // معلومات المدير
-          InkWell(
-            onTap: onProfileTap,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: AppColors.secondary,
-                    radius: 20,
-                    child: Text(
-                      'أ',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCollapsed = constraints.maxWidth < 200;
+
+        return Container(
+          padding: EdgeInsets.all(isCollapsed ? 8 : 16),
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: AppColors.accent)),
+          ),
+          child: isCollapsed
+              ? Column(
+                  children: [
+                    // معلومات المدير - نسخة مصغرة
+                    CircleAvatar(
+                      backgroundColor: AppColors.secondary,
+                      radius: 16,
+                      child: Text(
+                        'أ',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 8),
+                    // أزرار الإعدادات وتسجيل الخروج
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        Text(
-                          'مدير النظام',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
+                        IconButton(
+                          icon: Icon(
+                            Icons.settings,
+                            color: AppColors.text,
+                            size: 16,
+                          ),
+                          onPressed: onSettingsTap,
+                          tooltip: 'الإعدادات',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
                           ),
                         ),
-                        Text(
-                          'admin@mstore.com',
-                          style: TextStyle(
-                            color: AppColors.secondary,
-                            fontSize: 11,
+                        IconButton(
+                          icon: Icon(
+                            Icons.logout,
+                            color: AppColors.error,
+                            size: 16,
+                          ),
+                          onPressed: onLogoutTap,
+                          tooltip: 'تسجيل الخروج',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+                  ],
+                )
+              : Column(
+                  children: [
+                    // معلومات المدير
+                    InkWell(
+                      onTap: onProfileTap,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: AppColors.secondary,
+                              radius: 20,
+                              child: Text(
+                                'أ',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'مدير النظام',
+                                    style: TextStyle(
+                                      color: AppColors.text,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    'admin@mstore.com',
+                                    style: TextStyle(
+                                      color: AppColors.text.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                      fontSize: 11,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
-          const SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
-          // أزرار الإعدادات وتسجيل الخروج
-          Row(
-            children: [
-              Expanded(
-                child: IconButton(
-                  icon: Icon(
-                    Icons.settings,
-                    color: AppColors.secondary,
-                    size: 20,
-                  ),
-                  onPressed: onSettingsTap,
-                  tooltip: 'الإعدادات',
+                    // أزرار الإعدادات وتسجيل الخروج
+                    Row(
+                      children: [
+                        Expanded(
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.settings,
+                              color: AppColors.text,
+                              size: 20,
+                            ),
+                            onPressed: onSettingsTap,
+                            tooltip: 'الإعدادات',
+                          ),
+                        ),
+                        Expanded(
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.logout,
+                              color: AppColors.error,
+                              size: 20,
+                            ),
+                            onPressed: onLogoutTap,
+                            tooltip: 'تسجيل الخروج',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ),
-              Expanded(
-                child: IconButton(
-                  icon: Icon(Icons.logout, color: AppColors.error, size: 20),
-                  onPressed: onLogoutTap,
-                  tooltip: 'تسجيل الخروج',
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -170,7 +258,7 @@ class AdminSidebar extends StatelessWidget {
       child: Text(
         title,
         style: TextStyle(
-          color: AppColors.secondary,
+          color: AppColors.text.withValues(alpha: 0.8),
           fontSize: 12,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.2,
@@ -194,14 +282,11 @@ class AdminSidebar extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
-        leading: Icon(
-          icon,
-          color: isSelected ? Colors.white : AppColors.secondary,
-        ),
+        leading: Icon(icon, color: isSelected ? Colors.white : AppColors.text),
         title: Text(
           title,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white,
+            color: isSelected ? Colors.white : AppColors.text,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),
         ),
@@ -209,8 +294,8 @@ class AdminSidebar extends StatelessWidget {
           subtitle,
           style: TextStyle(
             color: isSelected
-                ? AppColors.secondary
-                : AppColors.secondary.withValues(alpha: 0.7),
+                ? Colors.white.withValues(alpha: 0.8)
+                : AppColors.text.withValues(alpha: 0.6),
             fontSize: 11,
           ),
         ),

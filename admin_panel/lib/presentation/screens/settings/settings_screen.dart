@@ -10,8 +10,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
-  String _selectedLanguage = 'العربية';
 
   @override
   Widget build(BuildContext context) {
@@ -80,48 +78,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 value: false,
                 onChanged: (value) {
                   // TODO: تفعيل/إلغاء إشعارات الهاتف
-                },
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // إعدادات المظهر
-          _buildSettingsSection(
-            title: 'إعدادات المظهر',
-            icon: Icons.palette,
-            children: [
-              _buildSwitchTile(
-                icon: Icons.dark_mode,
-                title: 'الوضع المظلم',
-                subtitle: 'تفعيل المظهر المظلم',
-                value: _darkModeEnabled,
-                onChanged: (value) {
-                  setState(() {
-                    _darkModeEnabled = value;
-                  });
-                },
-              ),
-              _buildDropdownTile(
-                icon: Icons.language,
-                title: 'اللغة',
-                subtitle: 'اختر لغة النظام',
-                value: _selectedLanguage,
-                items: ['العربية', 'English'],
-                onChanged: (value) {
-                  setState(() {
-                    _selectedLanguage = value!;
-                  });
-                },
-              ),
-              _buildSwitchTile(
-                icon: Icons.auto_awesome,
-                title: 'الوضع التلقائي',
-                subtitle: 'تفعيل الميزات التلقائية',
-                value: false,
-                onChanged: (value) {
-                  // TODO: تفعيل/إلغاء الوضع التلقائي
                 },
               ),
             ],
@@ -301,49 +257,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         value: value,
         onChanged: onChanged,
         activeColor: AppColors.primary,
-      ),
-    );
-  }
-
-  Widget _buildDropdownTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required String value,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: AppColors.primary, size: 20),
-      ),
-      title: Text(
-        title,
-        style: TextStyle(fontWeight: FontWeight.w500, color: AppColors.text),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(
-          color: AppColors.text.withValues(alpha: 0.7),
-          fontSize: 12,
-        ),
-      ),
-      trailing: DropdownButton<String>(
-        value: value,
-        onChanged: onChanged,
-        items: items.map((String item) {
-          return DropdownMenuItem<String>(value: item, child: Text(item));
-        }).toList(),
-        underline: Container(),
-        icon: Icon(
-          Icons.keyboard_arrow_down,
-          color: AppColors.text.withValues(alpha: 0.5),
-        ),
       ),
     );
   }

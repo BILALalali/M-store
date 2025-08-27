@@ -321,51 +321,89 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (_isLoading)
             const Center(child: CircularProgressIndicator())
           else
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 3,
-              crossAxisSpacing: 24,
-              mainAxisSpacing: 24,
-              childAspectRatio: 1.5,
-              children: [
-                _buildStatCard(
-                  'إجمالي الطلبات',
-                  '${_stats['orders_count'] ?? 0}',
-                  Icons.shopping_cart,
-                  AppColors.primary,
-                ),
-                _buildStatCard(
-                  'إجمالي المنتجات',
-                  '${_stats['products_count'] ?? 0}',
-                  Icons.inventory,
-                  AppColors.success,
-                ),
-                _buildStatCard(
-                  'إجمالي المستخدمين',
-                  '${_stats['users_count'] ?? 0}',
-                  Icons.people,
-                  AppColors.info,
-                ),
-                _buildStatCard(
-                  'إجمالي الإيرادات',
-                  '${_stats['total_revenue']?.toStringAsFixed(2) ?? '0.00'} ريال',
-                  Icons.attach_money,
-                  AppColors.warning,
-                ),
-                _buildStatCard(
-                  'الطلبات المعلقة',
-                  '${_stats['pending_orders'] ?? 0}',
-                  Icons.pending,
-                  AppColors.error,
-                ),
-                _buildStatCard(
-                  'الطلبات المكتملة',
-                  '${_stats['completed_orders'] ?? 0}',
-                  Icons.check_circle,
-                  AppColors.success,
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final availableWidth = constraints.maxWidth;
+
+                // تحديد عدد الأعمدة بناءً على العرض المتاح
+                int crossAxisCount;
+                double childAspectRatio;
+                double spacing;
+
+                if (availableWidth < 600) {
+                  // شاشات صغيرة جداً
+                  crossAxisCount = 1;
+                  childAspectRatio = 2.2;
+                  spacing = 12;
+                } else if (availableWidth < 900) {
+                  // شاشات صغيرة (موبايل)
+                  crossAxisCount = 1;
+                  childAspectRatio = 2.0;
+                  spacing = 16;
+                } else if (availableWidth < 1200) {
+                  // شاشات متوسطة (تابلت)
+                  crossAxisCount = 2;
+                  childAspectRatio = 1.8;
+                  spacing = 20;
+                } else if (availableWidth < 1600) {
+                  // شاشات كبيرة (ديسكتوب)
+                  crossAxisCount = 3;
+                  childAspectRatio = 1.6;
+                  spacing = 24;
+                } else {
+                  // شاشات كبيرة جداً
+                  crossAxisCount = 4;
+                  childAspectRatio = 1.4;
+                  spacing = 28;
+                }
+
+                return GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: spacing,
+                  mainAxisSpacing: spacing,
+                  childAspectRatio: childAspectRatio,
+                  children: [
+                    _buildStatCard(
+                      'إجمالي الطلبات',
+                      '${_stats['orders_count'] ?? 0}',
+                      Icons.shopping_cart,
+                      AppColors.primary,
+                    ),
+                    _buildStatCard(
+                      'إجمالي المنتجات',
+                      '${_stats['products_count'] ?? 0}',
+                      Icons.inventory,
+                      AppColors.success,
+                    ),
+                    _buildStatCard(
+                      'إجمالي المستخدمين',
+                      '${_stats['users_count'] ?? 0}',
+                      Icons.people,
+                      AppColors.info,
+                    ),
+                    _buildStatCard(
+                      'إجمالي الإيرادات',
+                      '${_stats['total_revenue']?.toStringAsFixed(2) ?? '0.00'} ريال',
+                      Icons.attach_money,
+                      AppColors.warning,
+                    ),
+                    _buildStatCard(
+                      'الطلبات المعلقة',
+                      '${_stats['pending_orders'] ?? 0}',
+                      Icons.pending,
+                      AppColors.error,
+                    ),
+                    _buildStatCard(
+                      'الطلبات المكتملة',
+                      '${_stats['completed_orders'] ?? 0}',
+                      Icons.check_circle,
+                      AppColors.success,
+                    ),
+                  ],
+                );
+              },
             ),
         ],
       ),
@@ -378,46 +416,78 @@ class _DashboardScreenState extends State<DashboardScreen> {
     IconData icon,
     Color color,
   ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // استخدام constraints.maxWidth بدلاً من MediaQuery
+        final availableWidth = constraints.maxWidth;
+
+        // حساب الأحجام الديناميكية بناءً على العرض المتاح
+        final isSmallScreen = availableWidth < 600;
+        final isMediumScreen = availableWidth >= 600 && availableWidth < 900;
+
+        // تعديل الأحجام بناءً على العرض المتاح
+        final iconSize = isSmallScreen ? 28.0 : (isMediumScreen ? 32.0 : 40.0);
+        final valueFontSize = isSmallScreen
+            ? 20.0
+            : (isMediumScreen ? 24.0 : 28.0);
+        final titleFontSize = isSmallScreen
+            ? 10.0
+            : (isMediumScreen ? 12.0 : 14.0);
+        final padding = isSmallScreen ? 12.0 : (isMediumScreen ? 16.0 : 24.0);
+        final spacing = isSmallScreen ? 8.0 : (isMediumScreen ? 12.0 : 16.0);
+
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.cardBackground,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 40, color: color),
-            const SizedBox(height: 16),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: AppColors.text,
-              ),
+          child: Padding(
+            padding: EdgeInsets.all(padding),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min, // مهم: منع التمدد الزائد
+              children: [
+                Icon(icon, size: iconSize, color: color),
+                SizedBox(height: spacing),
+                Flexible(
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: valueFontSize,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text,
+                    ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis, // منع تجاوز النص
+                    maxLines: 2, // السماح بسطرين كحد أقصى
+                  ),
+                ),
+                SizedBox(height: spacing * 0.5),
+                Flexible(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: titleFontSize,
+                      color: AppColors.text.withValues(alpha: 0.7),
+                    ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis, // منع تجاوز النص
+                    maxLines: 3, // السماح بثلاثة أسطر كحد أقصى
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.text.withValues(alpha: 0.7),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
