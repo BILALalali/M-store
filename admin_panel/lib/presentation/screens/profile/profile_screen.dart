@@ -21,6 +21,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final TextEditingController _roleController = TextEditingController();
   final TextEditingController _departmentController = TextEditingController();
 
+  // بيانات إضافية من قاعدة البيانات
+  String _joinDate = '';
+  String _lastLogin = '';
+  String _avatarInitial = 'أ';
+
   final SupabaseService _supabaseService = SupabaseService();
 
   @override
@@ -31,6 +36,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadProfileData() async {
     try {
+      setState(() {
+        _isLoading = true;
+      });
+
       final adminProfile = await _supabaseService.getAdminProfile();
 
       if (adminProfile != null) {
@@ -40,31 +49,123 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _phoneController.text = adminProfile['phone'] ?? '';
           _roleController.text = adminProfile['role'] ?? 'مدير النظام';
           _departmentController.text = 'إدارة عامة';
+          
+          // تحديث البيانات الإضافية من قاعدة البيانات
+          _joinDate = _formatDate(adminProfile['created_at']);
+          _lastLogin = _formatDate(adminProfile['last_login']) ?? 'لم يتم تسجيل الدخول بعد';
+          _avatarInitial = _getAvatarInitial(adminProfile['full_name']);
+          
           _isLoading = false;
         });
+
+        print('تم تحميل بيانات الملف الشخصي من قاعدة البيانات: $adminProfile');
       } else {
-        // استخدام بيانات افتراضية إذا لم يتم العثور على الملف الشخصي
-        setState(() {
-          _nameController.text = 'أحمد محمد علي';
-          _emailController.text = 'admin@mstore.com';
-          _phoneController.text = '+966 50 123 4567';
-          _roleController.text = 'مدير النظام';
-          _departmentController.text = 'إدارة عامة';
-          _isLoading = false;
-        });
+        print('لم يتم العثور على بيانات الملف الشخصي في قاعدة البيانات');
+        // استخدام بيانات المستخدم الحالي من Supabase
+        final currentUser = _supabaseService.currentUser;
+        if (currentUser != null) {
+          setState(() {
+            _nameController.text =
+                currentUser.userMetadata?['full_name'] ??
+                currentUser.email?.split('@')[0] ??
+                'مستخدم';
+            _emailController.text = currentUser.email ?? '';
+            _phoneController.text = '';
+            _roleController.text = 'مدير النظام';
+            _departmentController.text = 'إدارة عامة';
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       print('خطأ في تحميل بيانات الملف الشخصي: $e');
-      // استخدام بيانات افتراضية في حالة الخطأ
-      setState(() {
-        _nameController.text = 'أحمد محمد علي';
-        _emailController.text = 'admin@mstore.com';
-        _phoneController.text = '+966 50 123 4567';
-        _roleController.text = 'مدير النظام';
-        _departmentController.text = 'إدارة عامة';
-        _isLoading = false;
-      });
+      // استخدام بيانات المستخدم الحالي من Supabase في حالة الخطأ
+      try {
+        final currentUser = _supabaseService.currentUser;
+        if (currentUser != null) {
+          setState(() {
+            _nameController.text =
+                currentUser.userMetadata?['full_name'] ??
+                currentUser.email?.split('@')[0] ??
+                'مستخدم';
+            _emailController.text = currentUser.email ?? '';
+            _phoneController.text = '';
+            _roleController.text = 'مدير النظام';
+            _departmentController.text = 'إدارة عامة';
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      } catch (fallbackError) {
+        print('خطأ في الحل البديل: $fallbackError');
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  // دالة لتنسيق التاريخ
+  String _formatDate(dynamic date) {
+    if (date == null) return 'غير محدد';
+    
+    try {
+      if (date is String) {
+        final parsedDate = DateTime.parse(date);
+        return _formatDateToArabic(parsedDate);
+      } else if (date is DateTime) {
+        return _formatDateToArabic(date);
+      }
+      return 'غير محدد';
+    } catch (e) {
+      print('خطأ في تنسيق التاريخ: $e');
+      return 'غير محدد';
+    }
+  }
+
+  // دالة لتنسيق التاريخ باللغة العربية
+  String _formatDateToArabic(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    if (difference.inDays == 0) {
+      return 'اليوم ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (difference.inDays == 1) {
+      return 'أمس ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (difference.inDays < 7) {
+      return 'منذ ${difference.inDays} أيام';
+    } else {
+      final months = [
+        'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+        'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+      ];
+      return '${date.day} ${months[date.month - 1]} ${date.year}';
+    }
+  }
+
+  // دالة للحصول على الحرف الأول من الاسم
+  String _getAvatarInitial(String? fullName) {
+    if (fullName == null || fullName.isEmpty) return 'أ';
+    
+    final trimmedName = fullName.trim();
+    if (trimmedName.isEmpty) return 'أ';
+    
+    // البحث عن أول حرف عربي أو إنجليزي
+    for (int i = 0; i < trimmedName.length; i++) {
+      final char = trimmedName[i];
+      if (RegExp(r'[أ-يa-zA-Z]').hasMatch(char)) {
+        return char.toUpperCase();
+      }
+    }
+    
+    return 'أ';
   }
 
   Future<void> _saveProfile() async {
@@ -73,24 +174,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     try {
-      await _supabaseService.updateAdminProfile(
+      setState(() {
+        _isLoading = true;
+      });
+
+      print('حفظ البيانات:');
+      print('الاسم: ${_nameController.text}');
+      print('الهاتف: ${_phoneController.text}');
+
+      final updatedProfile = await _supabaseService.updateAdminProfile(
         fullName: _nameController.text,
         phone: _phoneController.text,
       );
 
-      setState(() {
-        _isEditing = false;
-      });
+      if (updatedProfile != null) {
+        print('تم تحديث البيانات بنجاح: $updatedProfile');
+        
+        // تحديث البيانات مباشرة من الاستجابة
+        setState(() {
+          _nameController.text = updatedProfile['full_name'] ?? _nameController.text;
+          _phoneController.text = updatedProfile['phone'] ?? _phoneController.text;
+          _roleController.text = updatedProfile['role'] ?? _roleController.text;
+          
+          // تحديث البيانات الإضافية
+          _joinDate = _formatDate(updatedProfile['created_at']);
+          _lastLogin = _formatDate(updatedProfile['last_login']) ?? 'لم يتم تسجيل الدخول بعد';
+          _avatarInitial = _getAvatarInitial(updatedProfile['full_name']);
+          
+          _isEditing = false;
+          _isLoading = false;
+        });
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('تم حفظ التغييرات بنجاح'),
-            backgroundColor: AppColors.success,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('تم حفظ التغييرات بنجاح'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      } else {
+        throw Exception('فشل في تحديث البيانات');
       }
     } catch (e) {
+      print('خطأ في حفظ التغييرات: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -199,7 +330,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: Icon(_isEditing ? Icons.save : Icons.edit),
             label: Text(_isEditing ? 'حفظ التغييرات' : 'تعديل'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _isEditing ? AppColors.success : AppColors.primary,
+              backgroundColor: _isEditing
+                  ? AppColors.success
+                  : AppColors.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(
@@ -256,7 +389,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   radius: 60,
                   backgroundColor: AppColors.secondary,
                   child: Text(
-                    'أ',
+                    _avatarInitial,
                     style: TextStyle(
                       fontSize: 48,
                       fontWeight: FontWeight.bold,
@@ -367,13 +500,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           _buildInfoRow('القسم', _departmentController.text, Icons.business),
           const SizedBox(height: 16),
-          _buildInfoRow(
-            'تاريخ الانضمام',
-            '15 يناير 2024',
-            Icons.calendar_today,
-          ),
+          _buildInfoRow('تاريخ الانضمام', _joinDate, Icons.calendar_today),
           const SizedBox(height: 16),
-          _buildInfoRow('آخر تسجيل دخول', 'اليوم 09:30 ص', Icons.access_time),
+          _buildInfoRow('آخر تسجيل دخول', _lastLogin, Icons.access_time),
         ],
       ),
     );

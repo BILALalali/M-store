@@ -9,6 +9,7 @@ class SupabaseService {
   SupabaseClient? _client;
   GoTrueClient? _auth;
   bool _isInitialized = false;
+  bool _isSigningOut = false; // إضافة حالة لمنع تسجيل الخروج المتكرر
 
   // تهيئة Supabase
   Future<void> initialize() async {
@@ -76,6 +77,58 @@ class SupabaseService {
     }
   }
 
+  // تسجيل دخول بـ OTP
+  Future<void> sendOtpForLogin(String email) async {
+    try {
+      if (!isReady) {
+        throw Exception('Supabase غير مهيأ. يرجى المحاولة مرة أخرى.');
+      }
+
+      if (email.isEmpty) {
+        throw Exception('البريد الإلكتروني مطلوب');
+      }
+
+      print('إرسال رمز OTP للمستخدم: $email');
+
+      await _auth!.signInWithOtp(email: email, emailRedirectTo: null);
+
+      print('تم إرسال رمز OTP بنجاح');
+    } catch (e) {
+      print('خطأ في إرسال OTP: $e');
+      rethrow;
+    }
+  }
+
+  // التحقق من رمز OTP
+  Future<AuthResponse> verifyOtpForLogin(String email, String token) async {
+    try {
+      if (!isReady) {
+        throw Exception('Supabase غير مهيأ. يرجى المحاولة مرة أخرى.');
+      }
+
+      if (email.isEmpty || token.isEmpty) {
+        throw Exception('البريد الإلكتروني والرمز مطلوبان');
+      }
+
+      print('التحقق من رمز OTP للمستخدم: $email');
+
+      final response = await _auth!.verifyOTP(
+        email: email,
+        token: token,
+        type: OtpType.email,
+      );
+
+      if (response.user != null) {
+        print('تم التحقق من OTP بنجاح: ${response.user!.email}');
+      }
+
+      return response;
+    } catch (e) {
+      print('خطأ في التحقق من OTP: $e');
+      rethrow;
+    }
+  }
+
   // تسجيل دخول ببيانات مخصصة
   Future<AuthResponse> signInWithCredentials(
     String email,
@@ -86,34 +139,151 @@ class SupabaseService {
         throw Exception('Supabase غير مهيأ. يرجى المحاولة مرة أخرى.');
       }
 
+      // التحقق من صحة البيانات
+      if (email.isEmpty || password.isEmpty) {
+        throw Exception('البريد الإلكتروني وكلمة المرور مطلوبان');
+      }
+
+      if (password.length < 6) {
+        throw Exception('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      }
+
+      print('محاولة تسجيل الدخول للمستخدم: $email');
+
+      // التحقق من أن المستخدم موجود في جدول admin_users أولاً
+      try {
+        final adminCheck = await _client!
+            .from('admin_users')
+            .select('id, email, is_active')
+            .eq('email', email)
+            .eq('is_active', true)
+            .maybeSingle();
+
+        if (adminCheck == null) {
+          throw Exception('هذا البريد الإلكتروني غير مسجل في لوحة الإدارة');
+        }
+        print('تم التحقق من وجود المستخدم في جدول admin_users');
+      } catch (dbError) {
+        print('خطأ في التحقق من قاعدة البيانات: $dbError');
+        if (dbError.toString().contains('غير مسجل في لوحة الإدارة')) {
+          rethrow;
+        }
+        throw Exception('فشل في التحقق من صلاحيات المستخدم');
+      }
+
+      // محاولة تسجيل الدخول بكلمة المرور
       final response = await _auth!.signInWithPassword(
         email: email,
         password: password,
       );
 
-      if (response.user != null) {
-        print('تم تسجيل الدخول بنجاح: ${response.user!.email}');
+      // التحقق من الاستجابة
+      if (response.user == null) {
+        throw Exception('فشل في تسجيل الدخول - لم يتم إنشاء المستخدم');
       }
+
+      // التحقق من أن المستخدم تم تأكيده
+      if (response.user!.emailConfirmedAt == null) {
+        // تسجيل الخروج إذا لم يتم تأكيد البريد
+        await _auth!.signOut();
+        throw Exception('يرجى تأكيد البريد الإلكتروني قبل تسجيل الدخول');
+      }
+
+      print('تم تسجيل الدخول بنجاح: ${response.user!.email}');
+      print(
+        'حالة المستخدم: ${response.user!.emailConfirmedAt != null ? "مؤكد" : "غير مؤكد"}',
+      );
 
       return response;
     } catch (e) {
       print('خطأ في تسجيل الدخول: $e');
-      rethrow;
+
+      // رسائل خطأ واضحة
+      if (e.toString().contains('Invalid login credentials')) {
+        throw Exception('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+      } else if (e.toString().contains('Email not confirmed')) {
+        throw Exception('يرجى تأكيد البريد الإلكتروني قبل تسجيل الدخول');
+      } else if (e.toString().contains('Too many requests')) {
+        throw Exception('تم تجاوز عدد المحاولات المسموح. يرجى المحاولة لاحقاً');
+      } else if (e.toString().contains('غير مسجل في لوحة الإدارة')) {
+        throw Exception('هذا البريد الإلكتروني غير مسجل في لوحة الإدارة');
+      } else if (e.toString().contains('فشل في التحقق من صلاحيات المستخدم')) {
+        throw Exception('فشل في التحقق من صلاحيات المستخدم');
+      } else {
+        throw Exception('خطأ في تسجيل الدخول: $e');
+      }
     }
   }
 
   // تسجيل الخروج
   Future<void> signOut() async {
+    // منع تسجيل الخروج المتكرر
+    if (_isSigningOut) {
+      print('تسجيل الخروج قيد التنفيذ بالفعل...');
+      return;
+    }
+
     try {
+      _isSigningOut = true; // تعيين حالة العملية
+      print('بدء عملية تسجيل الخروج من Supabase...');
+
       if (!isReady) {
         throw Exception('Supabase غير مهيأ');
       }
 
+      // التحقق من وجود مستخدم مسجل دخول
+      final currentUser = _auth!.currentUser;
+      if (currentUser != null) {
+        print('المستخدم الحالي: ${currentUser.email}');
+      }
+
+      // تنفيذ تسجيل الخروج
       await _auth!.signOut();
-      print('تم تسجيل الخروج بنجاح');
+      print('تم تسجيل الخروج من Supabase بنجاح');
+
+      // انتظار قليل للتأكد من اكتمال العملية
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // التحقق من أن المستخدم تم تسجيل خروجه
+      final userAfterSignOut = _auth!.currentUser;
+      if (userAfterSignOut == null) {
+        print('تم التأكد من تسجيل الخروج - لا يوجد مستخدم حالياً');
+      } else {
+        print('تحذير: المستخدم لا يزال موجوداً بعد تسجيل الخروج');
+      }
     } catch (e) {
       print('خطأ في تسجيل الخروج: $e');
       rethrow;
+    } finally {
+      _isSigningOut = false; // إعادة تعيين الحالة
+      print('انتهت عملية تسجيل الخروج');
+    }
+  }
+
+  // التحقق من وجود المستخدم في جدول admin_users
+  Future<bool> checkAdminExists(String email) async {
+    try {
+      if (!isReady) return false;
+
+      print('التحقق من وجود المستخدم في جدول admin_users: $email');
+
+      final response = await _client!
+          .from('admin_users')
+          .select('id, email, is_active')
+          .eq('email', email)
+          .eq('is_active', true)
+          .maybeSingle();
+
+      if (response != null) {
+        print('تم العثور على المستخدم في جدول admin_users: $response');
+        return true;
+      } else {
+        print('المستخدم غير موجود في جدول admin_users أو غير نشط');
+        return false;
+      }
+    } catch (e) {
+      print('خطأ في التحقق من وجود المستخدم: $e');
+      return false;
     }
   }
 
@@ -250,7 +420,7 @@ class SupabaseService {
   }
 
   // تحديث معلومات المدير
-  Future<void> updateAdminProfile({
+  Future<Map<String, dynamic>?> updateAdminProfile({
     String? fullName,
     String? phone,
     String? avatar,
@@ -269,32 +439,48 @@ class SupabaseService {
       if (phone != null) updates['phone'] = phone;
       if (avatar != null) updates['avatar'] = avatar;
 
+      // إضافة timestamp التحديث
+      updates['updated_at'] = DateTime.now().toIso8601String();
+
       print('محاولة تحديث معلومات المدير للمستخدم: ${user.email}');
+      print('البيانات المراد تحديثها: $updates');
 
       // محاولة التحديث بـ user_id أولاً
       try {
-        await _client!
+        final response = await _client!
             .from('admin_users')
             .update(updates)
-            .eq('user_id', user.id);
+            .eq('user_id', user.id)
+            .select()
+            .single();
+
         print('تم تحديث الملف الشخصي بـ user_id بنجاح');
+        print('البيانات المحدثة: $response');
+        return response;
       } catch (userIdError) {
         print('خطأ في التحديث بـ user_id: $userIdError');
 
         // محاولة التحديث بـ البريد الإلكتروني
         try {
           if (user.email != null) {
-            await _client!
+            final response = await _client!
                 .from('admin_users')
                 .update(updates)
-                .eq('email', user.email!);
+                .eq('email', user.email!)
+                .select()
+                .single();
+
             print('تم تحديث الملف الشخصي بـ البريد الإلكتروني بنجاح');
+            print('البيانات المحدثة: $response');
+            return response;
           }
         } catch (emailError) {
           print('خطأ في التحديث بـ البريد الإلكتروني: $emailError');
           rethrow;
         }
       }
+
+      return null;
     } catch (e) {
       print('خطأ في تحديث الملف الشخصي: $e');
       rethrow;

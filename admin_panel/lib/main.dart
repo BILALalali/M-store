@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
 import 'core/services/supabase_service.dart';
+import 'core/services/auth_service.dart';
 import 'presentation/screens/admin_main_screen.dart';
 import 'presentation/screens/auth/login_screen.dart';
 
@@ -47,32 +48,73 @@ class _AuthWrapperState extends State<AuthWrapper> {
   bool _isAuthenticated = false;
   bool _isAdmin = false;
   String? _errorMessage;
+  AuthService? _authService;
 
   @override
   void initState() {
     super.initState();
-    _checkAuthStatus();
+    _initializeAuth();
+  }
+
+  Future<void> _initializeAuth() async {
+    try {
+      print('=== بدء تهيئة AuthWrapper ===');
+      _authService = AuthService();
+      print('تم إنشاء AuthService: $_authService');
+
+      await _checkAuthStatus();
+      print('تم إكمال _checkAuthStatus');
+      print('=== انتهت تهيئة AuthWrapper ===');
+    } catch (e) {
+      print('خطأ في تهيئة AuthService: $e');
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'خطأ في تهيئة النظام: $e';
+      });
+    }
   }
 
   Future<void> _checkAuthStatus() async {
     try {
-      // انتظار تهيئة Supabase أولاً
-      await SupabaseService().initialize();
+      if (_authService == null) {
+        print('AuthService غير مهيأ');
+        setState(() {
+          _isAuthenticated = false;
+          _isAdmin = false;
+          _isLoading = false;
+          _errorMessage = 'خطأ في تهيئة النظام';
+        });
+        return;
+      }
 
-      final supabaseService = SupabaseService();
+      // انتظار تهيئة AuthService أولاً
+      await _authService!.initialize();
 
-      // التحقق من حالة تسجيل الدخول
-      final isAuth = supabaseService.isAuthenticated;
+      // التحقق من حالة المصادقة من AuthService
+      final isAuth = _authService!.isAuthenticated;
+      final isAdmin = _authService!.isAdmin;
 
-      // إذا كان المستخدم مسجل دخول، تحقق من صلاحيات المدير
-      bool isAdmin = false;
-      if (isAuth) {
-        isAdmin = await supabaseService.isAdmin();
+      // تحقق إضافي: إذا كان المستخدم مسجل دخول، تأكد من وجود بيانات المدير
+      bool finalIsAuth = isAuth;
+      bool finalIsAdmin = isAdmin;
+
+      if (isAuth && isAdmin) {
+        // التحقق من وجود بيانات المدير
+        final adminProfile = _authService!.adminProfile;
+        if (adminProfile == null || adminProfile.isEmpty) {
+          print(
+            'المستخدم مسجل دخول لكن لا توجد بيانات المدير - إعادة تعيين الحالة',
+          );
+          finalIsAuth = false;
+          finalIsAdmin = false;
+          // إعادة تعيين حالة AuthService
+          _authService!.resetAuthState();
+        }
       }
 
       setState(() {
-        _isAuthenticated = isAuth;
-        _isAdmin = isAdmin;
+        _isAuthenticated = finalIsAuth;
+        _isAdmin = finalIsAdmin;
         _isLoading = false;
         _errorMessage = null;
       });
@@ -133,12 +175,32 @@ class _AuthWrapperState extends State<AuthWrapper> {
       );
     }
 
-    // التحقق من أن المستخدم مسجل دخول ولديه صلاحيات المدير
-    if (_isAuthenticated && _isAdmin) {
-      return const AdminMainScreen();
-    } else {
-      return const LoginScreen();
-    }
+    // استخدام ListenableBuilder للاستماع لتغييرات AuthService
+    return ListenableBuilder(
+      listenable: _authService ?? AuthService(),
+      builder: (context, child) {
+        final authService = _authService ?? AuthService();
+        final isAuthenticated = authService.isAuthenticated;
+        final isAdmin = authService.isAdmin;
+
+        print(
+          'AuthWrapper ListenableBuilder - isAuthenticated=$isAuthenticated, isAdmin=$isAdmin',
+        );
+
+        // التحقق من أن المستخدم مسجل دخول ولديه صلاحيات المدير
+        if (isAuthenticated && isAdmin) {
+          print(
+            'عرض AdminMainScreen - المستخدم مسجل دخول ولديه صلاحيات المدير',
+          );
+          return const AdminMainScreen();
+        } else {
+          print(
+            'عرض LoginScreen - المستخدم غير مسجل دخول أو ليس لديه صلاحيات المدير',
+          );
+          return const LoginScreen();
+        }
+      },
+    );
   }
 }
 

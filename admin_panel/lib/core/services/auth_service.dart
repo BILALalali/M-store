@@ -7,7 +7,7 @@ class AuthService extends ChangeNotifier {
   AuthService._internal();
 
   final SupabaseService _supabaseService = SupabaseService();
-  
+
   // حالة المصادقة
   bool _isAuthenticated = false;
   bool _isAdmin = false;
@@ -27,9 +27,19 @@ class AuthService extends ChangeNotifier {
   Future<void> initialize() async {
     try {
       await _supabaseService.initialize();
+
+      // إعادة تعيين الحالة أولاً
+      _isAuthenticated = false;
+      _isAdmin = false;
+      _adminProfile = null;
+
       await _checkAuthStatus();
     } catch (e) {
       _setError('خطأ في تهيئة خدمة المصادقة: $e');
+      // إعادة تعيين الحالة في حالة الخطأ
+      _isAuthenticated = false;
+      _isAdmin = false;
+      _adminProfile = null;
     }
   }
 
@@ -40,6 +50,22 @@ class AuthService extends ChangeNotifier {
       _clearError();
 
       final isAuth = _supabaseService.isAuthenticated;
+
+      // تحقق إضافي: التأكد من وجود مستخدم فعلي
+      if (isAuth) {
+        final currentUser = _supabaseService.currentUser;
+        if (currentUser == null || currentUser.email == null) {
+          print(
+            'المستخدم مسجل دخول لكن لا توجد بيانات صحيحة - إعادة تعيين الحالة',
+          );
+          _isAuthenticated = false;
+          _isAdmin = false;
+          _adminProfile = null;
+          notifyListeners();
+          return;
+        }
+      }
+
       _isAuthenticated = isAuth;
 
       if (isAuth) {
@@ -56,6 +82,10 @@ class AuthService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _setError('خطأ في التحقق من حالة المصادقة: $e');
+      // إعادة تعيين الحالة في حالة الخطأ
+      _isAuthenticated = false;
+      _isAdmin = false;
+      _adminProfile = null;
     } finally {
       _setLoading(false);
     }
@@ -67,29 +97,37 @@ class AuthService extends ChangeNotifier {
       _setLoading(true);
       _clearError();
 
-      // تسجيل الدخول
+      print('محاولة تسجيل دخول المشرف: $email');
+
+      // تسجيل الدخول بكلمة المرور
       final response = await _supabaseService.signInWithCredentials(
         email,
         password,
       );
 
       if (response.user != null) {
+        print('تم تسجيل الدخول بنجاح، التحقق من صلاحيات المدير...');
+
         // التحقق من أن المستخدم مدير
         final isAdmin = await _supabaseService.isAdmin();
-        
+
         if (isAdmin) {
+          print('المستخدم لديه صلاحيات المدير');
           _isAuthenticated = true;
           _isAdmin = true;
-          
+
           // جلب معلومات المدير
           await _loadAdminProfile();
-          
+
           notifyListeners();
           return true;
         } else {
+          print('المستخدم ليس لديه صلاحيات المدير - تسجيل الخروج');
           // تسجيل الخروج إذا لم يكن مدير
           await _supabaseService.signOut();
-          _setError('هذا الحساب ليس لديه صلاحيات المدير');
+          _setError(
+            'هذا الحساب ليس لديه صلاحيات المدير. يرجى التواصل مع إدارة النظام.',
+          );
           return false;
         }
       } else {
@@ -97,6 +135,59 @@ class AuthService extends ChangeNotifier {
         return false;
       }
     } catch (e) {
+      print('خطأ في تسجيل دخول المشرف: $e');
+      _handleAuthError(e);
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // تسجيل دخول المشرف بـ OTP
+  Future<bool> signInAdminWithOtp(String email, String otpToken) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      print('محاولة تسجيل دخول المشرف بـ OTP: $email');
+
+      // التحقق من OTP
+      final response = await _supabaseService.verifyOtpForLogin(
+        email,
+        otpToken,
+      );
+
+      if (response.user != null) {
+        print('تم تسجيل الدخول بنجاح، التحقق من صلاحيات المدير...');
+
+        // التحقق من أن المستخدم مدير
+        final isAdmin = await _supabaseService.isAdmin();
+
+        if (isAdmin) {
+          print('المستخدم لديه صلاحيات المدير');
+          _isAuthenticated = true;
+          _isAdmin = true;
+
+          // جلب معلومات المدير
+          await _loadAdminProfile();
+
+          notifyListeners();
+          return true;
+        } else {
+          print('المستخدم ليس لديه صلاحيات المدير - تسجيل الخروج');
+          // تسجيل الخروج إذا لم يكن مدير
+          await _supabaseService.signOut();
+          _setError(
+            'هذا الحساب ليس لديه صلاحيات المدير. يرجى التواصل مع إدارة النظام.',
+          );
+          return false;
+        }
+      } else {
+        _setError('فشل في التحقق من رمز OTP');
+        return false;
+      }
+    } catch (e) {
+      print('خطأ في تسجيل دخول المشرف بـ OTP: $e');
       _handleAuthError(e);
       return false;
     } finally {
@@ -107,21 +198,69 @@ class AuthService extends ChangeNotifier {
   // تسجيل الخروج
   Future<void> signOut() async {
     try {
+      print('=== بدء عملية تسجيل الخروج من AuthService ===');
       _setLoading(true);
       _clearError();
 
+      print('بدء عملية تسجيل الخروج من AuthService...');
+
       await _supabaseService.signOut();
-      
+
       // إعادة تعيين الحالة
       _isAuthenticated = false;
       _isAdmin = false;
       _adminProfile = null;
-      
+
+      print('تم إعادة تعيين حالة AuthService');
+      print(
+        'الحالة الجديدة: _isAuthenticated=$_isAuthenticated, _isAdmin=$_isAdmin',
+      );
+
+      // إخطار المستمعين بالتغيير
+      print('إخطار المستمعين بالتغيير...');
       notifyListeners();
+      print('تم إخطار المستمعين');
     } catch (e) {
+      print('خطأ في تسجيل الخروج من AuthService: $e');
       _setError('خطأ في تسجيل الخروج: $e');
     } finally {
-      _setLoading(false);
+      // إعادة تعيين حالة التحميل بعد إخطار المستمعين
+      if (_isLoading) {
+        _isLoading = false;
+        print('تم إعادة تعيين حالة التحميل: _isLoading=$_isLoading');
+        notifyListeners();
+      }
+      print('=== انتهت عملية تسجيل الخروج من AuthService ===');
+    }
+  }
+
+  // إعادة تعيين حالة المصادقة (للاستخدام الخارجي)
+  void resetAuthState() {
+    bool hasChanged = false;
+
+    if (_isAuthenticated) {
+      _isAuthenticated = false;
+      hasChanged = true;
+    }
+
+    if (_isAdmin) {
+      _isAdmin = false;
+      hasChanged = true;
+    }
+
+    if (_adminProfile != null) {
+      _adminProfile = null;
+      hasChanged = true;
+    }
+
+    if (_errorMessage != null) {
+      _errorMessage = null;
+      hasChanged = true;
+    }
+
+    if (hasChanged) {
+      print('تم إعادة تعيين حالة المصادقة من الخارج');
+      notifyListeners();
     }
   }
 
@@ -138,7 +277,7 @@ class AuthService extends ChangeNotifier {
 
       // إعادة تحميل معلومات المدير
       await _loadAdminProfile();
-      
+
       notifyListeners();
       return true;
     } catch (e) {
@@ -268,7 +407,9 @@ class AuthService extends ChangeNotifier {
       errorMessage = 'يرجى تأكيد البريد الإلكتروني أولاً';
     } else if (error.toString().contains('Supabase غير مهيأ')) {
       errorMessage = 'خطأ في الاتصال بالنظام. يرجى المحاولة مرة أخرى';
-    } else if (error.toString().contains('هذا الحساب ليس لديه صلاحيات المدير')) {
+    } else if (error.toString().contains(
+      'هذا الحساب ليس لديه صلاحيات المدير',
+    )) {
       errorMessage = 'هذا الحساب ليس لديه صلاحيات المدير';
     } else {
       errorMessage = 'خطأ في تسجيل الدخول: $error';
@@ -279,29 +420,59 @@ class AuthService extends ChangeNotifier {
 
   // تعيين حالة التحميل
   void _setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
+    if (_isLoading != loading) {
+      _isLoading = loading;
+      notifyListeners();
+    }
   }
 
   // تعيين رسالة خطأ
   void _setError(String error) {
-    _errorMessage = error;
-    notifyListeners();
+    if (_errorMessage != error) {
+      _errorMessage = error;
+      notifyListeners();
+    }
   }
 
   // مسح رسالة الخطأ
   void _clearError() {
-    _errorMessage = null;
-    notifyListeners();
+    if (_errorMessage != null) {
+      _errorMessage = null;
+      notifyListeners();
+    }
   }
 
   // إعادة تعيين الحالة
   void reset() {
-    _isAuthenticated = false;
-    _isAdmin = false;
-    _isLoading = false;
-    _adminProfile = null;
-    _errorMessage = null;
-    notifyListeners();
+    bool hasChanged = false;
+    
+    if (_isAuthenticated) {
+      _isAuthenticated = false;
+      hasChanged = true;
+    }
+    
+    if (_isAdmin) {
+      _isAdmin = false;
+      hasChanged = true;
+    }
+    
+    if (_isLoading) {
+      _isLoading = false;
+      hasChanged = true;
+    }
+    
+    if (_adminProfile != null) {
+      _adminProfile = null;
+      hasChanged = true;
+    }
+    
+    if (_errorMessage != null) {
+      _errorMessage = null;
+      hasChanged = true;
+    }
+    
+    if (hasChanged) {
+      notifyListeners();
+    }
   }
 }

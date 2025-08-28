@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/auth_service.dart';
-import '../admin_main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,28 +21,13 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    // الاستماع لتغييرات حالة المصادقة
-    _authService.addListener(_onAuthStateChanged);
   }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _authService.removeListener(_onAuthStateChanged);
     super.dispose();
-  }
-
-  // معالج تغيير حالة المصادقة
-  void _onAuthStateChanged() {
-    if (_authService.isAuthenticated && _authService.isAdmin) {
-      // انتقل للوحة الإدارة
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const AdminMainScreen()),
-        );
-      });
-    }
   }
 
   @override
@@ -282,13 +266,23 @@ class _LoginScreenState extends State<LoginScreen> {
       String email = _emailController.text.trim();
       String password = _passwordController.text;
 
-      // استخدام خدمة المصادقة المحسنة
-      await _authService.signInAdmin(email, password);
+      print('بدء عملية تسجيل الدخول...');
 
-      // سيتم الانتقال تلقائياً عند تغيير حالة المصادقة
+      // استخدام خدمة المصادقة المحسنة
+      final success = await _authService.signInAdmin(email, password);
+
+      if (success && mounted) {
+        print('تم تسجيل الدخول بنجاح، الانتقال للوحة الإدارة...');
+        
+        // الانتقال للوحة الإدارة باستخدام المسار المسمى
+        Navigator.of(context).pushReplacementNamed('/admin');
+      } else {
+        print('فشل في تسجيل الدخول');
+        // رسالة الخطأ ستظهر تلقائياً من AuthService
+      }
     } catch (e) {
-      // سيتم عرض الخطأ تلقائياً من خلال AuthService
       print('خطأ في تسجيل الدخول: $e');
+      // رسالة الخطأ ستظهر تلقائياً من AuthService
     }
   }
 }

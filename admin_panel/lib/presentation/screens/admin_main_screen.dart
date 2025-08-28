@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../widgets/admin_sidebar.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/services/supabase_service.dart';
 import 'profile/profile_screen.dart';
 import 'settings/settings_screen.dart';
-import 'auth/login_screen.dart';
+import '../../core/services/auth_service.dart'; // Added import for AuthService
+import 'auth/login_screen.dart'; // Added import for LoginScreen
 
 class AdminMainScreen extends StatefulWidget {
   const AdminMainScreen({super.key});
@@ -34,71 +36,98 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
   void _handleLogout() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.logout, color: AppColors.error, size: 24),
-              const SizedBox(width: 8),
-              const Text('تسجيل الخروج'),
-            ],
-          ),
+          title: const Text('تأكيد تسجيل الخروج'),
           content: const Text('هل أنت متأكد من أنك تريد تسجيل الخروج؟'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'إلغاء',
-                style: TextStyle(color: AppColors.text.withValues(alpha: 0.7)),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
+              onPressed: () {
                 Navigator.of(context).pop();
-
-                try {
-                  // استخدام خدمة Supabase لتسجيل الخروج
-                  final supabaseService = SupabaseService();
-                  await supabaseService.signOut();
-
-                  if (mounted) {
-                    // انتقل لشاشة تسجيل الدخول
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        builder: (context) => const LoginScreen(),
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  // تجاهل الأخطاء عند تسجيل الخروج
-                  print('خطأ في تسجيل الخروج: $e');
-
-                  // حتى لو حدث خطأ، انتقل لشاشة تسجيل الدخول
-                  if (mounted) {
-                    try {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                          builder: (context) => const LoginScreen(),
-                        ),
-                      );
-                    } catch (navError) {
-                      print('خطأ في التنقل: $navError');
-                      // إعادة تشغيل التطبيق كحل أخير
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(
-                          builder: (context) => const LoginScreen(),
-                        ),
-                        (route) => false,
-                      );
-                    }
-                  }
-                }
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('تسجيل الخروج'),
+              child: const Text('إلغاء'),
+            ),
+            StatefulBuilder(
+              builder: (context, setDialogState) {
+                return ElevatedButton(
+                  onPressed: () async {
+                    // تعطيل الزر لمنع الضغط المتكرر
+                    setDialogState(() {});
+
+                    try {
+                      // إغلاق الـ dialog أولاً
+                      if (Navigator.canPop(context)) {
+                        Navigator.of(context).pop();
+                      }
+
+                      print('بدء عملية تسجيل الخروج...');
+
+                      // عرض شاشة الانتظار
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (BuildContext dialogContext) {
+                          return const AlertDialog(
+                            content: Row(
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(width: 20),
+                                Text('جاري تسجيل الخروج...'),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+
+                      // تسجيل الخروج من AuthService
+                      final authService = AuthService();
+
+                      // إغلاق شاشة الانتظار قبل تسجيل الخروج
+                      try {
+                        Navigator.of(context, rootNavigator: true).pop();
+                      } catch (e) {
+                        print('خطأ في إغلاق شاشة الانتظار: $e');
+                      }
+
+                      await authService.signOut();
+
+                      print('تم اكتمال عملية تسجيل الخروج من AuthService');
+
+                      // لا حاجة للتنقل - AuthWrapper سيتولى الأمر تلقائياً
+                      print(
+                        'تم تسجيل الخروج بنجاح - AuthWrapper سيعرض شاشة تسجيل الدخول تلقائياً',
+                      );
+                    } catch (e) {
+                      print('خطأ في تسجيل الخروج: $e');
+
+                      // إغلاق شاشة الانتظار في حالة الخطأ
+                      try {
+                        Navigator.of(context, rootNavigator: true).pop();
+                      } catch (closeError) {
+                        print('خطأ في إغلاق شاشة الانتظار: $closeError');
+                      }
+
+                      // عرض رسالة خطأ
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('خطأ في تسجيل الخروج: $e'),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                      }
+                    } finally {
+                      // تم إكمال العملية
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('تسجيل الخروج'),
+                );
+              },
             ),
           ],
         );
