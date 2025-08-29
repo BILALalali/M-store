@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:html' as html;
+import 'dart:typed_data';
 
 class SupabaseService {
   static final SupabaseService _instance = SupabaseService._internal();
@@ -522,6 +524,78 @@ class SupabaseService {
     }
   }
 
+  // رفع صورة إلى Supabase Storage
+  Future<String?> uploadImage(html.File file) async {
+    try {
+      if (!isReady) {
+        throw Exception('Supabase غير مهيأ');
+      }
+
+      print('بدء رفع الصورة: ${file.name}');
+
+      // قراءة بيانات الملف
+      final reader = html.FileReader();
+      reader.readAsArrayBuffer(file);
+
+      await reader.onLoad.first;
+
+      if (reader.result == null) {
+        throw Exception('فشل في قراءة بيانات الملف');
+      }
+
+      final bytes = reader.result as Uint8List;
+
+      // إنشاء اسم فريد للملف
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.name}';
+      final filePath = 'products/$fileName';
+
+      // رفع الملف إلى Supabase Storage
+      final response = await _client!.storage
+          .from('images')
+          .uploadBinary(
+            filePath,
+            bytes,
+            fileOptions: FileOptions(contentType: file.type, upsert: false),
+          );
+
+      if (response.isEmpty) {
+        throw Exception('فشل في رفع الملف');
+      }
+
+      // الحصول على الرابط العام للملف
+      final publicUrl = _client!.storage.from('images').getPublicUrl(filePath);
+
+      print('تم رفع الصورة بنجاح: $publicUrl');
+      return publicUrl;
+    } catch (e) {
+      print('خطأ في رفع الصورة: $e');
+      rethrow;
+    }
+  }
+
+  // التحقق من وجود جدول المنتجات وإنشاؤه إذا لم يكن موجوداً
+  Future<void> ensureProductsTableExists() async {
+    try {
+      if (!isReady) {
+        print('Supabase غير مهيأ، لا يمكن إنشاء الجدول');
+        return;
+      }
+
+      print('التحقق من وجود جدول المنتجات...');
+
+      // محاولة جلب بيانات من الجدول
+      final testResponse = await _client!
+          .from('products')
+          .select('count')
+          .limit(1);
+
+      print('جدول المنتجات موجود: $testResponse');
+    } catch (e) {
+      print('جدول المنتجات غير موجود أو هناك خطأ: $e');
+      print('يرجى التأكد من إنشاء جدول products في Supabase');
+    }
+  }
+
   // الحصول على المنتجات
   Future<List<Map<String, dynamic>>> getProducts() async {
     try {
@@ -537,6 +611,153 @@ class SupabaseService {
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       print('خطأ في جلب المنتجات: $e');
+      return [];
+    }
+  }
+
+  // إضافة منتج جديد
+  Future<Map<String, dynamic>?> addProduct(
+    Map<String, dynamic> productData,
+  ) async {
+    try {
+      if (!isReady) {
+        throw Exception('Supabase غير مهيأ');
+      }
+
+      print('إضافة منتج جديد: $productData');
+
+      final response = await _client!
+          .from('products')
+          .insert(productData)
+          .select()
+          .single();
+
+      print('تم إضافة المنتج بنجاح: $response');
+      return response;
+    } catch (e) {
+      print('خطأ في إضافة المنتج: $e');
+      rethrow;
+    }
+  }
+
+  // تحديث منتج موجود
+  Future<Map<String, dynamic>?> updateProduct(
+    String productId,
+    Map<String, dynamic> updates,
+  ) async {
+    try {
+      if (!isReady) {
+        throw Exception('Supabase غير مهيأ');
+      }
+
+      print('تحديث المنتج $productId: $updates');
+
+      final response = await _client!
+          .from('products')
+          .update(updates)
+          .eq('id', productId)
+          .select()
+          .single();
+
+      print('تم تحديث المنتج بنجاح: $response');
+      return response;
+    } catch (e) {
+      print('خطأ في تحديث المنتج: $e');
+      rethrow;
+    }
+  }
+
+  // حذف منتج
+  Future<bool> deleteProduct(String productId) async {
+    try {
+      if (!isReady) {
+        throw Exception('Supabase غير مهيأ');
+      }
+
+      print('حذف المنتج: $productId');
+
+      await _client!.from('products').delete().eq('id', productId);
+
+      print('تم حذف المنتج بنجاح');
+      return true;
+    } catch (e) {
+      print('خطأ في حذف المنتج: $e');
+      rethrow;
+    }
+  }
+
+  // البحث في المنتجات
+  Future<List<Map<String, dynamic>>> searchProducts(String query) async {
+    try {
+      if (!isReady) {
+        return [];
+      }
+
+      print('البحث في المنتجات: $query');
+
+      final response = await _client!
+          .from('products')
+          .select('*')
+          .or(
+            'name.ilike.%$query%,description.ilike.%$query%,category.ilike.%$query%',
+          )
+          .order('created_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('خطأ في البحث في المنتجات: $e');
+      return [];
+    }
+  }
+
+  // الحصول على المنتجات حسب الفئة
+  Future<List<Map<String, dynamic>>> getProductsByCategory(
+    String category,
+  ) async {
+    try {
+      if (!isReady) {
+        return [];
+      }
+
+      print('جلب المنتجات للفئة: $category');
+
+      final response = await _client!
+          .from('products')
+          .select('*')
+          .eq('category', category)
+          .order('created_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('خطأ في جلب المنتجات حسب الفئة: $e');
+      return [];
+    }
+  }
+
+  // الحصول على فئات المنتجات
+  Future<List<String>> getProductCategories() async {
+    try {
+      if (!isReady) {
+        return [];
+      }
+
+      print('جلب فئات المنتجات');
+
+      final response = await _client!
+          .from('products')
+          .select('category')
+          .not('category', 'is', null);
+
+      final categories = response
+          .map((item) => item['category'] as String)
+          .where((category) => category.isNotEmpty)
+          .toSet()
+          .toList();
+
+      print('فئات المنتجات: $categories');
+      return categories;
+    } catch (e) {
+      print('خطأ في جلب فئات المنتجات: $e');
       return [];
     }
   }

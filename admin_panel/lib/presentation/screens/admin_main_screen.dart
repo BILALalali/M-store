@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../widgets/admin_sidebar.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/services/supabase_service.dart';
 import 'profile/profile_screen.dart';
 import 'settings/settings_screen.dart';
+import 'products/index.dart';
 import '../../core/services/auth_service.dart'; // Added import for AuthService
-import 'auth/login_screen.dart'; // Added import for LoginScreen
 
 class AdminMainScreen extends StatefulWidget {
   const AdminMainScreen({super.key});
@@ -19,9 +18,10 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
   int _selectedIndex = 0;
   bool _isSidebarCollapsed = false;
 
-  // قائمة الشاشات - سنبدأ بشاشة واحدة فقط
+  // قائمة الشاشات
   final List<Widget> _screens = [
     const DashboardScreen(),
+    const ProductsScreen(), // شاشة إدارة المنتجات
     const ProfileScreen(), // شاشة الملف الشخصي
     const SettingsScreen(), // شاشة الإعدادات
   ];
@@ -29,6 +29,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
   // عناوين الشاشات
   final List<String> _screenTitles = [
     'لوحة الإدارة',
+    'إدارة المنتجات',
     'الملف الشخصي',
     'الإعدادات',
   ];
@@ -102,14 +103,14 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
                       print('خطأ في تسجيل الخروج: $e');
 
                       // إغلاق شاشة الانتظار في حالة الخطأ
-                      try {
-                        Navigator.of(context, rootNavigator: true).pop();
-                      } catch (closeError) {
-                        print('خطأ في إغلاق شاشة الانتظار: $closeError');
-                      }
-
-                      // عرض رسالة خطأ
                       if (mounted) {
+                        try {
+                          Navigator.of(context, rootNavigator: true).pop();
+                        } catch (closeError) {
+                          print('خطأ في إغلاق شاشة الانتظار: $closeError');
+                        }
+
+                        // عرض رسالة خطأ
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('خطأ في تسجيل الخروج: $e'),
@@ -300,14 +301,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _loadStats() async {
     try {
       final stats = await _supabaseService.getDashboardStats();
-      setState(() {
-        _stats = stats;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _stats = stats;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

@@ -87,13 +87,24 @@ class AdminSidebar extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 16),
       children: [
-        // سنضيف العناصر تدريجياً
+        // لوحة الإدارة
         _buildSectionHeader('لوحة الإدارة'),
         _buildNavItem(
           icon: Icons.dashboard,
           title: 'الرئيسية',
           subtitle: 'لوحة التحكم الرئيسية',
           index: 0,
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // إدارة المنتجات
+        _buildSectionHeader('إدارة المنتجات'),
+        _buildNavItem(
+          icon: Icons.inventory,
+          title: 'المنتجات',
+          subtitle: 'إدارة وإضافة المنتجات',
+          index: 1,
         ),
       ],
     );

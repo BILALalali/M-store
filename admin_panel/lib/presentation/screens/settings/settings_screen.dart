@@ -90,9 +90,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   await _supabaseService.changePassword(
                     newPasswordController.text,
                   );
-                  Navigator.of(context).pop();
 
                   if (mounted) {
+                    Navigator.of(context).pop();
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('تم تغيير كلمة المرور بنجاح'),
