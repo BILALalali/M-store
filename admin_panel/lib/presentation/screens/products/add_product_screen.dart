@@ -131,6 +131,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         'images': imageUrls, // روابط الصور الفعلية
         'currency': _selectedCurrency,
         'is_active': true,
+        'admin_id': _supabaseService.currentUserId, // إضافة معرف المدير الحالي
       };
 
       // حفظ المنتج في قاعدة البيانات

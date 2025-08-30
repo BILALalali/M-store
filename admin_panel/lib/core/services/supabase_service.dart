@@ -68,15 +68,13 @@ class SupabaseService {
     }
   }
 
+  // الحصول على معرف المستخدم الحالي
+  String? get currentUserId => _auth?.currentUser?.id;
+
   // الحصول على المستخدم الحالي
   User? get currentUser {
-    try {
-      if (!isReady) return null;
-      return _auth?.currentUser;
-    } catch (e) {
-      print('خطأ في الحصول على المستخدم الحالي: $e');
-      return null;
-    }
+    if (_auth == null) return null;
+    return _auth!.currentUser;
   }
 
   // تسجيل دخول بـ OTP
