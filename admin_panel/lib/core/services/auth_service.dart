@@ -445,32 +445,32 @@ class AuthService extends ChangeNotifier {
   // إعادة تعيين الحالة
   void reset() {
     bool hasChanged = false;
-    
+
     if (_isAuthenticated) {
       _isAuthenticated = false;
       hasChanged = true;
     }
-    
+
     if (_isAdmin) {
       _isAdmin = false;
       hasChanged = true;
     }
-    
+
     if (_isLoading) {
       _isLoading = false;
       hasChanged = true;
     }
-    
+
     if (_adminProfile != null) {
       _adminProfile = null;
       hasChanged = true;
     }
-    
+
     if (_errorMessage != null) {
       _errorMessage = null;
       hasChanged = true;
     }
-    
+
     if (hasChanged) {
       notifyListeners();
     }

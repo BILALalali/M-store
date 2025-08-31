@@ -273,7 +273,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (success && mounted) {
         print('تم تسجيل الدخول بنجاح، الانتقال للوحة الإدارة...');
-        
+
         // الانتقال للوحة الإدارة باستخدام المسار المسمى
         Navigator.of(context).pushReplacementNamed('/admin');
       } else {

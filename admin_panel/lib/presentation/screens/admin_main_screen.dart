@@ -5,6 +5,7 @@ import '../../core/services/supabase_service.dart';
 import 'profile/profile_screen.dart';
 import 'settings/settings_screen.dart';
 import 'products/index.dart';
+import 'advertisements/index.dart';
 import '../../core/services/auth_service.dart'; // Added import for AuthService
 
 class AdminMainScreen extends StatefulWidget {
@@ -22,6 +23,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
   final List<Widget> _screens = [
     const DashboardScreen(),
     const ProductsScreen(), // شاشة إدارة المنتجات
+    const AdvertisementsScreen(), // شاشة إدارة الإعلانات
     const ProfileScreen(), // شاشة الملف الشخصي
     const SettingsScreen(), // شاشة الإعدادات
   ];
@@ -30,6 +32,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
   final List<String> _screenTitles = [
     'لوحة الإدارة',
     'إدارة المنتجات',
+    'إدارة الإعلانات',
     'الملف الشخصي',
     'الإعدادات',
   ];

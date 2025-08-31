@@ -106,6 +106,29 @@ class AdminSidebar extends StatelessWidget {
           subtitle: 'إدارة وإضافة المنتجات',
           index: 1,
         ),
+        _buildNavItem(
+          icon: Icons.campaign,
+          title: 'الإعلانات',
+          subtitle: 'إدارة الإعلانات والعروض',
+          index: 2,
+        ),
+        _buildNavItem(
+          icon: Icons.person,
+          title: 'الملف الشخصي',
+          subtitle: 'إدارة الملف الشخصي',
+          index: 3,
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // الإعدادات
+        _buildSectionHeader('الإعدادات'),
+        _buildNavItem(
+          icon: Icons.settings,
+          title: 'الإعدادات',
+          subtitle: 'إعدادات النظام والحساب',
+          index: 4,
+        ),
       ],
     );
   }
