@@ -404,16 +404,8 @@ class _MobileCreditScreenState extends State<MobileCreditScreen> {
               ],
             ),
           ),
-          // الأيقونة
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: primaryColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(package.operatorIcon, color: primaryColor, size: 24),
-          ),
+          // صورة المشغل أو الأيقونة الافتراضية
+          _buildOperatorLogo(package),
         ],
       ),
     );
@@ -541,6 +533,51 @@ class _MobileCreditScreenState extends State<MobileCreditScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // بناء صورة المشغل أو الأيقونة الافتراضية
+  Widget _buildOperatorLogo(MobilePackage package) {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        color: primaryColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child:
+          package.operator?.logoUrl != null &&
+              package.operator!.logoUrl!.isNotEmpty
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                package.operator!.logoUrl!,
+                width: 60,
+                height: 60,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(
+                    package.operatorIcon,
+                    color: primaryColor,
+                    size: 32,
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            )
+          : Icon(package.operatorIcon, color: primaryColor, size: 32),
     );
   }
 
