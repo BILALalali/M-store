@@ -3,6 +3,7 @@ import '../../../core/models/product.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
 import 'add_product_screen.dart';
+import 'edit_product_screen.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -504,14 +505,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   children: [
                     // زر التعديل
                     IconButton(
-                      onPressed: () {
-                        // TODO: تنفيذ تعديل المنتج
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('سيتم إضافة هذه الميزة قريباً'),
-                            backgroundColor: AppColors.info,
+                      onPressed: () async {
+                        final result = await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => EditProductScreen(product: product),
                           ),
                         );
+
+                        if (result == true) {
+                          await _loadProducts();
+                        }
                       },
                       icon: Icon(Icons.edit, color: AppColors.info, size: 20),
                       tooltip: 'تعديل',

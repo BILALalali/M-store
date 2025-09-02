@@ -26,6 +26,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _lastLogin = '';
   String _avatarInitial = 'أ';
 
+  // بيانات الأمان والنشاط
+  Map<String, dynamic> _securityInfo = {};
+  Map<String, dynamic> _activityStats = {};
+
   final SupabaseService _supabaseService = SupabaseService();
 
   @override
@@ -40,7 +44,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isLoading = true;
       });
 
+      // تحميل بيانات الملف الشخصي
       final adminProfile = await _supabaseService.getAdminProfile();
+
+      // تحميل بيانات الأمان والنشاط
+      final securityInfo = await _supabaseService.getAdminSecurityInfo();
+      final activityStats = await _supabaseService.getAdminActivityStats();
 
       if (adminProfile != null) {
         setState(() {
@@ -49,16 +58,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _phoneController.text = adminProfile['phone'] ?? '';
           _roleController.text = adminProfile['role'] ?? 'مدير النظام';
           _departmentController.text = 'إدارة عامة';
-          
+
           // تحديث البيانات الإضافية من قاعدة البيانات
           _joinDate = _formatDate(adminProfile['created_at']);
-          _lastLogin = _formatDate(adminProfile['last_login']) ?? 'لم يتم تسجيل الدخول بعد';
+          _lastLogin = adminProfile['last_login'] != null
+              ? _formatDate(adminProfile['last_login'])
+              : 'الآن';
           _avatarInitial = _getAvatarInitial(adminProfile['full_name']);
-          
+
+          // تحديث بيانات الأمان والنشاط
+          _securityInfo = securityInfo;
+          _activityStats = activityStats;
+
           _isLoading = false;
         });
 
         print('تم تحميل بيانات الملف الشخصي من قاعدة البيانات: $adminProfile');
+        print('بيانات الأمان: $securityInfo');
+        print('إحصائيات النشاط: $activityStats');
       } else {
         print('لم يتم العثور على بيانات الملف الشخصي في قاعدة البيانات');
         // استخدام بيانات المستخدم الحالي من Supabase
@@ -73,6 +90,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _phoneController.text = '';
             _roleController.text = 'مدير النظام';
             _departmentController.text = 'إدارة عامة';
+
+            // استخدام البيانات الافتراضية للأمان والنشاط
+            _securityInfo = securityInfo;
+            _activityStats = activityStats;
+
             _isLoading = false;
           });
         } else {
@@ -96,6 +118,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _phoneController.text = '';
             _roleController.text = 'مدير النظام';
             _departmentController.text = 'إدارة عامة';
+
+            // استخدام البيانات الافتراضية للأمان والنشاط
+            _securityInfo = {
+              'last_password_update': 'منذ 30 يوماً',
+              'two_factor_enabled': false,
+              'active_sessions': 1,
+            };
+            _activityStats = {
+              'updated_products': 0,
+              'added_users': 0,
+              'processed_orders': 0,
+            };
+
             _isLoading = false;
           });
         } else {
@@ -115,7 +150,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // دالة لتنسيق التاريخ
   String _formatDate(dynamic date) {
     if (date == null) return 'غير محدد';
-    
+
     try {
       if (date is String) {
         final parsedDate = DateTime.parse(date);
@@ -134,7 +169,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _formatDateToArabic(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays == 0) {
       return 'اليوم ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     } else if (difference.inDays == 1) {
@@ -143,8 +178,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return 'منذ ${difference.inDays} أيام';
     } else {
       final months = [
-        'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-        'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+        'يناير',
+        'فبراير',
+        'مارس',
+        'أبريل',
+        'مايو',
+        'يونيو',
+        'يوليو',
+        'أغسطس',
+        'سبتمبر',
+        'أكتوبر',
+        'نوفمبر',
+        'ديسمبر',
       ];
       return '${date.day} ${months[date.month - 1]} ${date.year}';
     }
@@ -153,10 +198,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // دالة للحصول على الحرف الأول من الاسم
   String _getAvatarInitial(String? fullName) {
     if (fullName == null || fullName.isEmpty) return 'أ';
-    
+
     final trimmedName = fullName.trim();
     if (trimmedName.isEmpty) return 'أ';
-    
+
     // البحث عن أول حرف عربي أو إنجليزي
     for (int i = 0; i < trimmedName.length; i++) {
       final char = trimmedName[i];
@@ -164,7 +209,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return char.toUpperCase();
       }
     }
-    
+
     return 'أ';
   }
 
@@ -189,18 +234,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (updatedProfile != null) {
         print('تم تحديث البيانات بنجاح: $updatedProfile');
-        
+
         // تحديث البيانات مباشرة من الاستجابة
         setState(() {
-          _nameController.text = updatedProfile['full_name'] ?? _nameController.text;
-          _phoneController.text = updatedProfile['phone'] ?? _phoneController.text;
+          _nameController.text =
+              updatedProfile['full_name'] ?? _nameController.text;
+          _phoneController.text =
+              updatedProfile['phone'] ?? _phoneController.text;
           _roleController.text = updatedProfile['role'] ?? _roleController.text;
-          
+
           // تحديث البيانات الإضافية
           _joinDate = _formatDate(updatedProfile['created_at']);
-          _lastLogin = _formatDate(updatedProfile['last_login']) ?? 'لم يتم تسجيل الدخول بعد';
+          _lastLogin = updatedProfile['last_login'] != null
+              ? _formatDate(updatedProfile['last_login'])
+              : 'الآن';
           _avatarInitial = _getAvatarInitial(updatedProfile['full_name']);
-          
+
           _isEditing = false;
           _isLoading = false;
         });
@@ -221,7 +270,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _isLoading = false;
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -544,30 +593,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 24),
 
-          _buildSecurityOption(
-            'تغيير كلمة المرور',
-            'آخر تحديث: منذ 30 يوماً',
-            Icons.lock_outline,
-            () {
-              // TODO: تغيير كلمة المرور
-            },
-          ),
+          _buildSecurityOption('تغيير كلمة المرور', '', Icons.lock_outline, () {
+            _showChangePasswordDialog();
+          }),
           const SizedBox(height: 16),
           _buildSecurityOption(
             'المصادقة الثنائية',
-            'مفعلة',
+            _securityInfo['two_factor_enabled'] == true ? 'مفعلة' : 'غير مفعلة',
             Icons.verified_user,
             () {
-              // TODO: إعدادات المصادقة الثنائية
+              _showTwoFactorDialog();
             },
           ),
           const SizedBox(height: 16),
           _buildSecurityOption(
             'جلسات تسجيل الدخول',
-            '3 جلسات نشطة',
+            '${_securityInfo['active_sessions'] ?? 1} جلسة نشطة',
             Icons.devices,
             () {
-              // TODO: إدارة الجلسات
+              _showSessionsDialog();
             },
           ),
         ],
@@ -616,7 +660,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Expanded(
                 child: _buildStatCard(
                   'الطلبات المعالجة',
-                  '156',
+                  '${_activityStats['processed_orders'] ?? 0}',
                   Icons.check_circle,
                   AppColors.success,
                 ),
@@ -625,7 +669,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Expanded(
                 child: _buildStatCard(
                   'المستخدمين المضافين',
-                  '23',
+                  '${_activityStats['added_users'] ?? 0}',
                   Icons.person_add,
                   AppColors.primary,
                 ),
@@ -634,7 +678,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Expanded(
                 child: _buildStatCard(
                   'المنتجات المحدثة',
-                  '89',
+                  '${_activityStats['updated_products'] ?? 0}',
                   Icons.update,
                   AppColors.warning,
                 ),
@@ -823,6 +867,187 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // عرض نافذة تغيير كلمة المرور
+  void _showChangePasswordDialog() {
+    final oldPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('تغيير كلمة المرور'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: oldPasswordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'كلمة المرور الحالية',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: newPasswordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'كلمة المرور الجديدة',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: confirmPasswordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'تأكيد كلمة المرور الجديدة',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (newPasswordController.text !=
+                    confirmPasswordController.text) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('كلمة المرور الجديدة غير متطابقة'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                  return;
+                }
+
+                if (newPasswordController.text.length < 6) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                  return;
+                }
+
+                try {
+                  await _supabaseService.changePassword(
+                    newPasswordController.text,
+                  );
+                  await _supabaseService.updatePasswordLastUpdate();
+
+                  // إعادة تحميل البيانات
+                  await _loadProfileData();
+
+                  Navigator.of(context).pop();
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('تم تغيير كلمة المرور بنجاح'),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('خطأ في تغيير كلمة المرور: $e'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              },
+              child: const Text('تغيير'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // عرض نافذة المصادقة الثنائية
+  void _showTwoFactorDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('المصادقة الثنائية'),
+          content: Text(
+            _securityInfo['two_factor_enabled'] == true
+                ? 'المصادقة الثنائية مفعلة حالياً. هل تريد إلغاء تفعيلها؟'
+                : 'المصادقة الثنائية غير مفعلة. هل تريد تفعيلها؟',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('هذه الميزة قيد التطوير'),
+                    backgroundColor: AppColors.warning,
+                  ),
+                );
+              },
+              child: Text(
+                _securityInfo['two_factor_enabled'] == true
+                    ? 'إلغاء التفعيل'
+                    : 'تفعيل',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // عرض نافذة الجلسات
+  void _showSessionsDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('جلسات تسجيل الدخول'),
+          content: const Text(
+            'جلسة واحدة نشطة حالياً (هذه الجلسة).\n\n'
+            'يمكنك تسجيل الخروج من جميع الأجهزة الأخرى من هنا.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('إغلاق'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('هذه الميزة قيد التطوير'),
+                    backgroundColor: AppColors.warning,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('تسجيل الخروج من جميع الأجهزة'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

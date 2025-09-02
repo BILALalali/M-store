@@ -157,12 +157,12 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
               },
               onProfileTap: () {
                 setState(() {
-                  _selectedIndex = 1; // الانتقال لصفحة الملف الشخصي
+                  _selectedIndex = 3; // الانتقال لصفحة الملف الشخصي
                 });
               },
               onSettingsTap: () {
                 setState(() {
-                  _selectedIndex = 2; // الانتقال لصفحة الإعدادات
+                  _selectedIndex = 4; // الانتقال لصفحة الإعدادات
                 });
               },
               onLogoutTap: _handleLogout,

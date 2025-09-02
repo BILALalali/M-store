@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -247,6 +246,12 @@ class SupabaseService {
         'حالة المستخدم: ${response.user!.emailConfirmedAt != null ? "مؤكد" : "غير مؤكد"}',
       );
 
+      // تحديث آخر تسجيل دخول
+      await _updateLastLogin();
+
+      // التأكد من وجود سجل المدير
+      await _ensureAdminRecordExists();
+
       return response;
     } catch (e) {
       print('خطأ في تسجيل الدخول: $e');
@@ -360,7 +365,7 @@ class SupabaseService {
             .single();
 
         print('تم العثور على المستخدم في جدول admin_users: $response');
-        return response != null;
+        return true;
       } catch (userIdError) {
         print('خطأ في البحث بـ user_id: $userIdError');
 
@@ -377,7 +382,7 @@ class SupabaseService {
             print(
               'تم العثور على المستخدم في جدول admin_users باستخدام البريد الإلكتروني: $response',
             );
-            return response != null;
+            return true;
           }
         } catch (emailError) {
           print('خطأ في البحث بـ البريد الإلكتروني: $emailError');
@@ -549,6 +554,9 @@ class SupabaseService {
 
       await _auth!.updateUser(UserAttributes(password: newPassword));
 
+      // تحديث تاريخ آخر تغيير كلمة المرور
+      await updatePasswordLastUpdate();
+
       print('تم تغيير كلمة المرور بنجاح');
     } catch (e) {
       print('خطأ في تغيير كلمة المرور: $e');
@@ -699,6 +707,13 @@ class SupabaseService {
     try {
       if (!isReady) {
         throw Exception('Supabase غير مهيأ');
+      }
+
+      // إضافة admin_id للمدير الحالي
+      final user = _auth!.currentUser;
+      if (user != null) {
+        updates['admin_id'] = user.id;
+        updates['updated_at'] = DateTime.now().toIso8601String();
       }
 
       print('تحديث المنتج $productId: $updates');
@@ -1475,6 +1490,344 @@ class SupabaseService {
     } catch (e) {
       print('خطأ في تعطيل RLS: $e');
       // سنحاول العمل مع RLS مفعل
+    }
+  }
+
+  // الحصول على إحصائيات النشاط للمدير
+  Future<Map<String, dynamic>> getAdminActivityStats() async {
+    try {
+      if (!isReady) {
+        return _getDefaultActivityStats();
+      }
+
+      final user = _auth!.currentUser;
+      if (user == null) {
+        return _getDefaultActivityStats();
+      }
+
+      Map<String, dynamic> stats = _getDefaultActivityStats();
+
+      // جلب عدد المنتجات المحدثة من قبل هذا المدير
+      try {
+        final updatedProductsResponse = await _client!
+            .from('products')
+            .select('id')
+            .eq('admin_id', user.id);
+        stats['updated_products'] = updatedProductsResponse.length;
+      } catch (e) {
+        print('لا يمكن جلب المنتجات المحدثة: $e');
+      }
+
+      // جلب عدد المستخدمين المضافين من قبل هذا المدير
+      try {
+        final addedUsersResponse = await _client!
+            .from('users')
+            .select('id')
+            .eq('created_by', user.id);
+        stats['added_users'] = addedUsersResponse.length;
+      } catch (e) {
+        print('لا يمكن جلب المستخدمين المضافين: $e');
+      }
+
+      // جلب عدد الطلبات المعالجة من قبل هذا المدير
+      try {
+        final processedOrdersResponse = await _client!
+            .from('orders')
+            .select('id')
+            .eq('processed_by', user.id)
+            .eq('status', 'completed');
+        stats['processed_orders'] = processedOrdersResponse.length;
+      } catch (e) {
+        print('لا يمكن جلب الطلبات المعالجة: $e');
+      }
+
+      return stats;
+    } catch (e) {
+      print('خطأ في جلب إحصائيات النشاط: $e');
+      return _getDefaultActivityStats();
+    }
+  }
+
+  // إحصائيات النشاط الافتراضية
+  Map<String, dynamic> _getDefaultActivityStats() {
+    return {'updated_products': 0, 'added_users': 0, 'processed_orders': 0};
+  }
+
+  // الحصول على معلومات الأمان للمدير
+  Future<Map<String, dynamic>> getAdminSecurityInfo() async {
+    try {
+      if (!isReady) {
+        return _getDefaultSecurityInfo();
+      }
+
+      final user = _auth!.currentUser;
+      if (user == null) {
+        return _getDefaultSecurityInfo();
+      }
+
+      Map<String, dynamic> securityInfo = _getDefaultSecurityInfo();
+
+      // جلب آخر تحديث لكلمة المرور
+      try {
+        final adminProfile = await getAdminProfile();
+        if (adminProfile != null &&
+            adminProfile['password_updated_at'] != null) {
+          final lastPasswordUpdate = DateTime.parse(
+            adminProfile['password_updated_at'],
+          );
+          final now = DateTime.now();
+          final daysSinceUpdate = now.difference(lastPasswordUpdate).inDays;
+
+          if (daysSinceUpdate == 0) {
+            securityInfo['last_password_update'] = 'اليوم';
+          } else if (daysSinceUpdate == 1) {
+            securityInfo['last_password_update'] = 'أمس';
+          } else if (daysSinceUpdate < 7) {
+            securityInfo['last_password_update'] = 'منذ $daysSinceUpdate أيام';
+          } else {
+            securityInfo['last_password_update'] = 'منذ $daysSinceUpdate يوماً';
+          }
+        } else {
+          securityInfo['last_password_update'] = 'الآن';
+        }
+      } catch (e) {
+        print('لا يمكن جلب آخر تحديث لكلمة المرور: $e');
+        securityInfo['last_password_update'] = 'غير محدد';
+      }
+
+      // جلب حالة المصادقة الثنائية
+      try {
+        final adminProfile = await getAdminProfile();
+        if (adminProfile != null) {
+          securityInfo['two_factor_enabled'] =
+              adminProfile['two_factor_enabled'] ?? false;
+        }
+      } catch (e) {
+        print('لا يمكن جلب حالة المصادقة الثنائية: $e');
+      }
+
+      // جلب عدد الجلسات النشطة
+      try {
+        // هذا يتطلب جدول منفصل للجلسات أو يمكن استخدام auth.sessions
+        // للآن سنستخدم قيمة افتراضية
+        securityInfo['active_sessions'] = 1; // جلسة واحدة (الحالية)
+      } catch (e) {
+        print('لا يمكن جلب الجلسات النشطة: $e');
+      }
+
+      return securityInfo;
+    } catch (e) {
+      print('خطأ في جلب معلومات الأمان: $e');
+      return _getDefaultSecurityInfo();
+    }
+  }
+
+  // معلومات الأمان الافتراضية
+  Map<String, dynamic> _getDefaultSecurityInfo() {
+    return {
+      'last_password_update': 'الآن',
+      'two_factor_enabled': false,
+      'active_sessions': 1,
+    };
+  }
+
+  // تحديث آخر تحديث لكلمة المرور
+  Future<void> updatePasswordLastUpdate() async {
+    try {
+      if (!isReady) {
+        throw Exception('Supabase غير مهيأ');
+      }
+
+      final user = _auth!.currentUser;
+      if (user == null) throw Exception('المستخدم غير مسجل الدخول');
+
+      final updates = {
+        'password_updated_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      print('محاولة تحديث آخر تحديث لكلمة المرور للمستخدم: ${user.email}');
+      print('البيانات المراد تحديثها: $updates');
+
+      // محاولة التحديث بـ user_id أولاً
+      try {
+        final result = await _client!
+            .from('admin_users')
+            .update(updates)
+            .eq('user_id', user.id)
+            .select();
+        print('تم تحديث آخر تحديث لكلمة المرور بـ user_id: $result');
+      } catch (userIdError) {
+        print('خطأ في التحديث بـ user_id: $userIdError');
+
+        // محاولة التحديث بـ البريد الإلكتروني
+        if (user.email != null) {
+          try {
+            final result = await _client!
+                .from('admin_users')
+                .update(updates)
+                .eq('email', user.email!)
+                .select();
+            print(
+              'تم تحديث آخر تحديث لكلمة المرور بـ البريد الإلكتروني: $result',
+            );
+          } catch (emailError) {
+            print('خطأ في التحديث بـ البريد الإلكتروني: $emailError');
+
+            // محاولة إنشاء سجل جديد إذا لم يكن موجوداً
+            try {
+              final newRecord = {
+                'user_id': user.id,
+                'email': user.email,
+                'full_name':
+                    user.userMetadata?['full_name'] ??
+                    user.email?.split('@')[0] ??
+                    'مستخدم',
+                'role': 'super_admin',
+                'is_active': true,
+                'password_updated_at': DateTime.now().toIso8601String(),
+                'created_at': DateTime.now().toIso8601String(),
+                'updated_at': DateTime.now().toIso8601String(),
+              };
+
+              final insertResult = await _client!
+                  .from('admin_users')
+                  .insert(newRecord)
+                  .select();
+              print('تم إنشاء سجل جديد للمدير: $insertResult');
+            } catch (insertError) {
+              print('خطأ في إنشاء سجل جديد: $insertError');
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('خطأ في تحديث آخر تحديث لكلمة المرور: $e');
+    }
+  }
+
+  // تحديث آخر تسجيل دخول
+  Future<void> _updateLastLogin() async {
+    try {
+      if (!isReady) {
+        return;
+      }
+
+      final user = _auth!.currentUser;
+      if (user == null) return;
+
+      final updates = {
+        'last_login': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      print('محاولة تحديث آخر تسجيل دخول للمستخدم: ${user.email}');
+      print('البيانات المراد تحديثها: $updates');
+
+      // محاولة التحديث بـ user_id أولاً
+      try {
+        final result = await _client!
+            .from('admin_users')
+            .update(updates)
+            .eq('user_id', user.id)
+            .select();
+        print('تم تحديث آخر تسجيل دخول بـ user_id: $result');
+      } catch (userIdError) {
+        print('خطأ في التحديث بـ user_id: $userIdError');
+
+        // محاولة التحديث بـ البريد الإلكتروني
+        if (user.email != null) {
+          try {
+            final result = await _client!
+                .from('admin_users')
+                .update(updates)
+                .eq('email', user.email!)
+                .select();
+            print('تم تحديث آخر تسجيل دخول بـ البريد الإلكتروني: $result');
+          } catch (emailError) {
+            print('خطأ في التحديث بـ البريد الإلكتروني: $emailError');
+
+            // محاولة إنشاء سجل جديد إذا لم يكن موجوداً
+            try {
+              final newRecord = {
+                'user_id': user.id,
+                'email': user.email,
+                'full_name':
+                    user.userMetadata?['full_name'] ??
+                    user.email?.split('@')[0] ??
+                    'مستخدم',
+                'role': 'super_admin',
+                'is_active': true,
+                'last_login': DateTime.now().toIso8601String(),
+                'created_at': DateTime.now().toIso8601String(),
+                'updated_at': DateTime.now().toIso8601String(),
+              };
+
+              final insertResult = await _client!
+                  .from('admin_users')
+                  .insert(newRecord)
+                  .select();
+              print('تم إنشاء سجل جديد للمدير: $insertResult');
+            } catch (insertError) {
+              print('خطأ في إنشاء سجل جديد: $insertError');
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('خطأ في تحديث آخر تسجيل دخول: $e');
+    }
+  }
+
+  // التأكد من وجود سجل المدير
+  Future<void> _ensureAdminRecordExists() async {
+    try {
+      if (!isReady) {
+        return;
+      }
+
+      final user = _auth!.currentUser;
+      if (user == null) return;
+
+      // التحقق من وجود السجل
+      try {
+        final existingRecord = await _client!
+            .from('admin_users')
+            .select('id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+        if (existingRecord == null) {
+          print('سجل المدير غير موجود، سيتم إنشاؤه...');
+
+          // إنشاء سجل جديد
+          final newRecord = {
+            'user_id': user.id,
+            'email': user.email,
+            'full_name':
+                user.userMetadata?['full_name'] ??
+                user.email?.split('@')[0] ??
+                'مستخدم',
+            'role': 'super_admin',
+            'is_active': true,
+            'last_login': DateTime.now().toIso8601String(),
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          };
+
+          final insertResult = await _client!
+              .from('admin_users')
+              .insert(newRecord)
+              .select();
+          print('تم إنشاء سجل المدير: $insertResult');
+        } else {
+          print('سجل المدير موجود بالفعل');
+        }
+      } catch (e) {
+        print('خطأ في التحقق من وجود سجل المدير: $e');
+      }
+    } catch (e) {
+      print('خطأ في التأكد من وجود سجل المدير: $e');
     }
   }
 }
