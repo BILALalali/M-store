@@ -1631,6 +1631,387 @@ class SupabaseService {
     };
   }
 
+  // ========== دوال إدارة بطاقات الجوال ==========
+
+  // الحصول على جميع الباقات
+  Future<List<Map<String, dynamic>>> getMobilePackages() async {
+    try {
+      if (!isReady) {
+        return [];
+      }
+
+      final response = await _client!
+          .from('mobile_packages')
+          .select('*')
+          .order('sort_order')
+          .order('package_value');
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('خطأ في جلب الباقات: $e');
+      return [];
+    }
+  }
+
+  // الحصول على الباقات النشطة فقط
+  Future<List<Map<String, dynamic>>> getActiveMobilePackages() async {
+    try {
+      if (!isReady) {
+        return [];
+      }
+
+      final response = await _client!
+          .from('mobile_packages')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order')
+          .order('package_value');
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('خطأ في جلب الباقات النشطة: $e');
+      return [];
+    }
+  }
+
+  // الحصول على الباقات حسب المشغل
+  Future<List<Map<String, dynamic>>> getMobilePackagesByOperator(
+    int operatorId,
+  ) async {
+    try {
+      if (!isReady) {
+        return [];
+      }
+
+      final response = await _client!
+          .from('mobile_packages')
+          .select('*')
+          .eq('operator_id', operatorId)
+          .order('sort_order')
+          .order('package_value');
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('خطأ في جلب الباقات حسب المشغل: $e');
+      return [];
+    }
+  }
+
+  // إضافة باقة جديدة
+  Future<Map<String, dynamic>?> addMobilePackage(
+    Map<String, dynamic> packageData,
+  ) async {
+    try {
+      if (!isReady) {
+        throw Exception('Supabase غير مهيأ');
+      }
+
+      print('إضافة باقة جديدة: $packageData');
+
+      final client = _serviceRoleClient ?? _client!;
+      final response = await client
+          .from('mobile_packages')
+          .insert(packageData)
+          .select()
+          .single();
+
+      print('تم إضافة الباقة بنجاح: $response');
+      return response;
+    } catch (e) {
+      print('خطأ في إضافة الباقة: $e');
+      rethrow;
+    }
+  }
+
+  // تحديث باقة موجودة
+  Future<Map<String, dynamic>?> updateMobilePackage(
+    int packageId,
+    Map<String, dynamic> updates,
+  ) async {
+    try {
+      if (!isReady) {
+        throw Exception('Supabase غير مهيأ');
+      }
+
+      print('تحديث الباقة $packageId: $updates');
+
+      final client = _serviceRoleClient ?? _client!;
+      final response = await client
+          .from('mobile_packages')
+          .update(updates)
+          .eq('id', packageId)
+          .select()
+          .single();
+
+      print('تم تحديث الباقة بنجاح: $response');
+      return response;
+    } catch (e) {
+      print('خطأ في تحديث الباقة: $e');
+      rethrow;
+    }
+  }
+
+  // حذف باقة
+  Future<bool> deleteMobilePackage(int packageId) async {
+    try {
+      if (!isReady) {
+        throw Exception('Supabase غير مهيأ');
+      }
+
+      print('حذف الباقة: $packageId');
+
+      final client = _serviceRoleClient ?? _client!;
+      await client.from('mobile_packages').delete().eq('id', packageId);
+
+      print('تم حذف الباقة بنجاح');
+      return true;
+    } catch (e) {
+      print('خطأ في حذف الباقة: $e');
+      rethrow;
+    }
+  }
+
+  // تغيير حالة الباقة
+  Future<bool> toggleMobilePackageStatus(int packageId, bool isActive) async {
+    try {
+      if (!isReady) {
+        throw Exception('Supabase غير مهيأ');
+      }
+
+      print('تغيير حالة الباقة $packageId إلى: $isActive');
+
+      await _client!
+          .from('mobile_packages')
+          .update({
+            'is_active': isActive,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', packageId);
+
+      print('تم تغيير حالة الباقة بنجاح');
+      return true;
+    } catch (e) {
+      print('خطأ في تغيير حالة الباقة: $e');
+      rethrow;
+    }
+  }
+
+  // البحث في الباقات
+  Future<List<Map<String, dynamic>>> searchMobilePackages(String query) async {
+    try {
+      if (!isReady) {
+        return [];
+      }
+
+      print('البحث في الباقات: $query');
+
+      final response = await _client!
+          .from('mobile_packages')
+          .select('*')
+          .or(
+            'package_name.ilike.%$query%,description_ar.ilike.%$query%,description_en.ilike.%$query%',
+          )
+          .order('sort_order')
+          .order('package_value');
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('خطأ في البحث في الباقات: $e');
+      return [];
+    }
+  }
+
+  // الحصول على جميع المشغلين
+  Future<List<Map<String, dynamic>>> getMobileOperators() async {
+    try {
+      if (!isReady) {
+        return [];
+      }
+
+      final response = await _client!
+          .from('mobile_operators')
+          .select('*')
+          .order('name');
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('خطأ في جلب المشغلين: $e');
+      return [];
+    }
+  }
+
+  // الحصول على المشغلين النشطين فقط
+  Future<List<Map<String, dynamic>>> getActiveMobileOperators() async {
+    try {
+      if (!isReady) {
+        return [];
+      }
+
+      final response = await _client!
+          .from('mobile_operators')
+          .select('*')
+          .eq('is_active', true)
+          .order('name');
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('خطأ في جلب المشغلين النشطين: $e');
+      return [];
+    }
+  }
+
+  // إضافة مشغل جديد
+  Future<Map<String, dynamic>?> addMobileOperator(
+    Map<String, dynamic> operatorData,
+  ) async {
+    try {
+      if (!isReady) {
+        throw Exception('Supabase غير مهيأ');
+      }
+
+      print('إضافة مشغل جديد: $operatorData');
+
+      final client = _serviceRoleClient ?? _client!;
+      final response = await client
+          .from('mobile_operators')
+          .insert(operatorData)
+          .select()
+          .single();
+
+      print('تم إضافة المشغل بنجاح: $response');
+      return response;
+    } catch (e) {
+      print('خطأ في إضافة المشغل: $e');
+      rethrow;
+    }
+  }
+
+  // تحديث مشغل موجود
+  Future<Map<String, dynamic>?> updateMobileOperator(
+    int operatorId,
+    Map<String, dynamic> updates,
+  ) async {
+    try {
+      if (!isReady) {
+        throw Exception('Supabase غير مهيأ');
+      }
+
+      print('تحديث المشغل $operatorId: $updates');
+
+      final response = await _client!
+          .from('mobile_operators')
+          .update(updates)
+          .eq('id', operatorId)
+          .select()
+          .single();
+
+      print('تم تحديث المشغل بنجاح: $response');
+      return response;
+    } catch (e) {
+      print('خطأ في تحديث المشغل: $e');
+      rethrow;
+    }
+  }
+
+  // حذف مشغل
+  Future<bool> deleteMobileOperator(int operatorId) async {
+    try {
+      if (!isReady) {
+        throw Exception('Supabase غير مهيأ');
+      }
+
+      print('حذف المشغل: $operatorId');
+
+      // التحقق من وجود باقات مرتبطة بالمشغل
+      final packages = await getMobilePackagesByOperator(operatorId);
+      if (packages.isNotEmpty) {
+        throw Exception('لا يمكن حذف المشغل لأنه يحتوي على باقات مرتبطة');
+      }
+
+      await _client!.from('mobile_operators').delete().eq('id', operatorId);
+
+      print('تم حذف المشغل بنجاح');
+      return true;
+    } catch (e) {
+      print('خطأ في حذف المشغل: $e');
+      rethrow;
+    }
+  }
+
+  // تغيير حالة المشغل
+  Future<bool> toggleMobileOperatorStatus(int operatorId, bool isActive) async {
+    try {
+      if (!isReady) {
+        throw Exception('Supabase غير مهيأ');
+      }
+
+      print('تغيير حالة المشغل $operatorId إلى: $isActive');
+
+      await _client!
+          .from('mobile_operators')
+          .update({
+            'is_active': isActive,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', operatorId);
+
+      print('تم تغيير حالة المشغل بنجاح');
+      return true;
+    } catch (e) {
+      print('خطأ في تغيير حالة المشغل: $e');
+      rethrow;
+    }
+  }
+
+  // الحصول على إحصائيات الباقات
+  Future<Map<String, dynamic>> getMobilePackagesStats() async {
+    try {
+      if (!isReady) {
+        return _getDefaultMobilePackagesStats();
+      }
+
+      // جلب عدد الباقات الإجمالي
+      final totalPackages = await _client!.from('mobile_packages').select('id');
+
+      // جلب عدد الباقات النشطة
+      final activePackages = await _client!
+          .from('mobile_packages')
+          .select('id')
+          .eq('is_active', true);
+
+      // جلب عدد المشغلين
+      final totalOperators = await _client!
+          .from('mobile_operators')
+          .select('id');
+
+      // جلب عدد المشغلين النشطين
+      final activeOperators = await _client!
+          .from('mobile_operators')
+          .select('id')
+          .eq('is_active', true);
+
+      return {
+        'total_packages': totalPackages.length,
+        'active_packages': activePackages.length,
+        'total_operators': totalOperators.length,
+        'active_operators': activeOperators.length,
+      };
+    } catch (e) {
+      print('خطأ في جلب إحصائيات الباقات: $e');
+      return _getDefaultMobilePackagesStats();
+    }
+  }
+
+  // إحصائيات الباقات الافتراضية
+  Map<String, dynamic> _getDefaultMobilePackagesStats() {
+    return {
+      'total_packages': 0,
+      'active_packages': 0,
+      'total_operators': 0,
+      'active_operators': 0,
+    };
+  }
+
   // تحديث آخر تحديث لكلمة المرور
   Future<void> updatePasswordLastUpdate() async {
     try {

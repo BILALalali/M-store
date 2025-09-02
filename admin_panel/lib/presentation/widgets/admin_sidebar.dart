@@ -95,9 +95,9 @@ class AdminSidebar extends StatelessWidget {
           subtitle: 'لوحة التحكم الرئيسية',
           index: 0,
         ),
-        
+
         const SizedBox(height: 16),
-        
+
         // إدارة المنتجات
         _buildSectionHeader('إدارة المنتجات'),
         _buildNavItem(
@@ -107,27 +107,33 @@ class AdminSidebar extends StatelessWidget {
           index: 1,
         ),
         _buildNavItem(
+          icon: Icons.phone_android,
+          title: 'بطاقات الجوال',
+          subtitle: 'إدارة باقات ومشغلي الجوال',
+          index: 2,
+        ),
+        _buildNavItem(
           icon: Icons.campaign,
           title: 'الإعلانات',
           subtitle: 'إدارة الإعلانات والعروض',
-          index: 2,
+          index: 3,
         ),
         _buildNavItem(
           icon: Icons.person,
           title: 'الملف الشخصي',
           subtitle: 'إدارة الملف الشخصي',
-          index: 3,
+          index: 4,
         ),
-        
+
         const SizedBox(height: 16),
-        
+
         // الإعدادات
         _buildSectionHeader('الإعدادات'),
         _buildNavItem(
           icon: Icons.settings,
           title: 'الإعدادات',
           subtitle: 'إعدادات النظام والحساب',
-          index: 4,
+          index: 5,
         ),
       ],
     );
