@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/product.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/util_screen.dart';
 import 'add_product_screen.dart';
 import 'edit_product_screen.dart';
 
@@ -168,17 +169,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          // رأس الصفحة
-          _buildHeader(),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // رأس الصفحة
+            _buildHeader(),
 
-          // أدوات البحث والتصفية
-          _buildFilters(),
+            // أدوات البحث والتصفية
+            _buildFilters(),
 
-          // قائمة المنتجات
-          Expanded(child: _buildProductsList()),
-        ],
+            // قائمة المنتجات
+            Expanded(child: _buildProductsList()),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
@@ -508,7 +511,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       onPressed: () async {
                         final result = await Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (context) => EditProductScreen(product: product),
+                            builder: (context) =>
+                                EditProductScreen(product: product),
                           ),
                         );
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 
-class AdminSidebar extends StatelessWidget {
+class AdminSidebar extends StatefulWidget {
   final int selectedIndex;
   final Function(int) onItemSelected;
   final VoidCallback? onProfileTap;
@@ -16,6 +16,16 @@ class AdminSidebar extends StatelessWidget {
     this.onSettingsTap,
     this.onLogoutTap,
   });
+
+  @override
+  State<AdminSidebar> createState() => _AdminSidebarState();
+}
+
+class _AdminSidebarState extends State<AdminSidebar> {
+  // حالة الأقسام القابلة للطي
+  bool _isGeneralExpanded = true;
+  bool _isManagementExpanded = true;
+  bool _isChatsExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -87,59 +97,92 @@ class AdminSidebar extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 16),
       children: [
-        // لوحة الإدارة
-        _buildSectionHeader('لوحة الإدارة'),
-        _buildNavItem(
-          icon: Icons.dashboard,
-          title: 'الرئيسية',
-          subtitle: 'لوحة التحكم الرئيسية',
-          index: 0,
+        // قسم عام
+        _buildCollapsibleSection(
+          title: 'عام',
+          isExpanded: _isGeneralExpanded,
+          onToggle: () =>
+              setState(() => _isGeneralExpanded = !_isGeneralExpanded),
+          children: [
+            _buildNavItem(
+              icon: Icons.dashboard,
+              title: 'الرئيسية',
+              subtitle: 'لوحة التحكم الرئيسية',
+              index: 0,
+            ),
+            _buildNavItem(
+              icon: Icons.person,
+              title: 'الملف الشخصي',
+              subtitle: 'إدارة الملف الشخصي',
+              index: 5,
+            ),
+            _buildNavItem(
+              icon: Icons.settings,
+              title: 'الإعدادات',
+              subtitle: 'إعدادات النظام والحساب',
+              index: 6,
+            ),
+          ],
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
 
-        // إدارة المنتجات
-        _buildSectionHeader('إدارة المنتجات'),
-        _buildNavItem(
-          icon: Icons.inventory,
-          title: 'المنتجات',
-          subtitle: 'إدارة وإضافة المنتجات',
-          index: 1,
-        ),
-        _buildNavItem(
-          icon: Icons.phone_android,
-          title: 'بطاقات الجوال',
-          subtitle: 'إدارة باقات ومشغلي الجوال',
-          index: 2,
-        ),
-        _buildNavItem(
-          icon: Icons.games,
-          title: 'بطاقات الألعاب',
-          subtitle: 'إدارة بطاقات ومقدمي خدمة الألعاب',
-          index: 3,
-        ),
-        _buildNavItem(
-          icon: Icons.campaign,
-          title: 'الإعلانات',
-          subtitle: 'إدارة الإعلانات والعروض',
-          index: 4,
-        ),
-        _buildNavItem(
-          icon: Icons.person,
-          title: 'الملف الشخصي',
-          subtitle: 'إدارة الملف الشخصي',
-          index: 5,
+        // قسم إدارة
+        _buildCollapsibleSection(
+          title: 'إدارة',
+          isExpanded: _isManagementExpanded,
+          onToggle: () =>
+              setState(() => _isManagementExpanded = !_isManagementExpanded),
+          children: [
+            _buildNavItem(
+              icon: Icons.inventory,
+              title: 'المنتجات',
+              subtitle: 'إدارة وإضافة المنتجات',
+              index: 1,
+            ),
+            _buildNavItem(
+              icon: Icons.phone_android,
+              title: 'بطاقات الجوال',
+              subtitle: 'إدارة باقات ومشغلي الجوال',
+              index: 2,
+            ),
+            _buildNavItem(
+              icon: Icons.games,
+              title: 'بطاقات الألعاب',
+              subtitle: 'إدارة بطاقات ومقدمي خدمة الألعاب',
+              index: 3,
+            ),
+            _buildNavItem(
+              icon: Icons.campaign,
+              title: 'الإعلانات',
+              subtitle: 'إدارة الإعلانات والعروض',
+              index: 4,
+            ),
+          ],
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
 
-        // الإعدادات
-        _buildSectionHeader('الإعدادات'),
-        _buildNavItem(
-          icon: Icons.settings,
-          title: 'الإعدادات',
-          subtitle: 'إعدادات النظام والحساب',
-          index: 6,
+        // قسم الدردشات
+        _buildCollapsibleSection(
+          title: 'الدردشات',
+          isExpanded: _isChatsExpanded,
+          onToggle: () => setState(() => _isChatsExpanded = !_isChatsExpanded),
+          children: [
+            // سيتم إضافة عناصر الدردشات لاحقاً
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'سيتم إضافة عناصر الدردشات قريباً',
+                style: TextStyle(
+                  color: AppColors.text.withValues(alpha: 0.6),
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -182,7 +225,7 @@ class AdminSidebar extends StatelessWidget {
                             color: AppColors.text,
                             size: 16,
                           ),
-                          onPressed: onSettingsTap,
+                          onPressed: widget.onSettingsTap,
                           tooltip: 'الإعدادات',
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(
@@ -196,7 +239,7 @@ class AdminSidebar extends StatelessWidget {
                             color: AppColors.error,
                             size: 16,
                           ),
-                          onPressed: onLogoutTap,
+                          onPressed: widget.onLogoutTap,
                           tooltip: 'تسجيل الخروج',
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(
@@ -212,7 +255,7 @@ class AdminSidebar extends StatelessWidget {
                   children: [
                     // معلومات المدير
                     InkWell(
-                      onTap: onProfileTap,
+                      onTap: widget.onProfileTap,
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
                         padding: const EdgeInsets.all(8),
@@ -274,7 +317,7 @@ class AdminSidebar extends StatelessWidget {
                               color: AppColors.text,
                               size: 20,
                             ),
-                            onPressed: onSettingsTap,
+                            onPressed: widget.onSettingsTap,
                             tooltip: 'الإعدادات',
                           ),
                         ),
@@ -285,7 +328,7 @@ class AdminSidebar extends StatelessWidget {
                               color: AppColors.error,
                               size: 20,
                             ),
-                            onPressed: onLogoutTap,
+                            onPressed: widget.onLogoutTap,
                             tooltip: 'تسجيل الخروج',
                           ),
                         ),
@@ -298,17 +341,74 @@ class AdminSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Text(
-        title,
-        style: TextStyle(
-          color: AppColors.text.withValues(alpha: 0.8),
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1.2,
+  Widget _buildCollapsibleSection({
+    required String title,
+    required bool isExpanded,
+    required VoidCallback onToggle,
+    required List<Widget> children,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.2),
+          width: 1,
         ),
+      ),
+      child: Column(
+        children: [
+          // رأس القسم القابل للطي
+          InkWell(
+            onTap: onToggle,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(8),
+              topRight: Radius.circular(8),
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.folder_outlined,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: isExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.keyboard_arrow_down,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // محتوى القسم
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            height: isExpanded ? null : 0,
+            child: isExpanded
+                ? Column(children: children)
+                : const SizedBox.shrink(),
+          ),
+        ],
       ),
     );
   }
@@ -319,21 +419,26 @@ class AdminSidebar extends StatelessWidget {
     required String subtitle,
     required int index,
   }) {
-    final isSelected = selectedIndex == index;
+    final isSelected = widget.selectedIndex == index;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
       decoration: BoxDecoration(
         color: isSelected ? AppColors.primary : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: ListTile(
-        leading: Icon(icon, color: isSelected ? Colors.white : AppColors.text),
+        leading: Icon(
+          icon,
+          color: isSelected ? Colors.white : AppColors.text,
+          size: 20,
+        ),
         title: Text(
           title,
           style: TextStyle(
             color: isSelected ? Colors.white : AppColors.text,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontSize: 13,
           ),
         ),
         subtitle: Text(
@@ -342,11 +447,12 @@ class AdminSidebar extends StatelessWidget {
             color: isSelected
                 ? Colors.white.withValues(alpha: 0.8)
                 : AppColors.text.withValues(alpha: 0.6),
-            fontSize: 11,
+            fontSize: 10,
           ),
         ),
-        onTap: () => onItemSelected(index),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        onTap: () => widget.onItemSelected(index),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        dense: true,
       ),
     );
   }

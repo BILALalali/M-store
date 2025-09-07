@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/advertisement.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/util_screen.dart';
 import 'add_advertisement_screen.dart';
 
 class AdvertisementsScreen extends StatefulWidget {
@@ -165,12 +166,14 @@ class _AdvertisementsScreenState extends State<AdvertisementsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          _buildHeader(),
-          _buildSearchAndFilters(),
-          Expanded(child: _buildAdvertisementsList()),
-        ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            _buildSearchAndFilters(),
+            Expanded(child: _buildAdvertisementsList()),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/mobile_package.dart';
 import '../../../core/services/mobile_packages_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/util_screen.dart';
 import 'add_mobile_package_screen.dart';
 import 'edit_mobile_package_screen.dart';
 import 'mobile_operators_screen.dart';
@@ -221,10 +222,12 @@ class _MobilePackagesScreenState extends State<MobilePackagesScreen>
   // بناء صورة المشغل أو أيقونة افتراضية
   Widget _buildOperatorLogo(MobilePackage package) {
     final operator = _getOperator(package.operatorId);
-    
+    final isMobile = UtilScreen.isMobile(context);
+    final logoSize = isMobile ? 40.0 : 60.0;
+
     return Container(
-      width: 60,
-      height: 60,
+      width: logoSize,
+      height: logoSize,
       decoration: BoxDecoration(
         color: package.isActive
             ? AppColors.primary.withValues(alpha: 0.1)
@@ -236,8 +239,8 @@ class _MobilePackagesScreenState extends State<MobilePackagesScreen>
               borderRadius: BorderRadius.circular(12),
               child: Image.network(
                 operator.logoUrl!,
-                width: 60,
-                height: 60,
+                width: logoSize,
+                height: logoSize,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Icon(
@@ -254,7 +257,9 @@ class _MobilePackagesScreenState extends State<MobilePackagesScreen>
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        package.isActive ? AppColors.primary : AppColors.text.withValues(alpha: 0.4),
+                        package.isActive
+                            ? AppColors.primary
+                            : AppColors.text.withValues(alpha: 0.4),
                       ),
                     ),
                   );
@@ -274,22 +279,24 @@ class _MobilePackagesScreenState extends State<MobilePackagesScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          // رأس الصفحة
-          _buildHeader(),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // رأس الصفحة
+            _buildHeader(),
 
-          // تبويبات
-          _buildTabs(),
+            // تبويبات
+            _buildTabs(),
 
-          // المحتوى
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [_buildPackagesTab(), _buildOperatorsTab()],
+            // المحتوى
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [_buildPackagesTab(), _buildOperatorsTab()],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       floatingActionButton: _tabController.index == 0
           ? FloatingActionButton(
@@ -550,11 +557,15 @@ class _MobilePackagesScreenState extends State<MobilePackagesScreen>
   }
 
   Widget _buildPackageCard(MobilePackage package) {
+    final isMobile = UtilScreen.isMobile(context);
+    final cardPadding = UtilScreen.getPadding(context, PaddingType.card);
+    final spacing = UtilScreen.getSpacing(context);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: EdgeInsets.only(bottom: isMobile ? 8 : 16),
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
         border: Border.all(
           color: package.isActive
               ? AppColors.success.withValues(alpha: 0.3)
@@ -563,19 +574,19 @@ class _MobilePackagesScreenState extends State<MobilePackagesScreen>
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withValues(alpha: 0.05),
-            blurRadius: 8,
+            blurRadius: isMobile ? 4 : 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: cardPadding,
         child: Row(
           children: [
             // صورة المشغل أو أيقونة الباقة
             _buildOperatorLogo(package),
 
-            const SizedBox(width: 20),
+            SizedBox(width: spacing),
 
             // معلومات الباقة
             Expanded(
@@ -588,7 +599,10 @@ class _MobilePackagesScreenState extends State<MobilePackagesScreen>
                         child: Text(
                           package.packageName,
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: UtilScreen.getFontSize(
+                              context,
+                              FontSizeType.subtitle,
+                            ),
                             fontWeight: FontWeight.bold,
                             color: AppColors.text,
                           ),
@@ -596,71 +610,96 @@ class _MobilePackagesScreenState extends State<MobilePackagesScreen>
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: package.isActive
-                              ? AppColors.success.withValues(alpha: 0.1)
-                              : AppColors.error.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          package.isActive ? 'نشط' : 'غير نشط',
-                          style: TextStyle(
-                            fontSize: 12,
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
                             color: package.isActive
-                                ? AppColors.success
-                                : AppColors.error,
-                            fontWeight: FontWeight.w500,
+                                ? AppColors.success.withValues(alpha: 0.1)
+                                : AppColors.error.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            package.isActive ? 'نشط' : 'غير نشط',
+                            style: TextStyle(
+                              fontSize: UtilScreen.getFontSize(
+                                context,
+                                FontSizeType.caption,
+                              ),
+                              color: package.isActive
+                                  ? AppColors.success
+                                  : AppColors.error,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: spacing * 0.5),
 
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _getOperatorName(package.operatorId),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w500,
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            _getOperatorName(package.operatorId),
+                            style: TextStyle(
+                              fontSize: UtilScreen.getFontSize(
+                                context,
+                                FontSizeType.caption,
+                              ),
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'ترتيب: ${package.sortOrder}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.text.withValues(alpha: 0.7),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'ترتيب: ${package.sortOrder}',
+                          style: TextStyle(
+                            fontSize: UtilScreen.getFontSize(
+                              context,
+                              FontSizeType.body,
+                            ),
+                            color: AppColors.text.withValues(alpha: 0.7),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 8),
+                  SizedBox(height: spacing * 0.5),
 
                   if (package.descriptionAr != null &&
                       package.descriptionAr!.isNotEmpty)
                     Text(
                       package.descriptionAr!,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: UtilScreen.getFontSize(
+                          context,
+                          FontSizeType.body,
+                        ),
                         color: AppColors.text.withValues(alpha: 0.6),
                       ),
                       maxLines: 2,
@@ -670,7 +709,7 @@ class _MobilePackagesScreenState extends State<MobilePackagesScreen>
               ),
             ),
 
-            const SizedBox(width: 20),
+            SizedBox(width: spacing * 1.5),
 
             // السعر والإجراءات
             Column(
@@ -679,7 +718,10 @@ class _MobilePackagesScreenState extends State<MobilePackagesScreen>
                 Text(
                   '${package.packageValue.toStringAsFixed(0)} ل.س',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: UtilScreen.getFontSize(
+                      context,
+                      FontSizeType.subtitle,
+                    ),
                     fontWeight: FontWeight.bold,
                     color: AppColors.text,
                   ),
@@ -687,7 +729,10 @@ class _MobilePackagesScreenState extends State<MobilePackagesScreen>
                 Text(
                   'السعر: ${package.packagePrice.toStringAsFixed(2)} ل.س',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: UtilScreen.getFontSize(
+                      context,
+                      FontSizeType.body,
+                    ),
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,
                   ),

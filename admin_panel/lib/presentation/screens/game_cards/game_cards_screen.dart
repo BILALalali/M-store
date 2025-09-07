@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/game_card.dart';
 import '../../../core/services/game_cards_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/util_screen.dart';
 import 'add_game_card_screen.dart';
 import 'edit_game_card_screen.dart';
 import 'game_card_providers_screen.dart';
@@ -276,22 +277,24 @@ class _GameCardsScreenState extends State<GameCardsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          // رأس الصفحة
-          _buildHeader(),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // رأس الصفحة
+            _buildHeader(),
 
-          // تبويبات
-          _buildTabs(),
+            // تبويبات
+            _buildTabs(),
 
-          // المحتوى
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [_buildCardsTab(), _buildProvidersTab()],
+            // المحتوى
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [_buildCardsTab(), _buildProvidersTab()],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       floatingActionButton: _tabController.index == 0
           ? FloatingActionButton(

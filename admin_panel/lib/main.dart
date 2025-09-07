@@ -25,6 +25,7 @@ class MyApp extends StatelessWidget {
       title: AppConstants.appName,
       theme: AppTheme.lightTheme,
       themeMode: ThemeMode.light, // إجبار استخدام النمط النهاري فقط
+      debugShowCheckedModeBanner: false, // إزالة شريط DEBUG
       builder: (context, child) {
         return Directionality(
           textDirection: TextDirection.rtl, // من اليمين لليسار

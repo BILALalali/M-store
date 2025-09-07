@@ -148,46 +148,48 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Row(
-        children: [
-          // القائمة الجانبية
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            width: _isSidebarCollapsed ? 80 : 280,
-            child: AdminSidebar(
-              selectedIndex: _selectedIndex,
-              onItemSelected: (index) {
-                setState(() {
-                  _selectedIndex = index;
-                });
-              },
-              onProfileTap: () {
-                setState(() {
-                  _selectedIndex = 5; // الانتقال لصفحة الملف الشخصي
-                });
-              },
-              onSettingsTap: () {
-                setState(() {
-                  _selectedIndex = 6; // الانتقال لصفحة الإعدادات
-                });
-              },
-              onLogoutTap: _handleLogout,
+      body: SafeArea(
+        child: Row(
+          children: [
+            // القائمة الجانبية
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: _isSidebarCollapsed ? 80 : 280,
+              child: AdminSidebar(
+                selectedIndex: _selectedIndex,
+                onItemSelected: (index) {
+                  setState(() {
+                    _selectedIndex = index;
+                  });
+                },
+                onProfileTap: () {
+                  setState(() {
+                    _selectedIndex = 5; // الانتقال لصفحة الملف الشخصي
+                  });
+                },
+                onSettingsTap: () {
+                  setState(() {
+                    _selectedIndex = 6; // الانتقال لصفحة الإعدادات
+                  });
+                },
+                onLogoutTap: _handleLogout,
+              ),
             ),
-          ),
 
-          // المحتوى الرئيسي
-          Expanded(
-            child: Column(
-              children: [
-                // شريط العنوان
-                _buildTopBar(),
+            // المحتوى الرئيسي
+            Expanded(
+              child: Column(
+                children: [
+                  // شريط العنوان
+                  _buildTopBar(),
 
-                // المحتوى
-                Expanded(child: _screens[_selectedIndex]),
-              ],
+                  // المحتوى
+                  Expanded(child: _screens[_selectedIndex]),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
