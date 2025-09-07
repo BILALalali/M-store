@@ -862,6 +862,7 @@ class SupabaseService {
         stats['orders_count'] = ordersResponse.length;
       } catch (e) {
         print('جدول orders غير موجود أو غير قابل للوصول: $e');
+        stats['orders_count'] = 0;
       }
 
       // محاولة جلب عدد المنتجات
@@ -878,6 +879,7 @@ class SupabaseService {
         stats['users_count'] = usersResponse.length;
       } catch (e) {
         print('جدول users غير موجود أو غير قابل للوصول: $e');
+        stats['users_count'] = 0;
       }
 
       // محاولة جلب الطلبات المعلقة
@@ -889,6 +891,7 @@ class SupabaseService {
         stats['pending_orders'] = pendingOrdersResponse.length;
       } catch (e) {
         print('لا يمكن جلب الطلبات المعلقة: $e');
+        stats['pending_orders'] = 0;
       }
 
       // محاولة جلب الطلبات المكتملة
@@ -900,6 +903,7 @@ class SupabaseService {
         stats['completed_orders'] = completedOrdersResponse.length;
       } catch (e) {
         print('لا يمكن جلب الطلبات المكتملة: $e');
+        stats['completed_orders'] = 0;
       }
 
       // محاولة حساب الإيرادات
@@ -916,6 +920,7 @@ class SupabaseService {
         stats['total_revenue'] = totalRevenue;
       } catch (e) {
         print('لا يمكن حساب الإيرادات: $e');
+        stats['total_revenue'] = 0.0;
       }
 
       return stats;

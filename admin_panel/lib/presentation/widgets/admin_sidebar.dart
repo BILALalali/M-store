@@ -113,16 +113,22 @@ class AdminSidebar extends StatelessWidget {
           index: 2,
         ),
         _buildNavItem(
+          icon: Icons.games,
+          title: 'بطاقات الألعاب',
+          subtitle: 'إدارة بطاقات ومقدمي خدمة الألعاب',
+          index: 3,
+        ),
+        _buildNavItem(
           icon: Icons.campaign,
           title: 'الإعلانات',
           subtitle: 'إدارة الإعلانات والعروض',
-          index: 3,
+          index: 4,
         ),
         _buildNavItem(
           icon: Icons.person,
           title: 'الملف الشخصي',
           subtitle: 'إدارة الملف الشخصي',
-          index: 4,
+          index: 5,
         ),
 
         const SizedBox(height: 16),
@@ -133,7 +139,7 @@ class AdminSidebar extends StatelessWidget {
           icon: Icons.settings,
           title: 'الإعدادات',
           subtitle: 'إعدادات النظام والحساب',
-          index: 5,
+          index: 6,
         ),
       ],
     );

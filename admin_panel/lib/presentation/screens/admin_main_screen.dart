@@ -7,6 +7,7 @@ import 'settings/settings_screen.dart';
 import 'products/index.dart';
 import 'advertisements/index.dart';
 import 'mobile_packages/index.dart';
+import 'game_cards/index.dart';
 import '../../core/services/auth_service.dart'; // Added import for AuthService
 
 class AdminMainScreen extends StatefulWidget {
@@ -25,6 +26,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
     const DashboardScreen(),
     const ProductsScreen(), // شاشة إدارة المنتجات
     const MobilePackagesScreen(), // شاشة إدارة بطاقات الجوال
+    const GameCardsScreen(), // شاشة إدارة بطاقات الألعاب
     const AdvertisementsScreen(), // شاشة إدارة الإعلانات
     const ProfileScreen(), // شاشة الملف الشخصي
     const SettingsScreen(), // شاشة الإعدادات
@@ -35,6 +37,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
     'لوحة الإدارة',
     'إدارة المنتجات',
     'بطاقات الجوال',
+    'بطاقات الألعاب',
     'إدارة الإعلانات',
     'الملف الشخصي',
     'الإعدادات',
@@ -160,12 +163,12 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
               },
               onProfileTap: () {
                 setState(() {
-                  _selectedIndex = 4; // الانتقال لصفحة الملف الشخصي
+                  _selectedIndex = 5; // الانتقال لصفحة الملف الشخصي
                 });
               },
               onSettingsTap: () {
                 setState(() {
-                  _selectedIndex = 5; // الانتقال لصفحة الإعدادات
+                  _selectedIndex = 6; // الانتقال لصفحة الإعدادات
                 });
               },
               onLogoutTap: _handleLogout,
