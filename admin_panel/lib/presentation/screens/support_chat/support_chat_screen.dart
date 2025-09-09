@@ -21,6 +21,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
   List<SupportMessage> _messages = [];
   bool _isLoading = true;
   bool _isSending = false;
+  bool _hasUnreadMessages = false;
   SupportConversation? _currentConversation;
 
   @override
@@ -60,6 +61,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
       setState(() {
         _messages = messages; // لا نرتب هنا، سنرتب في _buildMessagesList
         _isLoading = false;
+        _updateUnreadStatus();
       });
 
       // التمرير إلى آخر رسالة
@@ -96,6 +98,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
 
         setState(() {
           _messages = messages; // لا نرتب هنا، سنرتب في _buildMessagesList
+          _updateUnreadStatus();
         });
 
         // التمرير إلى آخر رسالة عند وصول رسالة جديدة
@@ -116,6 +119,55 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
+    }
+  }
+
+  // تحديث حالة الرسائل غير المقروءة
+  void _updateUnreadStatus() {
+    if (_messages.isEmpty) {
+      _hasUnreadMessages = false;
+      return;
+    }
+
+    // البحث عن آخر رسالة من المستخدم
+    for (int i = _messages.length - 1; i >= 0; i--) {
+      if (_messages[i].senderType == 'user') {
+        // إذا كانت آخر رسالة من المستخدم، فهناك رسائل غير مقروءة
+        _hasUnreadMessages = true;
+        return;
+      }
+    }
+
+    // إذا لم توجد رسائل من المستخدم، فلا توجد رسائل غير مقروءة
+    _hasUnreadMessages = false;
+  }
+
+  // تعيين الرسائل كمقروءة
+  Future<void> _markMessagesAsRead() async {
+    if (_currentConversation == null) return;
+
+    try {
+      await _chatService.markMessagesAsRead(_currentConversation!.id);
+      setState(() {
+        _hasUnreadMessages = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم تعيين الرسائل كمقروءة'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في تعيين الرسائل كمقروءة: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -150,37 +202,6 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
       setState(() {
         _isSending = false;
       });
-    }
-  }
-
-  Future<void> _updateConversationStatus(bool isOpen) async {
-    try {
-      await _chatService.updateConversationStatus(
-        conversationId: widget.conversation.id,
-        isOpen: isOpen,
-      );
-
-      setState(() {
-        _currentConversation = _currentConversation?.copyWith(isOpen: isOpen);
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isOpen ? 'تم فتح المحادثة' : 'تم إغلاق المحادثة'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ في تحديث حالة المحادثة: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
     }
   }
 
@@ -228,20 +249,6 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
         ],
       ),
       actions: [
-        // زر تغيير حالة المحادثة
-        IconButton(
-          icon: Icon(
-            _currentConversation?.isOpen == true ? Icons.lock : Icons.lock_open,
-          ),
-          onPressed: () {
-            final isOpen = _currentConversation?.isOpen ?? true;
-            _updateConversationStatus(!isOpen);
-          },
-          tooltip: _currentConversation?.isOpen == true
-              ? 'إغلاق المحادثة'
-              : 'فتح المحادثة',
-        ),
-
         // زر المزيد
         PopupMenuButton<String>(
           onSelected: (value) {
@@ -249,11 +256,8 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
               case 'refresh':
                 _loadMessages();
                 break;
-              case 'close':
-                _updateConversationStatus(false);
-                break;
-              case 'open':
-                _updateConversationStatus(true);
+              case 'mark_read':
+                _markMessagesAsRead();
                 break;
             }
           },
@@ -268,21 +272,13 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                 ],
               ),
             ),
-            PopupMenuItem(
-              value: _currentConversation?.isOpen == true ? 'close' : 'open',
+            const PopupMenuItem(
+              value: 'mark_read',
               child: Row(
                 children: [
-                  Icon(
-                    _currentConversation?.isOpen == true
-                        ? Icons.lock
-                        : Icons.lock_open,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _currentConversation?.isOpen == true
-                        ? 'إغلاق المحادثة'
-                        : 'فتح المحادثة',
-                  ),
+                  Icon(Icons.mark_email_read),
+                  SizedBox(width: 8),
+                  Text('تعيين كمقروء'),
                 ],
               ),
             ),
@@ -343,17 +339,15 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
             ),
           ),
 
-          // حالة المحادثة
+          // حالة المحادثة بناءً على الرسائل غير المقروءة
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: _currentConversation?.isOpen == true
-                  ? AppColors.success
-                  : AppColors.error,
+              color: _hasUnreadMessages ? AppColors.warning : AppColors.success,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
-              _currentConversation?.isOpen == true ? 'مفتوحة' : 'مغلقة',
+              _hasUnreadMessages ? 'رسائل جديدة' : 'مقروءة',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 12,
@@ -547,32 +541,24 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
   String _formatMessageTime(DateTime dateTime) {
     // تحويل التوقيت إلى المنطقة الزمنية المحلية
     final localDateTime = dateTime.toLocal();
-    final now = DateTime.now();
-    final difference = now.difference(localDateTime);
+    final now = DateTime.now().toLocal();
 
-    final hour = localDateTime.hour;
+    final hour = localDateTime.hour.toString().padLeft(2, '0');
     final minute = localDateTime.minute.toString().padLeft(2, '0');
 
-    // إذا كان التاريخ في المستقبل (أكثر من ساعة)، اعرض التاريخ والوقت
-    if (difference.isNegative && difference.inHours.abs() > 1) {
-      return '${localDateTime.day}/${localDateTime.month} $hour:$minute';
+    // إذا كانت الرسالة من اليوم نفسه، اعرض الوقت فقط
+    if (localDateTime.year == now.year &&
+        localDateTime.month == now.month &&
+        localDateTime.day == now.day) {
+      return '$hour:$minute';
     }
-
-    // إذا كان التاريخ قديم جداً (أكثر من سنة)
-    if (difference.inDays > 365) {
-      return '${localDateTime.day}/${localDateTime.month}/${localDateTime.year} $hour:$minute';
+    // إذا كانت الرسالة من نفس السنة، اعرض التاريخ والوقت
+    else if (localDateTime.year == now.year) {
+      return '${localDateTime.day.toString().padLeft(2, '0')}/${localDateTime.month.toString().padLeft(2, '0')} $hour:$minute';
     }
-
-    if (difference.inDays > 0) {
-      return '${localDateTime.day}/${localDateTime.month} $hour:$minute';
-    } else if (difference.inHours > 0) {
-      return 'منذ ${difference.inHours} ساعة';
-    } else if (difference.inMinutes > 0) {
-      return 'منذ ${difference.inMinutes} دقيقة';
-    } else if (difference.inSeconds > 30) {
-      return 'منذ ${difference.inSeconds} ثانية';
-    } else {
-      return 'الآن';
+    // إذا كانت الرسالة من سنة مختلفة، اعرض التاريخ الكامل والوقت
+    else {
+      return '${localDateTime.day.toString().padLeft(2, '0')}/${localDateTime.month.toString().padLeft(2, '0')}/${localDateTime.year} $hour:$minute';
     }
   }
 

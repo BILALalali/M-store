@@ -53,8 +53,8 @@ class SupportChatService {
                     currentUser.userMetadata?['full_name'] ?? 'مدير النظام',
                 'role': 'super_admin',
                 'is_active': true,
-                'created_at': DateTime.now().toUtc().toIso8601String(),
-                'updated_at': DateTime.now().toUtc().toIso8601String(),
+                'created_at': DateTime.now().toIso8601String(),
+                'updated_at': DateTime.now().toIso8601String(),
               });
               print('تم إضافة المدير إلى جدول admin_users');
               return true;
@@ -467,7 +467,7 @@ class SupportChatService {
         'type': type,
         'message': message,
         'media_url': mediaUrl,
-        'created_at': DateTime.now().toUtc().toIso8601String(),
+        'created_at': DateTime.now().toIso8601String(),
       };
 
       final response = await _supabaseService.client!
@@ -517,7 +517,7 @@ class SupportChatService {
       print('تحديث حالة المحادثة: $conversationId');
 
       final updates = <String, dynamic>{
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
       };
 
       if (status != null) updates['status'] = status;
@@ -549,7 +549,7 @@ class SupportChatService {
       // يمكنك إضافة جدول منفصل لتتبع الرسائل المقروءة
       await _supabaseService.client!
           .from('support_conversations')
-          .update({'updated_at': DateTime.now().toUtc().toIso8601String()})
+          .update({'updated_at': DateTime.now().toIso8601String()})
           .eq('id', conversationId);
 
       print('تم تعيين الرسائل كمقروءة');
@@ -614,7 +614,7 @@ class SupportChatService {
     try {
       await _supabaseService.client!
           .from('support_conversations')
-          .update({'updated_at': DateTime.now().toUtc().toIso8601String()})
+          .update({'updated_at': DateTime.now().toIso8601String()})
           .eq('id', conversationId);
     } catch (e) {
       print('خطأ في تحديث وقت المحادثة: $e');
