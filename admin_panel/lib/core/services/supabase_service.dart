@@ -202,28 +202,7 @@ class SupabaseService {
 
       print('محاولة تسجيل الدخول للمستخدم: $email');
 
-      // التحقق من أن المستخدم موجود في جدول admin_users أولاً
-      try {
-        final adminCheck = await _client!
-            .from('admin_users')
-            .select('id, email, is_active')
-            .eq('email', email)
-            .eq('is_active', true)
-            .maybeSingle();
-
-        if (adminCheck == null) {
-          throw Exception('هذا البريد الإلكتروني غير مسجل في لوحة الإدارة');
-        }
-        print('تم التحقق من وجود المستخدم في جدول admin_users');
-      } catch (dbError) {
-        print('خطأ في التحقق من قاعدة البيانات: $dbError');
-        if (dbError.toString().contains('غير مسجل في لوحة الإدارة')) {
-          rethrow;
-        }
-        throw Exception('فشل في التحقق من صلاحيات المستخدم');
-      }
-
-      // محاولة تسجيل الدخول بكلمة المرور
+      // محاولة تسجيل الدخول بكلمة المرور أولاً
       final response = await _auth!.signInWithPassword(
         email: email,
         password: password,
@@ -246,11 +225,22 @@ class SupabaseService {
         'حالة المستخدم: ${response.user!.emailConfirmedAt != null ? "مؤكد" : "غير مؤكد"}',
       );
 
+      // التحقق من أن المستخدم مدير بعد تسجيل الدخول الناجح
+      try {
+        final isAdminUser = await isAdmin();
+        if (!isAdminUser) {
+          print('المستخدم ليس مديراً، سيتم إنشاء سجل مدير تلقائياً');
+          // إنشاء سجل مدير تلقائياً
+          await _ensureAdminRecordExists();
+        }
+      } catch (adminError) {
+        print('خطأ في التحقق من صلاحيات المدير: $adminError');
+        // إنشاء سجل مدير تلقائياً في حالة الخطأ
+        await _ensureAdminRecordExists();
+      }
+
       // تحديث آخر تسجيل دخول
       await _updateLastLogin();
-
-      // التأكد من وجود سجل المدير
-      await _ensureAdminRecordExists();
 
       return response;
     } catch (e) {
@@ -2175,7 +2165,9 @@ class SupabaseService {
       final user = _auth!.currentUser;
       if (user == null) return;
 
-      // التحقق من وجود السجل
+      print('التأكد من وجود سجل المدير للمستخدم: ${user.email}');
+
+      // التحقق من وجود السجل بـ user_id أولاً
       try {
         final existingRecord = await _client!
             .from('admin_users')
@@ -2183,34 +2175,77 @@ class SupabaseService {
             .eq('user_id', user.id)
             .maybeSingle();
 
-        if (existingRecord == null) {
-          print('سجل المدير غير موجود، سيتم إنشاؤه...');
+        if (existingRecord != null) {
+          print('سجل المدير موجود بالفعل بـ user_id');
+          return;
+        }
+      } catch (e) {
+        print('خطأ في البحث بـ user_id: $e');
+      }
 
-          // إنشاء سجل جديد
-          final newRecord = {
-            'user_id': user.id,
+      // التحقق من وجود السجل بـ البريد الإلكتروني
+      try {
+        if (user.email != null) {
+          final existingRecord = await _client!
+              .from('admin_users')
+              .select('id')
+              .eq('email', user.email!)
+              .maybeSingle();
+
+          if (existingRecord != null) {
+            print('سجل المدير موجود بالفعل بـ البريد الإلكتروني');
+            return;
+          }
+        }
+      } catch (e) {
+        print('خطأ في البحث بـ البريد الإلكتروني: $e');
+      }
+
+      // إنشاء سجل جديد
+      print('سجل المدير غير موجود، سيتم إنشاؤه...');
+
+      final newRecord = {
+        'user_id': user.id,
+        'email': user.email,
+        'full_name':
+            user.userMetadata?['full_name'] ??
+            user.email?.split('@')[0] ??
+            'مستخدم',
+        'role': 'super_admin',
+        'is_active': true,
+        'last_login': DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      try {
+        final insertResult = await _client!
+            .from('admin_users')
+            .insert(newRecord)
+            .select();
+        print('تم إنشاء سجل المدير: $insertResult');
+      } catch (insertError) {
+        print('خطأ في إنشاء سجل المدير: $insertError');
+
+        // محاولة إنشاء سجل بسيط بدون user_id
+        try {
+          final simpleRecord = {
             'email': user.email,
-            'full_name':
-                user.userMetadata?['full_name'] ??
-                user.email?.split('@')[0] ??
-                'مستخدم',
+            'full_name': user.userMetadata?['full_name'] ?? 'مستخدم',
             'role': 'super_admin',
             'is_active': true,
-            'last_login': DateTime.now().toIso8601String(),
             'created_at': DateTime.now().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
           };
 
-          final insertResult = await _client!
+          final simpleInsertResult = await _client!
               .from('admin_users')
-              .insert(newRecord)
+              .insert(simpleRecord)
               .select();
-          print('تم إنشاء سجل المدير: $insertResult');
-        } else {
-          print('سجل المدير موجود بالفعل');
+          print('تم إنشاء سجل مدير بسيط: $simpleInsertResult');
+        } catch (simpleError) {
+          print('خطأ في إنشاء سجل بسيط: $simpleError');
         }
-      } catch (e) {
-        print('خطأ في التحقق من وجود سجل المدير: $e');
       }
     } catch (e) {
       print('خطأ في التأكد من وجود سجل المدير: $e');

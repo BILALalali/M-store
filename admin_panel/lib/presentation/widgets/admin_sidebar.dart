@@ -169,18 +169,11 @@ class _AdminSidebarState extends State<AdminSidebar> {
           isExpanded: _isChatsExpanded,
           onToggle: () => setState(() => _isChatsExpanded = !_isChatsExpanded),
           children: [
-            // سيتم إضافة عناصر الدردشات لاحقاً
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'سيتم إضافة عناصر الدردشات قريباً',
-                style: TextStyle(
-                  color: AppColors.text.withValues(alpha: 0.6),
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                ),
-                textAlign: TextAlign.center,
-              ),
+            _buildNavItem(
+              icon: Icons.support_agent,
+              title: 'فريق الدعم',
+              subtitle: 'إدارة دردشات الدعم',
+              index: 7,
             ),
           ],
         ),

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import '../widgets/admin_sidebar.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/services/support_chat_service.dart';
 import 'profile/profile_screen.dart';
 import 'settings/settings_screen.dart';
 import 'products/index.dart';
 import 'advertisements/index.dart';
 import 'mobile_packages/index.dart';
 import 'game_cards/index.dart';
+import 'support_chat/index.dart';
 import '../../core/services/auth_service.dart'; // Added import for AuthService
 
 class AdminMainScreen extends StatefulWidget {
@@ -30,6 +32,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
     const AdvertisementsScreen(), // شاشة إدارة الإعلانات
     const ProfileScreen(), // شاشة الملف الشخصي
     const SettingsScreen(), // شاشة الإعدادات
+    const SupportConversationsScreen(), // شاشة دردشات فريق الدعم
   ];
 
   // عناوين الشاشات
@@ -41,6 +44,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
     'إدارة الإعلانات',
     'الملف الشخصي',
     'الإعدادات',
+    'دردشات فريق الدعم',
   ];
 
   void _handleLogout() {
@@ -300,7 +304,9 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final SupabaseService _supabaseService = SupabaseService();
+  final SupportChatService _chatService = SupportChatService();
   Map<String, dynamic> _stats = {};
+  Map<String, dynamic> _chatStats = {};
   bool _isLoading = true;
 
   @override
@@ -312,9 +318,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _loadStats() async {
     try {
       final stats = await _supabaseService.getDashboardStats();
+      final chatStats = await _chatService.getChatStats();
       if (mounted) {
         setState(() {
           _stats = stats;
+          _chatStats = chatStats;
           _isLoading = false;
         });
       }
@@ -447,6 +455,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       '${_stats['completed_orders'] ?? 0}',
                       Icons.check_circle,
                       AppColors.success,
+                    ),
+                    _buildStatCard(
+                      'محادثات الدعم',
+                      '${_chatStats['total_conversations'] ?? 0}',
+                      Icons.support_agent,
+                      AppColors.info,
+                    ),
+                    _buildStatCard(
+                      'المحادثات المفتوحة',
+                      '${_chatStats['open_conversations'] ?? 0}',
+                      Icons.chat,
+                      AppColors.warning,
                     ),
                   ],
                 );
