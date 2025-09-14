@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/models/support_conversation.dart';
 import '../../../core/services/support_chat_service.dart';
+import '../../../core/services/notification_service.dart';
 import 'support_chat_screen.dart';
 
 class SupportConversationsScreen extends StatefulWidget {
@@ -15,23 +16,23 @@ class SupportConversationsScreen extends StatefulWidget {
 class _SupportConversationsScreenState
     extends State<SupportConversationsScreen> {
   final SupportChatService _chatService = SupportChatService();
+  final NotificationService _notificationService = NotificationService();
   List<SupportConversation> _conversations = [];
   bool _isLoading = true;
   String _searchQuery = '';
   String _statusFilter = 'all'; // all, open, closed
-  Map<String, dynamic> _stats = {};
 
   @override
   void initState() {
     super.initState();
     _loadConversations();
-    _loadStats();
     _startListening();
   }
 
   @override
   void dispose() {
     _chatService.stopListening();
+    _notificationService.dispose();
     super.dispose();
   }
 
@@ -45,11 +46,26 @@ class _SupportConversationsScreenState
       final connectionTest = await _chatService.testDatabaseConnection();
       print('نتيجة اختبار الاتصال: $connectionTest');
 
-      final conversations = await _chatService.getConversations();
+      // اختبار الرسائل غير المقروءة
+      await _chatService.testUnreadMessages();
+
+      // جلب المحادثات حسب التصفية المحددة
+      List<SupportConversation> conversations;
+      if (_statusFilter == 'unread') {
+        conversations = await _chatService.getUnreadConversations();
+        print('📊 تم جلب ${conversations.length} محادثة غير مقروءة');
+      } else {
+        conversations = await _chatService.getConversations();
+        print('📊 تم جلب ${conversations.length} محادثة');
+      }
+
       setState(() {
         _conversations = conversations;
         _isLoading = false;
       });
+
+      // تحديث الإشعارات بعد جلب المحادثات
+      await _notificationService.refreshNotifications();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -65,155 +81,29 @@ class _SupportConversationsScreenState
     }
   }
 
-  Future<void> _loadStats() async {
-    try {
-      final stats = await _chatService.getChatStats();
-      setState(() {
-        _stats = stats;
-      });
-    } catch (e) {
-      print('خطأ في جلب الإحصائيات: $e');
-    }
-  }
-
   void _startListening() {
-    _chatService.startListeningToConversations((conversations) {
+    _chatService.startListeningToConversations((conversations) async {
       if (mounted) {
         setState(() {
           _conversations = conversations;
+        });
+        // تحديث الإشعارات عند تحديث المحادثات
+        await _notificationService.refreshNotifications();
+      }
+    });
+
+    // الاستماع لتحديثات الإشعارات لتحديث الإحصائيات
+    _notificationService.addListener(() {
+      if (mounted) {
+        setState(() {
+          // تحديث الواجهة عند تغيير الإشعارات
         });
       }
     });
   }
 
-  Future<void> _testPermissions() async {
-    try {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const AlertDialog(
-          content: Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 20),
-              Text('جاري اختبار الصلاحيات...'),
-            ],
-          ),
-        ),
-      );
-
-      final result = await _chatService.testAdminPermissions();
-
-      if (mounted) {
-        Navigator.of(context).pop(); // إغلاق dialog الانتظار
-
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text(result ? 'الصلاحيات صحيحة' : 'مشكلة في الصلاحيات'),
-            content: Text(
-              result
-                  ? 'المدير موجود في جدول admin_users ويمكنه الوصول للبيانات'
-                  : 'المدير غير موجود في جدول admin_users أو هناك مشكلة في الصلاحيات',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('موافق'),
-              ),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop(); // إغلاق dialog الانتظار
-
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('خطأ في اختبار الصلاحيات'),
-            content: Text('حدث خطأ أثناء اختبار الصلاحيات: $e'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('موافق'),
-              ),
-            ],
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _testConnection() async {
-    try {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const AlertDialog(
-          content: Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 20),
-              Text('جاري اختبار الاتصال...'),
-            ],
-          ),
-        ),
-      );
-
-      final result = await _chatService.testDatabaseConnection();
-
-      if (mounted) {
-        Navigator.of(context).pop(); // إغلاق dialog الانتظار
-
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text(result ? 'نجح الاختبار' : 'فشل الاختبار'),
-            content: Text(
-              result
-                  ? 'تم الاتصال بقاعدة البيانات بنجاح'
-                  : 'فشل في الاتصال بقاعدة البيانات. تحقق من السجلات للحصول على التفاصيل.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('موافق'),
-              ),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop(); // إغلاق dialog الانتظار
-
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('خطأ في الاختبار'),
-            content: Text('حدث خطأ أثناء اختبار الاتصال: $e'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('موافق'),
-              ),
-            ],
-          ),
-        );
-      }
-    }
-  }
-
   List<SupportConversation> get _filteredConversations {
     var filtered = _conversations;
-
-    // تصفية حسب الحالة
-    if (_statusFilter != 'all') {
-      final isOpen = _statusFilter == 'open';
-      filtered = filtered.where((conv) => conv.isOpen == isOpen).toList();
-    }
 
     // تصفية حسب البحث
     if (_searchQuery.isNotEmpty) {
@@ -240,9 +130,6 @@ class _SupportConversationsScreenState
         children: [
           // شريط البحث والتصفية
           _buildSearchAndFilterBar(),
-
-          // الإحصائيات
-          _buildStatsBar(),
 
           // قائمة المحادثات
           Expanded(
@@ -304,23 +191,15 @@ class _SupportConversationsScreenState
             children: [
               _buildFilterChip('الكل', 'all'),
               const SizedBox(width: 8),
-              _buildFilterChip('مفتوحة', 'open'),
-              const SizedBox(width: 8),
-              _buildFilterChip('مغلقة', 'closed'),
+              _buildFilterChip('غير مقروءة', 'unread'),
               const Spacer(),
               IconButton(
-                icon: Icon(Icons.security, color: AppColors.info),
-                onPressed: _testPermissions,
-                tooltip: 'اختبار الصلاحيات',
-              ),
-              IconButton(
-                icon: Icon(Icons.bug_report, color: AppColors.warning),
-                onPressed: _testConnection,
-                tooltip: 'اختبار الاتصال',
-              ),
-              IconButton(
                 icon: Icon(Icons.refresh, color: AppColors.primary),
-                onPressed: _loadConversations,
+                onPressed: () async {
+                  await _loadConversations();
+                  // تحديث الإشعارات أيضاً
+                  await _notificationService.refreshNotifications();
+                },
                 tooltip: 'تحديث',
               ),
             ],
@@ -339,6 +218,8 @@ class _SupportConversationsScreenState
         setState(() {
           _statusFilter = value;
         });
+        // إعادة تحميل المحادثات عند تغيير التصفية
+        _loadConversations();
       },
       selectedColor: AppColors.primary.withValues(alpha: 0.2),
       checkmarkColor: AppColors.primary,
@@ -349,78 +230,29 @@ class _SupportConversationsScreenState
     );
   }
 
-  Widget _buildStatsBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground.withValues(alpha: 0.5),
-        border: Border(bottom: BorderSide(color: AppColors.secondary)),
-      ),
-      child: Row(
-        children: [
-          _buildStatItem(
-            'إجمالي المحادثات',
-            '${_stats['total_conversations'] ?? 0}',
-          ),
-          const SizedBox(width: 24),
-          _buildStatItem(
-            'مفتوحة',
-            '${_stats['open_conversations'] ?? 0}',
-            AppColors.success,
-          ),
-          const SizedBox(width: 24),
-          _buildStatItem(
-            'مغلقة',
-            '${_stats['closed_conversations'] ?? 0}',
-            AppColors.error,
-          ),
-          const SizedBox(width: 24),
-          _buildStatItem(
-            'الرسائل',
-            '${_stats['total_messages'] ?? 0}',
-            AppColors.info,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, [Color? color]) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: color ?? AppColors.text,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: AppColors.text.withValues(alpha: 0.7),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildEmptyState() {
+    String title;
+    String subtitle;
+    IconData icon;
+
+    if (_statusFilter == 'unread') {
+      title = 'لا توجد محادثات غير مقروءة';
+      subtitle = 'جميع المحادثات مقروءة حالياً';
+      icon = Icons.mark_email_read;
+    } else {
+      title = 'لا توجد محادثات';
+      subtitle = 'ستظهر محادثات فريق الدعم هنا عندما يبدأ المستخدمون المحادثة';
+      icon = Icons.chat_bubble_outline;
+    }
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.chat_bubble_outline,
-            size: 64,
-            color: AppColors.text.withValues(alpha: 0.5),
-          ),
+          Icon(icon, size: 64, color: AppColors.text.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           Text(
-            'لا توجد محادثات',
+            title,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w500,
@@ -429,7 +261,7 @@ class _SupportConversationsScreenState
           ),
           const SizedBox(height: 8),
           Text(
-            'ستظهر محادثات فريق الدعم هنا عندما يبدأ المستخدمون المحادثة',
+            subtitle,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
@@ -453,16 +285,23 @@ class _SupportConversationsScreenState
   }
 
   Widget _buildConversationCard(SupportConversation conversation) {
+    final hasUnreadMessages =
+        conversation.hasUnreadMessages; // استخدام الحقل الجديد
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
+      elevation: hasUnreadMessages ? 6 : 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: conversation.isOpen ? AppColors.success : AppColors.error,
-          width: 1,
+          color: hasUnreadMessages ? AppColors.warning : AppColors.success,
+          width: hasUnreadMessages ? 3 : 1,
         ),
       ),
+      // إضافة خلفية ملونة للمحادثات غير المقروءة
+      color: hasUnreadMessages
+          ? AppColors.warning.withValues(alpha: 0.05)
+          : AppColors.cardBackground,
       child: InkWell(
         onTap: () => _openConversation(conversation),
         borderRadius: BorderRadius.circular(12),
@@ -497,36 +336,114 @@ class _SupportConversationsScreenState
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            conversation.userName ?? 'مستخدم',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.text,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                          child: Row(
+                            children: [
+                              // مؤشر برتقالي للمحادثات غير المقروءة
+                              if (hasUnreadMessages) ...[
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.warning,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.warning.withValues(
+                                          alpha: 0.4,
+                                        ),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  conversation.userName ??
+                                      'مستخدم ${conversation.userId}',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: hasUnreadMessages
+                                        ? FontWeight.w900
+                                        : FontWeight.bold,
+                                    color: hasUnreadMessages
+                                        ? AppColors.warning
+                                        : AppColors.text,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: conversation.isOpen
-                                ? AppColors.success
-                                : AppColors.error,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            conversation.isOpen ? 'مفتوحة' : 'مغلقة',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                        // مؤشر الرسائل غير المقروءة
+                        if (conversation.unreadCount > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.warning,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.warning.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${conversation.unreadCount}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.success.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppColors.success,
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              'مقروءة',
+                              style: TextStyle(
+                                color: AppColors.success,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
                       ],
                     ),
 
@@ -551,7 +468,12 @@ class _SupportConversationsScreenState
                         conversation.lastMessage!,
                         style: TextStyle(
                           fontSize: 14,
-                          color: AppColors.text.withValues(alpha: 0.8),
+                          color: hasUnreadMessages
+                              ? AppColors.text
+                              : AppColors.text.withValues(alpha: 0.8),
+                          fontWeight: hasUnreadMessages
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -576,20 +498,45 @@ class _SupportConversationsScreenState
                         if (conversation.unreadCount > 0)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
+                              horizontal: 10,
+                              vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(12),
+                              color: AppColors.warning,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.warning.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            child: Text(
-                              '${conversation.unreadCount}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  conversation.unreadCount > 99
+                                      ? '99+ رسالة جديدة'
+                                      : '${conversation.unreadCount} رسالة جديدة',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                       ],
@@ -628,11 +575,16 @@ class _SupportConversationsScreenState
     }
   }
 
-  void _openConversation(SupportConversation conversation) {
-    Navigator.of(context).push(
+  void _openConversation(SupportConversation conversation) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => SupportChatScreen(conversation: conversation),
       ),
     );
+
+    // إعادة تحميل المحادثات عند العودة من المحادثة
+    if (mounted) {
+      await _loadConversations();
+    }
   }
 }

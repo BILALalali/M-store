@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/support_conversation.dart';
 import '../models/support_message.dart';
 import 'supabase_service.dart';
+import 'dart:async';
 
 class SupportChatService {
   static final SupportChatService _instance = SupportChatService._internal();
@@ -206,6 +207,7 @@ class SupportChatService {
             lastMessage: lastMessage?.message,
             lastMessageAt: lastMessage?.createdAt,
             unreadCount: unreadCount,
+            hasUnreadMessages: unreadCount > 0, // تحديد وجود رسائل غير مقروءة
           ),
         );
       }
@@ -238,6 +240,8 @@ class SupportChatService {
               lastMessage: null,
               lastMessageAt: null,
               unreadCount: 0,
+              hasUnreadMessages:
+                  false, // لا توجد رسائل غير مقروءة في الحالة المبسطة
             ),
           );
         }
@@ -292,6 +296,7 @@ class SupportChatService {
         lastMessage: lastMessage?.message,
         lastMessageAt: lastMessage?.createdAt,
         unreadCount: unreadCount,
+        hasUnreadMessages: unreadCount > 0, // تحديد وجود رسائل غير مقروءة
       );
     } catch (e) {
       print('خطأ في جلب المحادثة: $e');
@@ -374,6 +379,12 @@ class SupportChatService {
     final messages = <SupportMessage>[];
 
     for (var item in response) {
+      // تجاهل الرسائل النظامية (إذا وجدت)
+      if (item['message'] == 'read_marker') {
+        print('🚫 تجاهل رسالة نظامية: ${item['id']}');
+        continue;
+      }
+
       print('معالجة رسالة: $item');
 
       // محاولة جلب معلومات المرسل
@@ -410,6 +421,7 @@ class SupportChatService {
           createdAt: createdAt,
           senderName: senderName,
           senderAvatar: senderAvatar,
+          isRead: item['is_read'] ?? false,
         ),
       );
     }
@@ -468,6 +480,7 @@ class SupportChatService {
         'message': message,
         'media_url': mediaUrl,
         'created_at': DateTime.now().toIso8601String(),
+        'is_read': false, // جميع الرسائل غير مقروءة افتراضياً
       };
 
       final response = await _supabaseService.client!
@@ -493,6 +506,7 @@ class SupportChatService {
         createdAt: DateTime.parse(response['created_at']),
         senderName: adminProfile?['full_name'] ?? 'فريق الدعم',
         senderAvatar: adminProfile?['avatar_url'],
+        isRead: response['is_read'] ?? false,
       );
 
       print('تم إرسال الرسالة بنجاح');
@@ -536,26 +550,27 @@ class SupportChatService {
     }
   }
 
-  // تعيين الرسائل كمقروءة
-  Future<bool> markMessagesAsRead(String conversationId) async {
+  // تعيين رسائل المدير كمقروءة (للمستخدم - يقرأ رسائل المدير)
+  Future<bool> markAdminMessagesAsRead(String conversationId) async {
     try {
       if (!_supabaseService.isReady) {
         return false;
       }
 
-      print('تعيين الرسائل كمقروءة للمحادثة: $conversationId');
+      print('📖 تعيين رسائل المدير كمقروءة للمحادثة: $conversationId');
 
-      // في هذا المثال، سنقوم بتحديث آخر وقت قراءة للمحادثة
-      // يمكنك إضافة جدول منفصل لتتبع الرسائل المقروءة
+      // تحديث رسائل المدير فقط (المستخدم يقرأ رسائل المدير)
       await _supabaseService.client!
-          .from('support_conversations')
-          .update({'updated_at': DateTime.now().toIso8601String()})
-          .eq('id', conversationId);
+          .from('support_messages')
+          .update({'is_read': true})
+          .eq('conversation_id', conversationId)
+          .eq('sender_type', 'admin')
+          .eq('is_read', false);
 
-      print('تم تعيين الرسائل كمقروءة');
+      print('✅ تم تعيين رسائل المدير كمقروءة للمحادثة: $conversationId');
       return true;
     } catch (e) {
-      print('خطأ في تعيين الرسائل كمقروءة: $e');
+      print('❌ خطأ في تعيين رسائل المدير كمقروءة: $e');
       return false;
     }
   }
@@ -563,6 +578,7 @@ class SupportChatService {
   // الحصول على آخر رسالة في المحادثة
   Future<SupportMessage?> _getLastMessage(String conversationId) async {
     try {
+      // جلب آخر رسالة
       final response = await _supabaseService.client!
           .from('support_messages')
           .select('*')
@@ -582,6 +598,7 @@ class SupportChatService {
         message: response['message'] ?? '',
         mediaUrl: response['media_url'],
         createdAt: DateTime.parse(response['created_at']),
+        isRead: response['is_read'] ?? false,
       );
     } catch (e) {
       print('خطأ في جلب آخر رسالة: $e');
@@ -589,22 +606,306 @@ class SupportChatService {
     }
   }
 
+  // حساب إجمالي الرسائل غير المقروءة من جميع المستخدمين
+  Future<int> getTotalUnreadMessagesCount() async {
+    try {
+      print('🔍 حساب إجمالي الرسائل غير المقروءة من جميع المستخدمين');
+
+      final client =
+          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
+
+      // جلب جميع الرسائل غير المقروءة من المستخدمين
+      final result = await client
+          .from('support_messages')
+          .select('id, message, created_at')
+          .eq('sender_type', 'user')
+          .eq('is_read', false);
+
+      final count = result.length;
+      print('📊 إجمالي الرسائل غير المقروءة: $count');
+
+      // طباعة تفاصيل الرسائل غير المقروءة للتأكد
+      for (final msg in result) {
+        print(
+          '📨 رسالة غير مقروءة: "${msg['message']}" - ${msg['created_at']}',
+        );
+      }
+
+      return count;
+    } catch (e) {
+      print('خطأ في حساب إجمالي الرسائل غير المقروءة: $e');
+      return 0;
+    }
+  }
+
+  // حساب عدد المحادثات التي تحتوي على رسائل غير مقروءة
+  Future<int> getUnreadConversationsCount() async {
+    try {
+      print('🔍 حساب عدد المحادثات غير المقروءة');
+
+      final client =
+          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
+
+      // جلب جميع المحادثات المفتوحة
+      final conversations = await client
+          .from('support_conversations')
+          .select('id')
+          .eq('is_open', true);
+
+      int unreadConversations = 0;
+
+      // فحص كل محادثة لوجود رسائل غير مقروءة
+      for (final conv in conversations) {
+        final unreadCount = await _getUnreadCount(conv['id']);
+        if (unreadCount > 0) {
+          unreadConversations++;
+        }
+      }
+
+      print('📊 عدد المحادثات غير المقروءة: $unreadConversations');
+      return unreadConversations;
+    } catch (e) {
+      print('خطأ في حساب المحادثات غير المقروءة: $e');
+      return 0;
+    }
+  }
+
+  // الاشتراك في تحديثات الرسائل غير المقروءة
+  Future<StreamSubscription> subscribeToUnreadCount(
+    void Function(int totalUnread, int unreadConversations) onCountUpdate,
+  ) async {
+    print('🚀 بدء الاشتراك في تحديثات الرسائل غير المقروءة');
+
+    // جلب العدد الأولي
+    final totalUnread = await getTotalUnreadMessagesCount();
+    final unreadConversations = await getUnreadConversationsCount();
+    print(
+      '📊 العدد الأولي - الرسائل: $totalUnread، المحادثات: $unreadConversations',
+    );
+    onCountUpdate(totalUnread, unreadConversations);
+
+    // بدء التحديث الدوري كل 2 ثانية للتأكد من دقة البيانات
+    Timer.periodic(const Duration(seconds: 2), (timer) async {
+      print('⏰ تحديث دوري للرسائل غير المقروءة');
+      final totalUnread = await getTotalUnreadMessagesCount();
+      final unreadConversations = await getUnreadConversationsCount();
+      onCountUpdate(totalUnread, unreadConversations);
+    });
+
+    // الاشتراك في تحديثات الرسائل من المستخدمين
+    final sub = _supabaseService.client!
+        .from('support_messages')
+        .stream(primaryKey: ['id'])
+        .listen((data) async {
+          print('📨 تحديث في الرسائل: ${data.length} رسالة');
+
+          // فحص إذا كانت هناك رسائل جديدة من المستخدمين
+          bool hasNewUserMessages = false;
+          for (final message in data) {
+            if (message['sender_type'] == 'user' &&
+                message['is_read'] == false) {
+              hasNewUserMessages = true;
+              print('📨 رسالة جديدة من مستخدم: ${message['message']}');
+              break;
+            }
+          }
+
+          if (hasNewUserMessages) {
+            print('🔄 تحديث فوري بسبب رسالة جديدة');
+            final totalUnread = await getTotalUnreadMessagesCount();
+            final unreadConversations = await getUnreadConversationsCount();
+            onCountUpdate(totalUnread, unreadConversations);
+          }
+        });
+
+    return sub;
+  }
+
+  // إعادة تحميل البيانات يدوياً
+  Future<void> refreshUnreadCount(
+    void Function(int totalUnread, int unreadConversations) onCountUpdate,
+  ) async {
+    print('🔄 إعادة تحميل البيانات يدوياً');
+    final totalUnread = await getTotalUnreadMessagesCount();
+    final unreadConversations = await getUnreadConversationsCount();
+    onCountUpdate(totalUnread, unreadConversations);
+  }
+
+  // الحصول على المحادثات غير المقروءة
+  Future<List<SupportConversation>> getUnreadConversations() async {
+    try {
+      print('🔍 جلب المحادثات غير المقروءة');
+
+      final client =
+          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
+
+      print(
+        '🔍 العميل المستخدم: ${client == _supabaseService.serviceRoleClient ? "service_role" : "عادي"}',
+      );
+
+      // جلب جميع المحادثات
+      print('🔍 جلب جميع المحادثات من قاعدة البيانات...');
+      final conversations = await client
+          .from('support_conversations')
+          .select('''
+            id,
+            user_id,
+            user_name,
+            user_email,
+            is_open,
+            created_at,
+            updated_at
+          ''')
+          .order('updated_at', ascending: false);
+
+      print('📊 تم جلب ${conversations.length} محادثة من قاعدة البيانات');
+
+      List<SupportConversation> unreadConversations = [];
+
+      // فحص كل محادثة لوجود رسائل غير مقروءة
+      print(
+        '🔍 فحص ${conversations.length} محادثة للبحث عن الرسائل غير المقروءة...',
+      );
+      for (final conv in conversations) {
+        final unreadCount = await _getUnreadCount(conv['id']);
+
+        if (unreadCount > 0) {
+          // جلب آخر رسالة
+          final lastMessage = await _getLastMessage(conv['id']);
+
+          unreadConversations.add(
+            SupportConversation(
+              id: conv['id'],
+              userId: conv['user_id'],
+              status: conv['status'] ?? 'open',
+              userName: conv['user_name'],
+              userEmail: conv['user_email'],
+              isOpen: conv['is_open'],
+              createdAt: DateTime.parse(conv['created_at']),
+              updatedAt: DateTime.parse(conv['updated_at']),
+              lastMessage: lastMessage?.message,
+              unreadCount: unreadCount,
+              hasUnreadMessages: true,
+            ),
+          );
+        }
+      }
+
+      print('📊 عدد المحادثات غير المقروءة: ${unreadConversations.length}');
+
+      return unreadConversations;
+    } catch (e) {
+      print('خطأ في جلب المحادثات غير المقروءة: $e');
+      return [];
+    }
+  }
+
+  // تحديث حالة الرسائل كمقروءة عند فتح المحادثة
+  Future<void> markMessagesAsRead(String conversationId) async {
+    try {
+      print('📖 تحديث الرسائل كمقروءة للمحادثة: $conversationId');
+
+      final client =
+          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
+
+      await client
+          .from('support_messages')
+          .update({'is_read': true})
+          .eq('conversation_id', conversationId)
+          .eq('sender_type', 'user')
+          .eq('is_read', false);
+
+      print('✅ تم تحديث الرسائل كمقروءة بنجاح');
+    } catch (e) {
+      print('خطأ في تحديث حالة الرسائل: $e');
+    }
+  }
+
   // الحصول على عدد الرسائل غير المقروءة
   Future<int> _getUnreadCount(String conversationId) async {
     try {
-      // في هذا المثال، سنقوم بحساب الرسائل من المستخدمين فقط
-      // يمكنك تحسين هذا بناءً على متطلباتك
-      final response = await _supabaseService.client!
+      print('🔍 حساب الرسائل غير المقروءة للمحادثة: $conversationId');
+
+      // استخدام service_role client للوصول للبيانات
+      final client =
+          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
+
+      print(
+        '🔍 العميل المستخدم: ${client == _supabaseService.serviceRoleClient ? "service_role" : "عادي"}',
+      );
+
+      // محاولة استخدام دالة قاعدة البيانات أولاً
+      try {
+        final functionResult = await client.rpc(
+          'get_conversation_unread_count',
+          params: {'conv_id': conversationId},
+        );
+        print(
+          '📊 عدد الرسائل غير المقروءة (دالة قاعدة البيانات): $functionResult',
+        );
+        return functionResult ?? 0;
+      } catch (functionError) {
+        print(
+          '⚠️ خطأ في استدعاء دالة قاعدة البيانات، استخدام الاستعلام المباشر: $functionError',
+        );
+      }
+
+      // جلب جميع الرسائل في المحادثة أولاً للتحقق
+      final allMessages = await client
           .from('support_messages')
-          .select('id')
+          .select('id, sender_type, is_read, message')
           .eq('conversation_id', conversationId)
-          .eq('sender_type', 'user')
           .order('created_at', ascending: false);
 
-      // يمكنك إضافة منطق أكثر تعقيداً هنا لتتبع الرسائل المقروءة
-      return response.length;
+      print('🔍 جميع الرسائل في المحادثة: ${allMessages.length}');
+
+      // جلب جميع رسائل المستخدمين في المحادثة أولاً
+      print('🔍 جلب رسائل المستخدمين للمحادثة: $conversationId');
+      final userMessages = await client
+          .from('support_messages')
+          .select('id, sender_type, is_read, message, created_at')
+          .eq('conversation_id', conversationId)
+          .eq('sender_type', 'user') // فقط رسائل المستخدمين
+          .order('created_at', ascending: false);
+
+      print('📊 تم جلب ${userMessages.length} رسالة من المستخدمين');
+
+      // حساب الرسائل غير المقروءة يدوياً (is_read = false أو is_read = null)
+      int unreadCount = 0;
+      final unreadMessages = <Map<String, dynamic>>[];
+
+      for (var msg in userMessages) {
+        final isRead = msg['is_read'];
+        bool isUnread = false;
+
+        // التحقق من القيم المختلفة لـ is_read
+        if (isRead == null ||
+            isRead == false ||
+            isRead == 'false' ||
+            isRead == 0) {
+          isUnread = true;
+        }
+
+        if (isUnread) {
+          unreadCount++;
+          unreadMessages.add(msg);
+        }
+      }
+
+      print(
+        '📊 عدد الرسائل غير المقروءة من المستخدمين في المحادثة (محسوبة يدوياً): $unreadCount',
+      );
+
+      // طباعة تفاصيل الرسائل غير المقروءة
+      for (var msg in unreadMessages) {
+        print(
+          '📊 رسالة غير مقروءة من مستخدم: ID=${msg['id']}, المرسل=${msg['sender_type']}, is_read=${msg['is_read']}, الرسالة="${msg['message']}"',
+        );
+      }
+
+      return unreadCount;
     } catch (e) {
-      print('خطأ في حساب الرسائل غير المقروءة: $e');
+      print('❌ خطأ في حساب الرسائل غير المقروءة: $e');
       return 0;
     }
   }
@@ -646,7 +947,23 @@ class SupportChatService {
           )
           .subscribe();
 
-      print('بدأ الاستماع لتحديثات المحادثات');
+      // إضافة استماع لتحديثات الرسائل أيضاً
+      _supabaseService.client!
+          .channel('support_messages_changes')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'support_messages',
+            callback: (payload) async {
+              print('رسالة جديدة في جدول support_messages: $payload');
+              // تحديث قائمة المحادثات عند إضافة رسالة جديدة
+              final conversations = await getConversations();
+              onUpdate(conversations);
+            },
+          )
+          .subscribe();
+
+      print('بدأ الاستماع لتحديثات المحادثات والرسائل');
     } catch (e) {
       print('خطأ في بدء الاستماع للمحادثات: $e');
     }
@@ -746,5 +1063,42 @@ class SupportChatService {
       'closed_conversations': 0,
       'total_messages': 0,
     };
+  }
+
+  // اختبار خاص للرسائل غير المقروءة
+  Future<void> testUnreadMessages() async {
+    try {
+      print('🧪 اختبار الرسائل غير المقروءة...');
+
+      final client =
+          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
+
+      // جلب جميع الرسائل غير المقروءة مباشرة
+      final unreadMessages = await client
+          .from('support_messages')
+          .select('id, conversation_id, sender_type, is_read, message')
+          .eq('sender_type', 'user')
+          .eq('is_read', false);
+
+      print('📊 عدد الرسائل غير المقروءة مباشرة: ${unreadMessages.length}');
+
+      // جلب المحادثات التي تحتوي على رسائل غير مقروءة
+      if (unreadMessages.isNotEmpty) {
+        final conversationIds = unreadMessages
+            .map((m) => m['conversation_id'])
+            .toSet()
+            .toList();
+        final conversationsWithUnread = await client
+            .from('support_conversations')
+            .select('id, user_name')
+            .inFilter('id', conversationIds);
+
+        print(
+          '📊 عدد المحادثات التي تحتوي على رسائل غير مقروءة: ${conversationsWithUnread.length}',
+        );
+      }
+    } catch (e) {
+      print('❌ خطأ في اختبار الرسائل غير المقروءة: $e');
+    }
   }
 }

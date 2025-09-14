@@ -3,6 +3,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/models/support_conversation.dart';
 import '../../../core/models/support_message.dart';
 import '../../../core/services/support_chat_service.dart';
+import '../../../core/services/notification_service.dart';
 
 class SupportChatScreen extends StatefulWidget {
   final SupportConversation conversation;
@@ -15,6 +16,7 @@ class SupportChatScreen extends StatefulWidget {
 
 class _SupportChatScreenState extends State<SupportChatScreen> {
   final SupportChatService _chatService = SupportChatService();
+  final NotificationService _notificationService = NotificationService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -30,11 +32,17 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
     _currentConversation = widget.conversation;
     _loadMessages();
     _startListening();
+
+    // تعيين الرسائل كمقروءة عند فتح المحادثة
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _markMessagesAsRead();
+    });
   }
 
   @override
   void dispose() {
     _chatService.stopListening();
+    _notificationService.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -84,7 +92,9 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
   }
 
   void _startListening() {
-    _chatService.startListeningToMessages(widget.conversation.id, (messages) {
+    _chatService.startListeningToMessages(widget.conversation.id, (
+      messages,
+    ) async {
       if (mounted) {
         print('=== تحديث مباشر للرسائل ===');
         print('عدد الرسائل المستلمة: ${messages.length}');
@@ -100,6 +110,9 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
           _messages = messages; // لا نرتب هنا، سنرتب في _buildMessagesList
           _updateUnreadStatus();
         });
+
+        // تحديث الإشعارات عند وصول رسالة جديدة
+        await _notificationService.refreshNotifications();
 
         // التمرير إلى آخر رسالة عند وصول رسالة جديدة
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -143,15 +156,19 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
   }
 
   // تعيين الرسائل كمقروءة
-  Future<void> _markMessagesAsRead() async {
+  Future<void> _markMessagesAsRead({bool showMessage = false}) async {
     if (_currentConversation == null) return;
 
     try {
       await _chatService.markMessagesAsRead(_currentConversation!.id);
+      // تحديث الإشعارات
+      await _notificationService.markConversationAsRead(
+        _currentConversation!.id,
+      );
       setState(() {
         _hasUnreadMessages = false;
       });
-      if (mounted) {
+      if (mounted && showMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('تم تعيين الرسائل كمقروءة'),
@@ -187,8 +204,9 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
 
       _messageController.clear();
 
-      // تعيين الرسائل كمقروءة
+      // تعيين الرسائل كمقروءة وتحديث الإشعارات
       await _chatService.markMessagesAsRead(widget.conversation.id);
+      await _notificationService.markConversationAsRead(widget.conversation.id);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -239,7 +257,8 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _currentConversation?.userName ?? 'مستخدم',
+            _currentConversation?.userName ??
+                'مستخدم ${_currentConversation?.userId ?? ''}',
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           Text(
@@ -257,7 +276,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                 _loadMessages();
                 break;
               case 'mark_read':
-                _markMessagesAsRead();
+                _markMessagesAsRead(showMessage: true);
                 break;
             }
           },
@@ -321,7 +340,8 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _currentConversation?.userName ?? 'مستخدم',
+                  _currentConversation?.userName ??
+                      'مستخدم ${_currentConversation?.userId ?? ''}',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

@@ -3,6 +3,7 @@ import '../widgets/admin_sidebar.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/services/support_chat_service.dart';
+import '../../core/services/notification_service.dart';
 import 'profile/profile_screen.dart';
 import 'settings/settings_screen.dart';
 import 'products/index.dart';
@@ -11,6 +12,7 @@ import 'mobile_packages/index.dart';
 import 'game_cards/index.dart';
 import 'support_chat/index.dart';
 import '../../core/services/auth_service.dart'; // Added import for AuthService
+import 'dart:async';
 
 class AdminMainScreen extends StatefulWidget {
   const AdminMainScreen({super.key});
@@ -19,9 +21,17 @@ class AdminMainScreen extends StatefulWidget {
   State<AdminMainScreen> createState() => _AdminMainScreenState();
 }
 
-class _AdminMainScreenState extends State<AdminMainScreen> {
+class _AdminMainScreenState extends State<AdminMainScreen>
+    with WidgetsBindingObserver {
   int _selectedIndex = 0;
   bool _isSidebarCollapsed = false;
+  late NotificationService _notificationService;
+  late SupportChatService _chatService;
+
+  // متغيرات الرسائل غير المقروءة
+  int _totalUnreadMessages = 0;
+  int _unreadConversations = 0;
+  StreamSubscription? _unreadSubscription;
 
   // قائمة الشاشات
   final List<Widget> _screens = [
@@ -46,6 +56,72 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
     'الإعدادات',
     'دردشات فريق الدعم',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _notificationService = NotificationService();
+    _chatService = SupportChatService();
+    // تحديث فوري للإشعارات عند بدء التطبيق
+    _notificationService.refreshNotifications();
+    _initializeUnreadCount();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _notificationService.dispose();
+    _unreadSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initializeUnreadCount() async {
+    // جلب العدد الأولي
+    final totalUnread = await _chatService.getTotalUnreadMessagesCount();
+    final unreadConversations = await _chatService
+        .getUnreadConversationsCount();
+
+    if (mounted) {
+      setState(() {
+        _totalUnreadMessages = totalUnread;
+        _unreadConversations = unreadConversations;
+      });
+    }
+
+    // الاشتراك في التحديثات
+    _unreadSubscription = await _chatService.subscribeToUnreadCount((
+      totalUnread,
+      unreadConversations,
+    ) {
+      if (mounted) {
+        setState(() {
+          _totalUnreadMessages = totalUnread;
+          _unreadConversations = unreadConversations;
+        });
+      }
+    });
+  }
+
+  // تحديث يدوي للرسائل غير المقروءة
+  Future<void> _refreshUnreadCount() async {
+    await _chatService.refreshUnreadCount((totalUnread, unreadConversations) {
+      if (mounted) {
+        setState(() {
+          _totalUnreadMessages = totalUnread;
+          _unreadConversations = unreadConversations;
+        });
+      }
+    });
+  }
+
+  // إعادة تحميل البيانات عند العودة للشاشة
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshUnreadCount();
+    }
+  }
 
   void _handleLogout() {
     showDialog(
@@ -177,6 +253,9 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
                   });
                 },
                 onLogoutTap: _handleLogout,
+                notificationService: _notificationService,
+                totalUnreadMessages: _totalUnreadMessages,
+                unreadConversations: _unreadConversations,
               ),
             ),
 
@@ -249,43 +328,62 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
           // الإشعارات
           Container(
             margin: const EdgeInsets.only(right: 16),
-            child: Stack(
-              children: [
-                IconButton(
-                  icon: Icon(
-                    Icons.notifications_outlined,
-                    color: AppColors.text,
-                    size: 24,
-                  ),
-                  onPressed: () {
-                    // TODO: عرض الإشعارات
-                  },
-                ),
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: AppColors.error,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 18,
-                      minHeight: 18,
-                    ),
-                    child: const Text(
-                      '3',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
+            child: ListenableBuilder(
+              listenable: _notificationService,
+              builder: (context, child) {
+                final hasNotifications = _notificationService.hasNewMessages;
+                final notificationCount =
+                    _notificationService.totalUnreadMessages;
+
+                return Stack(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        hasNotifications
+                            ? Icons.notifications
+                            : Icons.notifications_outlined,
+                        color: hasNotifications
+                            ? AppColors.warning
+                            : AppColors.text,
+                        size: 24,
                       ),
-                      textAlign: TextAlign.center,
+                      onPressed: () {
+                        // الانتقال إلى شاشة المحادثات
+                        setState(() {
+                          _selectedIndex = 7; // شاشة دردشات فريق الدعم
+                        });
+                      },
                     ),
-                  ),
-                ),
-              ],
+                    if (hasNotifications)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: AppColors.error,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: Text(
+                            notificationCount > 99
+                                ? '99+'
+                                : '$notificationCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
         ],

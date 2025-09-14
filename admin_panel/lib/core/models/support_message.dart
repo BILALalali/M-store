@@ -9,6 +9,7 @@ class SupportMessage {
   final DateTime createdAt;
   final String? senderName;
   final String? senderAvatar;
+  final bool isRead; // true = مقروءة, false = غير مقروءة
 
   SupportMessage({
     required this.id,
@@ -21,6 +22,7 @@ class SupportMessage {
     required this.createdAt,
     this.senderName,
     this.senderAvatar,
+    this.isRead = false, // افتراضياً غير مقروءة
   });
 
   factory SupportMessage.fromMap(Map<String, dynamic> map) {
@@ -32,9 +34,12 @@ class SupportMessage {
       type: map['type'] ?? 'text',
       message: map['message'] ?? '',
       mediaUrl: map['media_url'],
-      createdAt: DateTime.parse(map['created_at'] ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        map['created_at'] ?? DateTime.now().toIso8601String(),
+      ),
       senderName: map['sender_name'],
       senderAvatar: map['sender_avatar'],
+      isRead: map['is_read'] ?? false, // افتراضياً غير مقروءة
     );
   }
 
@@ -50,6 +55,7 @@ class SupportMessage {
       'created_at': createdAt.toIso8601String(),
       'sender_name': senderName,
       'sender_avatar': senderAvatar,
+      'is_read': isRead,
     };
   }
 
@@ -64,6 +70,7 @@ class SupportMessage {
     DateTime? createdAt,
     String? senderName,
     String? senderAvatar,
+    bool? isRead,
   }) {
     return SupportMessage(
       id: id ?? this.id,
@@ -76,6 +83,7 @@ class SupportMessage {
       createdAt: createdAt ?? this.createdAt,
       senderName: senderName ?? this.senderName,
       senderAvatar: senderAvatar ?? this.senderAvatar,
+      isRead: isRead ?? this.isRead,
     );
   }
 
@@ -86,7 +94,7 @@ class SupportMessage {
 
   @override
   String toString() {
-    return 'SupportMessage(id: $id, conversationId: $conversationId, senderType: $senderType, senderId: $senderId, type: $type, message: $message, mediaUrl: $mediaUrl, createdAt: $createdAt, senderName: $senderName, senderAvatar: $senderAvatar)';
+    return 'SupportMessage(id: $id, conversationId: $conversationId, senderType: $senderType, senderId: $senderId, type: $type, message: $message, mediaUrl: $mediaUrl, createdAt: $createdAt, senderName: $senderName, senderAvatar: $senderAvatar, isRead: $isRead)';
   }
 
   @override

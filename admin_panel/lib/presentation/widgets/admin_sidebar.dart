@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/services/notification_service.dart';
 
 class AdminSidebar extends StatefulWidget {
   final int selectedIndex;
@@ -7,6 +8,9 @@ class AdminSidebar extends StatefulWidget {
   final VoidCallback? onProfileTap;
   final VoidCallback? onSettingsTap;
   final VoidCallback? onLogoutTap;
+  final NotificationService? notificationService;
+  final int totalUnreadMessages;
+  final int unreadConversations;
 
   const AdminSidebar({
     super.key,
@@ -15,6 +19,9 @@ class AdminSidebar extends StatefulWidget {
     this.onProfileTap,
     this.onSettingsTap,
     this.onLogoutTap,
+    this.notificationService,
+    this.totalUnreadMessages = 0,
+    this.unreadConversations = 0,
   });
 
   @override
@@ -26,6 +33,25 @@ class _AdminSidebarState extends State<AdminSidebar> {
   bool _isGeneralExpanded = true;
   bool _isManagementExpanded = true;
   bool _isChatsExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // الاستماع لتحديثات الإشعارات
+    widget.notificationService?.addListener(_onNotificationUpdate);
+  }
+
+  @override
+  void dispose() {
+    widget.notificationService?.removeListener(_onNotificationUpdate);
+    super.dispose();
+  }
+
+  void _onNotificationUpdate() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -169,11 +195,12 @@ class _AdminSidebarState extends State<AdminSidebar> {
           isExpanded: _isChatsExpanded,
           onToggle: () => setState(() => _isChatsExpanded = !_isChatsExpanded),
           children: [
-            _buildNavItem(
+            _buildNavItemWithNotification(
               icon: Icons.support_agent,
               title: 'فريق الدعم',
               subtitle: 'إدارة دردشات الدعم',
               index: 7,
+              notificationCount: widget.totalUnreadMessages,
             ),
           ],
         ),
@@ -433,6 +460,104 @@ class _AdminSidebarState extends State<AdminSidebar> {
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             fontSize: 13,
           ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(
+            color: isSelected
+                ? Colors.white.withValues(alpha: 0.8)
+                : AppColors.text.withValues(alpha: 0.6),
+            fontSize: 10,
+          ),
+        ),
+        onTap: () => widget.onItemSelected(index),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        dense: true,
+      ),
+    );
+  }
+
+  Widget _buildNavItemWithNotification({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required int index,
+    required int notificationCount,
+  }) {
+    final isSelected = widget.selectedIndex == index;
+    final hasNotifications = notificationCount > 0;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected ? AppColors.primary : Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+        // إضافة حدود ملونة للمحادثات التي تحتوي على رسائل غير مقروءة
+        border: hasNotifications && !isSelected
+            ? Border.all(
+                color: AppColors.warning.withValues(alpha: 0.5),
+                width: 1,
+              )
+            : null,
+      ),
+      child: ListTile(
+        leading: Stack(
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? Colors.white : AppColors.text,
+              size: 20,
+            ),
+            // إضافة نقطة حمراء للرسائل غير المقروءة
+            if (hasNotifications)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: AppColors.error,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : AppColors.text,
+                  fontWeight: hasNotifications && !isSelected
+                      ? FontWeight.w900
+                      : (isSelected ? FontWeight.bold : FontWeight.normal),
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            // عرض عدد الرسائل غير المقروءة
+            if (hasNotifications)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.white : AppColors.warning,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                child: Text(
+                  notificationCount > 99 ? '99+' : '$notificationCount',
+                  style: TextStyle(
+                    color: isSelected ? AppColors.primary : Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+          ],
         ),
         subtitle: Text(
           subtitle,

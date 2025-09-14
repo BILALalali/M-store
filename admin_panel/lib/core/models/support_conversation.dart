@@ -10,6 +10,7 @@ class SupportConversation {
   final String? lastMessage;
   final DateTime? lastMessageAt;
   final int unreadCount;
+  final bool hasUnreadMessages; // إضافة حقل للرسائل غير المقروءة
 
   SupportConversation({
     required this.id,
@@ -23,6 +24,7 @@ class SupportConversation {
     this.lastMessage,
     this.lastMessageAt,
     this.unreadCount = 0,
+    this.hasUnreadMessages = false, // افتراضياً لا توجد رسائل غير مقروءة
   });
 
   factory SupportConversation.fromMap(Map<String, dynamic> map) {
@@ -31,15 +33,21 @@ class SupportConversation {
       userId: map['user_id'] ?? '',
       status: map['status'] ?? 'open',
       isOpen: map['is_open'] ?? true,
-      createdAt: DateTime.parse(map['created_at'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(map['updated_at'] ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        map['created_at'] ?? DateTime.now().toIso8601String(),
+      ),
+      updatedAt: DateTime.parse(
+        map['updated_at'] ?? DateTime.now().toIso8601String(),
+      ),
       userEmail: map['user_email'],
       userName: map['user_name'],
       lastMessage: map['last_message'],
-      lastMessageAt: map['last_message_at'] != null 
-          ? DateTime.parse(map['last_message_at']) 
+      lastMessageAt: map['last_message_at'] != null
+          ? DateTime.parse(map['last_message_at'])
           : null,
       unreadCount: map['unread_count'] ?? 0,
+      hasUnreadMessages:
+          (map['unread_count'] ?? 0) > 0, // تحديد وجود رسائل غير مقروءة
     );
   }
 
@@ -56,6 +64,7 @@ class SupportConversation {
       'last_message': lastMessage,
       'last_message_at': lastMessageAt?.toIso8601String(),
       'unread_count': unreadCount,
+      'has_unread_messages': hasUnreadMessages,
     };
   }
 
@@ -71,6 +80,7 @@ class SupportConversation {
     String? lastMessage,
     DateTime? lastMessageAt,
     int? unreadCount,
+    bool? hasUnreadMessages,
   }) {
     return SupportConversation(
       id: id ?? this.id,
@@ -84,12 +94,13 @@ class SupportConversation {
       lastMessage: lastMessage ?? this.lastMessage,
       lastMessageAt: lastMessageAt ?? this.lastMessageAt,
       unreadCount: unreadCount ?? this.unreadCount,
+      hasUnreadMessages: hasUnreadMessages ?? this.hasUnreadMessages,
     );
   }
 
   @override
   String toString() {
-    return 'SupportConversation(id: $id, userId: $userId, status: $status, isOpen: $isOpen, createdAt: $createdAt, updatedAt: $updatedAt, userEmail: $userEmail, userName: $userName, lastMessage: $lastMessage, lastMessageAt: $lastMessageAt, unreadCount: $unreadCount)';
+    return 'SupportConversation(id: $id, userId: $userId, status: $status, isOpen: $isOpen, createdAt: $createdAt, updatedAt: $updatedAt, userEmail: $userEmail, userName: $userName, lastMessage: $lastMessage, lastMessageAt: $lastMessageAt, unreadCount: $unreadCount, hasUnreadMessages: $hasUnreadMessages)';
   }
 
   @override
