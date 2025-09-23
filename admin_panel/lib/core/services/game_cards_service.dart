@@ -78,8 +78,7 @@ class GameCardsService {
   static Future<GameCard> addCard(GameCard card) async {
     try {
       final supabaseService = SupabaseService();
-      final client =
-          supabaseService.serviceRoleClient ?? supabaseService.client;
+      final client = supabaseService.client;
       if (client == null) {
         throw Exception('Supabase غير متصل');
       }
@@ -108,8 +107,7 @@ class GameCardsService {
   static Future<GameCard> updateCard(GameCard card) async {
     try {
       final supabaseService = SupabaseService();
-      final client =
-          supabaseService.serviceRoleClient ?? supabaseService.client;
+      final client = supabaseService.client;
       if (client == null) {
         throw Exception('Supabase غير متصل');
       }
@@ -142,8 +140,7 @@ class GameCardsService {
   static Future<bool> deleteCard(int cardId) async {
     try {
       final supabaseService = SupabaseService();
-      final client =
-          supabaseService.serviceRoleClient ?? supabaseService.client;
+      final client = supabaseService.client;
       if (client == null) {
         throw Exception('Supabase غير متصل');
       }
@@ -164,8 +161,7 @@ class GameCardsService {
   static Future<bool> toggleCardStatus(int cardId, bool isActive) async {
     try {
       final supabaseService = SupabaseService();
-      final client =
-          supabaseService.serviceRoleClient ?? supabaseService.client;
+      final client = supabaseService.client;
       if (client == null) {
         throw Exception('Supabase غير متصل');
       }
@@ -263,8 +259,7 @@ class GameCardsService {
   static Future<GameCardProvider> addProvider(GameCardProvider provider) async {
     try {
       final supabaseService = SupabaseService();
-      final client =
-          supabaseService.serviceRoleClient ?? supabaseService.client;
+      final client = supabaseService.client;
       if (client == null) {
         throw Exception('Supabase غير متصل');
       }
@@ -295,8 +290,7 @@ class GameCardsService {
   ) async {
     try {
       final supabaseService = SupabaseService();
-      final client =
-          supabaseService.serviceRoleClient ?? supabaseService.client;
+      final client = supabaseService.client;
       if (client == null) {
         throw Exception('Supabase غير متصل');
       }
@@ -329,8 +323,7 @@ class GameCardsService {
   static Future<bool> deleteProvider(int providerId) async {
     try {
       final supabaseService = SupabaseService();
-      final client =
-          supabaseService.serviceRoleClient ?? supabaseService.client;
+      final client = supabaseService.client;
       if (client == null) {
         throw Exception('Supabase غير متصل');
       }
@@ -360,8 +353,7 @@ class GameCardsService {
   ) async {
     try {
       final supabaseService = SupabaseService();
-      final client =
-          supabaseService.serviceRoleClient ?? supabaseService.client;
+      final client = supabaseService.client;
       if (client == null) {
         throw Exception('Supabase غير متصل');
       }

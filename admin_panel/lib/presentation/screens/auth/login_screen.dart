@@ -274,8 +274,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (success && mounted) {
         print('تم تسجيل الدخول بنجاح، الانتقال للوحة الإدارة...');
 
-        // الانتقال للوحة الإدارة باستخدام المسار المسمى
-        Navigator.of(context).pushReplacementNamed('/admin');
+        // الانتقال للوحة الإدارة - سيتم التوجيه تلقائياً من AuthWrapper
+        // Navigator.of(context).pushReplacementNamed('/admin');
       } else {
         print('فشل في تسجيل الدخول');
         // رسالة الخطأ ستظهر تلقائياً من AuthService

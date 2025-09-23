@@ -1,8 +1,6 @@
 class SupportConversation {
   final String id;
   final String userId;
-  final String status;
-  final bool isOpen;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? userEmail;
@@ -15,8 +13,6 @@ class SupportConversation {
   SupportConversation({
     required this.id,
     required this.userId,
-    required this.status,
-    required this.isOpen,
     required this.createdAt,
     required this.updatedAt,
     this.userEmail,
@@ -31,8 +27,6 @@ class SupportConversation {
     return SupportConversation(
       id: map['id'] ?? '',
       userId: map['user_id'] ?? '',
-      status: map['status'] ?? 'open',
-      isOpen: map['is_open'] ?? true,
       createdAt: DateTime.parse(
         map['created_at'] ?? DateTime.now().toIso8601String(),
       ),
@@ -55,8 +49,6 @@ class SupportConversation {
     return {
       'id': id,
       'user_id': userId,
-      'status': status,
-      'is_open': isOpen,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'user_email': userEmail,
@@ -71,8 +63,6 @@ class SupportConversation {
   SupportConversation copyWith({
     String? id,
     String? userId,
-    String? status,
-    bool? isOpen,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? userEmail,
@@ -85,8 +75,6 @@ class SupportConversation {
     return SupportConversation(
       id: id ?? this.id,
       userId: userId ?? this.userId,
-      status: status ?? this.status,
-      isOpen: isOpen ?? this.isOpen,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       userEmail: userEmail ?? this.userEmail,
@@ -100,7 +88,7 @@ class SupportConversation {
 
   @override
   String toString() {
-    return 'SupportConversation(id: $id, userId: $userId, status: $status, isOpen: $isOpen, createdAt: $createdAt, updatedAt: $updatedAt, userEmail: $userEmail, userName: $userName, lastMessage: $lastMessage, lastMessageAt: $lastMessageAt, unreadCount: $unreadCount, hasUnreadMessages: $hasUnreadMessages)';
+    return 'SupportConversation(id: $id, userId: $userId, createdAt: $createdAt, updatedAt: $updatedAt, userEmail: $userEmail, userName: $userName, lastMessage: $lastMessage, lastMessageAt: $lastMessageAt, unreadCount: $unreadCount, hasUnreadMessages: $hasUnreadMessages)';
   }
 
   @override

@@ -80,8 +80,7 @@ class MobilePackagesService {
   static Future<MobilePackage> addPackage(MobilePackage package) async {
     try {
       final supabaseService = SupabaseService();
-      final client =
-          supabaseService.serviceRoleClient ?? supabaseService.client;
+      final client = supabaseService.client;
       if (client == null) {
         throw Exception('Supabase غير متصل');
       }
@@ -110,8 +109,7 @@ class MobilePackagesService {
   static Future<MobilePackage> updatePackage(MobilePackage package) async {
     try {
       final supabaseService = SupabaseService();
-      final client =
-          supabaseService.serviceRoleClient ?? supabaseService.client;
+      final client = supabaseService.client;
       if (client == null) {
         throw Exception('Supabase غير متصل');
       }
@@ -144,8 +142,7 @@ class MobilePackagesService {
   static Future<bool> deletePackage(int packageId) async {
     try {
       final supabaseService = SupabaseService();
-      final client =
-          supabaseService.serviceRoleClient ?? supabaseService.client;
+      final client = supabaseService.client;
       if (client == null) {
         throw Exception('Supabase غير متصل');
       }
@@ -166,8 +163,7 @@ class MobilePackagesService {
   static Future<bool> togglePackageStatus(int packageId, bool isActive) async {
     try {
       final supabaseService = SupabaseService();
-      final client =
-          supabaseService.serviceRoleClient ?? supabaseService.client;
+      final client = supabaseService.client;
       if (client == null) {
         throw Exception('Supabase غير متصل');
       }
@@ -265,8 +261,7 @@ class MobilePackagesService {
   static Future<MobileOperator> addOperator(MobileOperator operator) async {
     try {
       final supabaseService = SupabaseService();
-      final client =
-          supabaseService.serviceRoleClient ?? supabaseService.client;
+      final client = supabaseService.client;
       if (client == null) {
         throw Exception('Supabase غير متصل');
       }
@@ -295,8 +290,7 @@ class MobilePackagesService {
   static Future<MobileOperator> updateOperator(MobileOperator operator) async {
     try {
       final supabaseService = SupabaseService();
-      final client =
-          supabaseService.serviceRoleClient ?? supabaseService.client;
+      final client = supabaseService.client;
       if (client == null) {
         throw Exception('Supabase غير متصل');
       }
@@ -329,8 +323,7 @@ class MobilePackagesService {
   static Future<bool> deleteOperator(int operatorId) async {
     try {
       final supabaseService = SupabaseService();
-      final client =
-          supabaseService.serviceRoleClient ?? supabaseService.client;
+      final client = supabaseService.client;
       if (client == null) {
         throw Exception('Supabase غير متصل');
       }
@@ -360,8 +353,7 @@ class MobilePackagesService {
   ) async {
     try {
       final supabaseService = SupabaseService();
-      final client =
-          supabaseService.serviceRoleClient ?? supabaseService.client;
+      final client = supabaseService.client;
       if (client == null) {
         throw Exception('Supabase غير متصل');
       }

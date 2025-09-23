@@ -27,49 +27,44 @@ class SupportChatService {
 
       print('اختبار صلاحيات المدير للمستخدم: ${currentUser.id}');
 
-      // استخدام service_role client للتحقق من الصلاحيات
-      final client = _supabaseService.serviceRoleClient;
-      if (client != null) {
-        try {
-          // التحقق من وجود المدير في جدول admin_users
-          final adminCheck = await client
-              .from('admin_users')
-              .select('*')
-              .eq('user_id', currentUser.id)
-              .eq('is_active', true)
-              .maybeSingle();
+      // استخدام العميل العادي للتحقق من الصلاحيات
+      final client = _supabaseService.client!;
+      try {
+        // التحقق من وجود المدير في جدول admin_users
+        final adminCheck = await client
+            .from('admin_users')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .eq('is_active', true)
+            .maybeSingle();
 
-          if (adminCheck != null) {
-            print('المدير موجود في جدول admin_users: $adminCheck');
+        if (adminCheck != null) {
+          print('المدير موجود في جدول admin_users: $adminCheck');
+          return true;
+        } else {
+          print('المدير غير موجود في جدول admin_users');
+
+          // محاولة إضافة المدير
+          try {
+            await client.from('admin_users').insert({
+              'user_id': currentUser.id,
+              'email': currentUser.email,
+              'full_name':
+                  currentUser.userMetadata?['full_name'] ?? 'مدير النظام',
+              'role': 'super_admin',
+              'is_active': true,
+              'created_at': DateTime.now().toIso8601String(),
+              'updated_at': DateTime.now().toIso8601String(),
+            });
+            print('تم إضافة المدير إلى جدول admin_users');
             return true;
-          } else {
-            print('المدير غير موجود في جدول admin_users');
-
-            // محاولة إضافة المدير
-            try {
-              await client.from('admin_users').insert({
-                'user_id': currentUser.id,
-                'email': currentUser.email,
-                'full_name':
-                    currentUser.userMetadata?['full_name'] ?? 'مدير النظام',
-                'role': 'super_admin',
-                'is_active': true,
-                'created_at': DateTime.now().toIso8601String(),
-                'updated_at': DateTime.now().toIso8601String(),
-              });
-              print('تم إضافة المدير إلى جدول admin_users');
-              return true;
-            } catch (insertError) {
-              print('خطأ في إضافة المدير: $insertError');
-              return false;
-            }
+          } catch (insertError) {
+            print('خطأ في إضافة المدير: $insertError');
+            return false;
           }
-        } catch (e) {
-          print('خطأ في التحقق من الصلاحيات: $e');
-          return false;
         }
-      } else {
-        print('service_role client غير متاح');
+      } catch (e) {
+        print('خطأ في التحقق من الصلاحيات: $e');
         return false;
       }
     } catch (e) {
@@ -134,13 +129,12 @@ class SupportChatService {
         return [];
       }
 
-      print('جلب محادثات فريق الدعم...');
+      print('🚀 ===== بدء جلب محادثات فريق الدعم =====');
 
-      // محاولة استخدام service_role client للوصول للبيانات
-      final client =
-          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
+      // استخدام العميل العادي للوصول للبيانات (أكثر استقراراً)
+      final client = _supabaseService.client!;
 
-      // أولاً، جلب المحادثات بدون العلاقات
+      // جلب جميع المحادثات
       final response = await client
           .from('support_conversations')
           .select('*')
@@ -151,55 +145,53 @@ class SupportChatService {
       final conversations = <SupportConversation>[];
 
       for (var item in response) {
-        print('معالجة محادثة: $item');
+        print(
+          '🚀 ===== معالجة محادثة: ID=${item['id']}, user_id=${item['user_id']} =====',
+        );
 
-        // محاولة جلب معلومات المستخدم من جدول profiles
-        String? userEmail;
         String? userName;
-
+        String? userEmail;
+        // ===== بداية جلب معلومات المستخدم =====
         try {
+          // استخدام الاستعلام المباشر لجدول profiles
           final profileResponse = await _supabaseService.client!
               .from('profiles')
-              .select('email, full_name')
+              .select('name')
               .eq('id', item['user_id'])
               .maybeSingle();
 
-          if (profileResponse != null) {
-            userEmail = profileResponse['email'];
-            userName = profileResponse['full_name'];
-            print('معلومات المستخدم: $profileResponse');
+          if (profileResponse != null && profileResponse['name'] != null) {
+            userName = profileResponse['name'];
+            print('✅ تم جلب اسم المستخدم: $userName');
+          } else {
+            // إنشاء اسم مؤقت أكثر وضوحاً
+            final userId = item['user_id'].toString();
+            userName = 'مستخدم ${userId.substring(0, 8)}';
+            print('❌ لم يتم العثور على الاسم، استخدام المعرف: $userName');
           }
         } catch (profileError) {
-          print('خطأ في جلب معلومات المستخدم: $profileError');
-          // محاولة جلب من جدول auth.users
-          try {
-            final authResponse = await _supabaseService.client!
-                .from('auth.users')
-                .select('email')
-                .eq('id', item['user_id'])
-                .maybeSingle();
-
-            if (authResponse != null) {
-              userEmail = authResponse['email'];
-              print('البريد الإلكتروني من auth.users: $userEmail');
-            }
-          } catch (authError) {
-            print('خطأ في جلب البريد الإلكتروني: $authError');
-          }
+          print('❌ خطأ في جلب الاسم: $profileError');
+          final userId = item['user_id'].toString();
+          userName = 'مستخدم ${userId.substring(0, 8)}';
         }
+        // ===== نهاية جلب معلومات المستخدم =====
 
         // جلب آخر رسالة
         final lastMessage = await _getLastMessage(item['id']);
 
         // جلب عدد الرسائل غير المقروءة
         final unreadCount = await _getUnreadCount(item['id']);
+        print('📊 المحادثة ${item['id']}: unreadCount = $unreadCount');
+
+        final hasUnreadMessages = unreadCount > 0;
+        print(
+          '🚀 المحادثة ${item['id']}: unreadCount=$unreadCount, hasUnreadMessages=$hasUnreadMessages',
+        );
 
         conversations.add(
           SupportConversation(
             id: item['id'],
             userId: item['user_id'],
-            status: item['status'] ?? 'open',
-            isOpen: item['is_open'] ?? true,
             createdAt: DateTime.parse(item['created_at']),
             updatedAt: DateTime.parse(item['updated_at']),
             userEmail: userEmail,
@@ -207,12 +199,16 @@ class SupportChatService {
             lastMessage: lastMessage?.message,
             lastMessageAt: lastMessage?.createdAt,
             unreadCount: unreadCount,
-            hasUnreadMessages: unreadCount > 0, // تحديد وجود رسائل غير مقروءة
+            hasUnreadMessages: hasUnreadMessages, // تحديد وجود رسائل غير مقروءة
           ),
         );
+
+        print('🚀 ===== انتهاء معالجة المحادثة: ${item['id']} =====');
       }
 
-      print('تم جلب ${conversations.length} محادثة');
+      print(
+        '🚀 ===== انتهاء جلب محادثات فريق الدعم: ${conversations.length} محادثة =====',
+      );
       return conversations;
     } catch (e) {
       print('خطأ في جلب المحادثات: $e');
@@ -223,25 +219,51 @@ class SupportChatService {
             .select('*')
             .order('updated_at', ascending: false);
 
-        print('استجابة مبسطة: $simpleResponse');
-
         final conversations = <SupportConversation>[];
         for (var item in simpleResponse) {
+          // جلب اسم المستخدم من جدول profiles حتى في الحالة المبسطة
+          String? userName;
+          try {
+            // استخدام الاستعلام المباشر لجدول profiles
+            final profileResponse = await _supabaseService.client!
+                .from('profiles')
+                .select('name')
+                .eq('id', item['user_id'])
+                .maybeSingle();
+
+            if (profileResponse != null && profileResponse['name'] != null) {
+              userName = profileResponse['name'];
+              print('✅ [مبسط] تم جلب اسم المستخدم: $userName');
+            } else {
+              final userId = item['user_id'].toString();
+              userName = 'مستخدم ${userId.substring(0, 8)}';
+              print(
+                '❌ [مبسط] لم يتم العثور على الاسم، استخدام المعرف: $userName',
+              );
+            }
+          } catch (profileError) {
+            print('❌ [مبسط] خطأ في جلب الاسم: $profileError');
+            final userId = item['user_id'].toString();
+            userName = 'مستخدم ${userId.substring(0, 8)}';
+          }
+
+          // حتى في الحالة المبسطة، نحتاج لحساب الرسائل غير المقروءة
+          final unreadCount = await _getUnreadCount(item['id']);
+
           conversations.add(
             SupportConversation(
               id: item['id'],
               userId: item['user_id'],
-              status: item['status'] ?? 'open',
-              isOpen: item['is_open'] ?? true,
               createdAt: DateTime.parse(item['created_at']),
               updatedAt: DateTime.parse(item['updated_at']),
               userEmail: null,
-              userName: 'مستخدم ${item['user_id'].toString().substring(0, 8)}',
+              userName: userName,
               lastMessage: null,
               lastMessageAt: null,
-              unreadCount: 0,
+              unreadCount: unreadCount,
               hasUnreadMessages:
-                  false, // لا توجد رسائل غير مقروءة في الحالة المبسطة
+                  unreadCount >
+                  0, // حساب الرسائل غير المقروءة حتى في الحالة المبسطة
             ),
           );
         }
@@ -269,8 +291,7 @@ class SupportChatService {
           .select('''
             *,
             profiles!support_conversations_user_id_fkey(
-              email,
-              full_name
+              name
             )
           ''')
           .eq('id', conversationId)
@@ -283,16 +304,30 @@ class SupportChatService {
 
       // جلب عدد الرسائل غير المقروءة
       final unreadCount = await _getUnreadCount(conversationId);
+      final userId = response['user_id'];
+      String? userName;
+      try {
+        // استخدام الاستعلام المباشر لجدول profiles
+        final profileResponse = await _supabaseService.client!
+            .from('profiles')
+            .select('name')
+            .eq('id', userId)
+            .maybeSingle();
+        if (profileResponse != null && profileResponse['name'] != null) {
+          userName = profileResponse['name'];
+          print('✅ تم جلب اسم المستخدم للمحادثة: $userName');
+        }
+      } catch (e) {
+        print('❌ خطأ في جلب اسم المستخدم: $e');
+      }
 
       return SupportConversation(
         id: response['id'],
-        userId: response['user_id'],
-        status: response['status'] ?? 'open',
-        isOpen: response['is_open'] ?? true,
+        userId: userId,
         createdAt: DateTime.parse(response['created_at']),
         updatedAt: DateTime.parse(response['updated_at']),
-        userEmail: profile?['email'],
-        userName: profile?['full_name'],
+        userEmail: null,
+        userName: userName ?? profile?['name'],
         lastMessage: lastMessage?.message,
         lastMessageAt: lastMessage?.createdAt,
         unreadCount: unreadCount,
@@ -317,47 +352,18 @@ class SupportChatService {
       final isAdmin = await _supabaseService.isAdmin();
       print('هل المستخدم مدير؟ $isAdmin');
 
-      // استخدام service_role client للوصول للبيانات
-      final client = _supabaseService.serviceRoleClient;
-      if (client != null) {
-        try {
-          print('استخدام service_role client لجلب الرسائل');
-          final response = await client
-              .from('support_messages')
-              .select('*')
-              .eq('conversation_id', conversationId)
-              .order('created_at', ascending: true)
-              .order('id', ascending: true); // ترتيب إضافي حسب ID للاستقرار
-
-          print('استجابة رسائل قاعدة البيانات (service_role): $response');
-          print('عدد الرسائل من service_role: ${response.length}');
-
-          // طباعة تفصيلية للرسائل
-          for (int i = 0; i < response.length; i++) {
-            final msg = response[i];
-            print(
-              'رسالة $i: "${msg['message']}" - المرسل: ${msg['sender_type']} - الوقت: ${msg['created_at']} - ID: ${msg['id']}',
-            );
-          }
-
-          return _processMessages(response);
-        } catch (serviceError) {
-          print('خطأ في service_role client: $serviceError');
-          // الانتقال للعميل العادي
-        }
-      }
-
-      // استخدام العميل العادي كبديل
+      // استخدام العميل العادي للوصول للبيانات
+      final client = _supabaseService.client!;
       print('استخدام العميل العادي لجلب الرسائل');
-      final response = await _supabaseService.client!
+      final response = await client
           .from('support_messages')
           .select('*')
           .eq('conversation_id', conversationId)
           .order('created_at', ascending: true)
           .order('id', ascending: true); // ترتيب إضافي حسب ID للاستقرار
 
-      print('استجابة رسائل قاعدة البيانات (عميل عادي): $response');
-      print('عدد الرسائل من العميل العادي: ${response.length}');
+      print('استجابة رسائل قاعدة البيانات: $response');
+      print('عدد الرسائل: ${response.length}');
 
       // طباعة تفصيلية للرسائل
       for (int i = 0; i < response.length; i++) {
@@ -518,37 +524,6 @@ class SupportChatService {
   }
 
   // تحديث حالة المحادثة
-  Future<bool> updateConversationStatus({
-    required String conversationId,
-    String? status,
-    bool? isOpen,
-  }) async {
-    try {
-      if (!_supabaseService.isReady) {
-        throw Exception('Supabase غير مهيأ');
-      }
-
-      print('تحديث حالة المحادثة: $conversationId');
-
-      final updates = <String, dynamic>{
-        'updated_at': DateTime.now().toIso8601String(),
-      };
-
-      if (status != null) updates['status'] = status;
-      if (isOpen != null) updates['is_open'] = isOpen;
-
-      await _supabaseService.client!
-          .from('support_conversations')
-          .update(updates)
-          .eq('id', conversationId);
-
-      print('تم تحديث حالة المحادثة بنجاح');
-      return true;
-    } catch (e) {
-      print('خطأ في تحديث حالة المحادثة: $e');
-      return false;
-    }
-  }
 
   // تعيين رسائل المدير كمقروءة (للمستخدم - يقرأ رسائل المدير)
   Future<bool> markAdminMessagesAsRead(String conversationId) async {
@@ -611,8 +586,7 @@ class SupportChatService {
     try {
       print('🔍 حساب إجمالي الرسائل غير المقروءة من جميع المستخدمين');
 
-      final client =
-          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
+      final client = _supabaseService.client!;
 
       // جلب جميع الرسائل غير المقروءة من المستخدمين
       final result = await client
@@ -643,14 +617,12 @@ class SupportChatService {
     try {
       print('🔍 حساب عدد المحادثات غير المقروءة');
 
-      final client =
-          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
+      final client = _supabaseService.client!;
 
       // جلب جميع المحادثات المفتوحة
       final conversations = await client
           .from('support_conversations')
-          .select('id')
-          .eq('is_open', true);
+          .select('id');
 
       int unreadConversations = 0;
 
@@ -736,12 +708,9 @@ class SupportChatService {
     try {
       print('🔍 جلب المحادثات غير المقروءة');
 
-      final client =
-          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
+      final client = _supabaseService.client!;
 
-      print(
-        '🔍 العميل المستخدم: ${client == _supabaseService.serviceRoleClient ? "service_role" : "عادي"}',
-      );
+      print('🔍 العميل المستخدم: عادي');
 
       // جلب جميع المحادثات
       print('🔍 جلب جميع المحادثات من قاعدة البيانات...');
@@ -752,7 +721,6 @@ class SupportChatService {
             user_id,
             user_name,
             user_email,
-            is_open,
             created_at,
             updated_at
           ''')
@@ -777,10 +745,8 @@ class SupportChatService {
             SupportConversation(
               id: conv['id'],
               userId: conv['user_id'],
-              status: conv['status'] ?? 'open',
               userName: conv['user_name'],
               userEmail: conv['user_email'],
-              isOpen: conv['is_open'],
               createdAt: DateTime.parse(conv['created_at']),
               updatedAt: DateTime.parse(conv['updated_at']),
               lastMessage: lastMessage?.message,
@@ -805,8 +771,7 @@ class SupportChatService {
     try {
       print('📖 تحديث الرسائل كمقروءة للمحادثة: $conversationId');
 
-      final client =
-          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
+      final client = _supabaseService.client!;
 
       await client
           .from('support_messages')
@@ -824,84 +789,97 @@ class SupportChatService {
   // الحصول على عدد الرسائل غير المقروءة
   Future<int> _getUnreadCount(String conversationId) async {
     try {
-      print('🔍 حساب الرسائل غير المقروءة للمحادثة: $conversationId');
-
-      // استخدام service_role client للوصول للبيانات
-      final client =
-          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
-
       print(
-        '🔍 العميل المستخدم: ${client == _supabaseService.serviceRoleClient ? "service_role" : "عادي"}',
+        '🔍 ===== بدء حساب الرسائل غير المقروءة للمحادثة: $conversationId =====',
       );
 
-      // محاولة استخدام دالة قاعدة البيانات أولاً
-      try {
-        final functionResult = await client.rpc(
-          'get_conversation_unread_count',
-          params: {'conv_id': conversationId},
-        );
-        print(
-          '📊 عدد الرسائل غير المقروءة (دالة قاعدة البيانات): $functionResult',
-        );
-        return functionResult ?? 0;
-      } catch (functionError) {
-        print(
-          '⚠️ خطأ في استدعاء دالة قاعدة البيانات، استخدام الاستعلام المباشر: $functionError',
-        );
-      }
+      // استخدام العميل العادي للوصول للبيانات
+      final client = _supabaseService.client!;
+
+      print('🔍 العميل المستخدم: عادي');
+
+      // استخدام الاستعلام المباشر مباشرة (أكثر موثوقية)
+      print('🔍 استخدام الاستعلام المباشر لحساب الرسائل غير المقروءة...');
 
       // جلب جميع الرسائل في المحادثة أولاً للتحقق
+      print('🔍 جلب جميع الرسائل للمحادثة: $conversationId');
       final allMessages = await client
           .from('support_messages')
-          .select('id, sender_type, is_read, message')
+          .select('id, sender_type, is_read, message, created_at')
           .eq('conversation_id', conversationId)
           .order('created_at', ascending: false);
 
       print('🔍 جميع الرسائل في المحادثة: ${allMessages.length}');
+      print(
+        '🔍 تفاصيل الاستعلام: SELECT id, sender_type, is_read, message, created_at FROM support_messages WHERE conversation_id = $conversationId',
+      );
 
-      // جلب جميع رسائل المستخدمين في المحادثة أولاً
-      print('🔍 جلب رسائل المستخدمين للمحادثة: $conversationId');
-      final userMessages = await client
-          .from('support_messages')
-          .select('id, sender_type, is_read, message, created_at')
-          .eq('conversation_id', conversationId)
-          .eq('sender_type', 'user') // فقط رسائل المستخدمين
-          .order('created_at', ascending: false);
+      // طباعة تفاصيل جميع الرسائل للتشخيص
+      for (var msg in allMessages) {
+        print(
+          '🔍 رسالة: ID=${msg['id']}, sender_type=${msg['sender_type']}, is_read=${msg['is_read']}, message="${msg['message']}"',
+        );
+      }
 
-      print('📊 تم جلب ${userMessages.length} رسالة من المستخدمين');
-
-      // حساب الرسائل غير المقروءة يدوياً (is_read = false أو is_read = null)
+      // حساب الرسائل غير المقروءة يدوياً من جميع الرسائل
       int unreadCount = 0;
       final unreadMessages = <Map<String, dynamic>>[];
 
-      for (var msg in userMessages) {
+      print('🔍 بدء حساب الرسائل غير المقروءة يدوياً (فقط من المستخدمين)...');
+      for (var msg in allMessages) {
         final isRead = msg['is_read'];
+        final senderType = msg['sender_type'];
         bool isUnread = false;
 
+        print(
+          '🔍 فحص رسالة: ID=${msg['id']}, sender_type=$senderType, is_read=$isRead (نوع: ${isRead.runtimeType})',
+        );
+
+        // التحقق من أن الرسالة من مستخدم وليس من مدير
+        if (senderType != 'user') {
+          print('🔍 الرسالة من المدير - لا تحتسب كغير مقروءة');
+          continue;
+        }
+
         // التحقق من القيم المختلفة لـ is_read
-        if (isRead == null ||
-            isRead == false ||
-            isRead == 'false' ||
-            isRead == 0) {
+        if (isRead == null) {
+          print('🔍 الرسالة غير مقروءة (is_read = null)');
           isUnread = true;
+        } else if (isRead == false) {
+          print('🔍 الرسالة غير مقروءة (is_read = false)');
+          isUnread = true;
+        } else if (isRead == 'false') {
+          print('🔍 الرسالة غير مقروءة (is_read = "false")');
+          isUnread = true;
+        } else if (isRead == 0) {
+          print('🔍 الرسالة غير مقروءة (is_read = 0)');
+          isUnread = true;
+        } else {
+          print('🔍 الرسالة مقروءة (is_read = $isRead)');
         }
 
         if (isUnread) {
           unreadCount++;
           unreadMessages.add(msg);
+          print(
+            '🔍 تم إضافة رسالة غير مقروءة من مستخدم. العدد الحالي: $unreadCount',
+          );
         }
       }
 
-      print(
-        '📊 عدد الرسائل غير المقروءة من المستخدمين في المحادثة (محسوبة يدوياً): $unreadCount',
-      );
+      print('📊 تم حساب ${unreadMessages.length} رسالة غير مقروءة يدوياً');
 
-      // طباعة تفاصيل الرسائل غير المقروءة
+      // طباعة تفاصيل الرسائل غير المقروءة للتشخيص
       for (var msg in unreadMessages) {
         print(
-          '📊 رسالة غير مقروءة من مستخدم: ID=${msg['id']}, المرسل=${msg['sender_type']}, is_read=${msg['is_read']}, الرسالة="${msg['message']}"',
+          '📊 رسالة غير مقروءة: ID=${msg['id']}, sender_type=${msg['sender_type']}, is_read=${msg['is_read']}, message="${msg['message']}"',
         );
       }
+
+      print('📊 عدد الرسائل غير المقروءة في المحادثة: $unreadCount');
+      print(
+        '🔍 ===== انتهاء حساب الرسائل غير المقروءة للمحادثة: $conversationId =====',
+      );
 
       return unreadCount;
     } catch (e) {
@@ -941,7 +919,9 @@ class SupportChatService {
             table: 'support_conversations',
             callback: (payload) async {
               print('تحديث في المحادثات: $payload');
+              print('🔄 تحديث قائمة المحادثات بسبب تغيير في جدول المحادثات...');
               final conversations = await getConversations();
+              print('🔄 تم جلب ${conversations.length} محادثة بعد التحديث');
               onUpdate(conversations);
             },
           )
@@ -956,8 +936,12 @@ class SupportChatService {
             table: 'support_messages',
             callback: (payload) async {
               print('رسالة جديدة في جدول support_messages: $payload');
+              print('🔄 تحديث قائمة المحادثات بسبب رسالة جديدة...');
               // تحديث قائمة المحادثات عند إضافة رسالة جديدة
               final conversations = await getConversations();
+              print(
+                '🔄 تم جلب ${conversations.length} محادثة بعد الرسالة الجديدة',
+              );
               onUpdate(conversations);
             },
           )
@@ -1028,16 +1012,9 @@ class SupportChatService {
           .select('id');
 
       // جلب عدد المحادثات المفتوحة
-      final openConversations = await _supabaseService.client!
+      final allConversations = await _supabaseService.client!
           .from('support_conversations')
-          .select('id')
-          .eq('is_open', true);
-
-      // جلب عدد المحادثات المغلقة
-      final closedConversations = await _supabaseService.client!
-          .from('support_conversations')
-          .select('id')
-          .eq('is_open', false);
+          .select('id');
 
       // جلب عدد الرسائل الإجمالي
       final totalMessages = await _supabaseService.client!
@@ -1046,8 +1023,8 @@ class SupportChatService {
 
       return {
         'total_conversations': totalConversations.length,
-        'open_conversations': openConversations.length,
-        'closed_conversations': closedConversations.length,
+        'open_conversations': allConversations.length,
+        'closed_conversations': 0, // لا يوجد حالياً تمييز بين المفتوحة والمغلقة
         'total_messages': totalMessages.length,
       };
     } catch (e) {
@@ -1070,8 +1047,7 @@ class SupportChatService {
     try {
       print('🧪 اختبار الرسائل غير المقروءة...');
 
-      final client =
-          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
+      final client = _supabaseService.client!;
 
       // جلب جميع الرسائل غير المقروءة مباشرة
       final unreadMessages = await client

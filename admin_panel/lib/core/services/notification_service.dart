@@ -185,13 +185,10 @@ class NotificationService extends ChangeNotifier {
         return {'totalUnread': 0, 'unreadConversations': 0};
       }
 
-      final client =
-          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
+      final client = _supabaseService.client!;
 
       debugPrint('🔍 حساب الرسائل غير المقروءة مباشرة من قاعدة البيانات...');
-      debugPrint(
-        '🔍 العميل المستخدم: ${client == _supabaseService.serviceRoleClient ? "service_role" : "عادي"}',
-      );
+      debugPrint('🔍 العميل المستخدم: عادي');
 
       // جلب جميع الرسائل أولاً للتحقق
       final allMessages = await client
@@ -300,12 +297,9 @@ class NotificationService extends ChangeNotifier {
         return;
       }
 
-      final client =
-          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
+      final client = _supabaseService.client!;
 
-      debugPrint(
-        '🔍 العميل المستخدم: ${client == _supabaseService.serviceRoleClient ? "service_role" : "عادي"}',
-      );
+      debugPrint('🔍 العميل المستخدم: عادي');
 
       // اختبار 1: جلب جميع الرسائل
       debugPrint('🧪 اختبار 1: جلب جميع الرسائل...');
@@ -452,8 +446,7 @@ class NotificationService extends ChangeNotifier {
         return;
       }
 
-      final client =
-          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
+      final client = _supabaseService.client!;
 
       // اختبار 1: التحقق من وجود المستخدم الحالي
       final currentUser = _supabaseService.currentUser;
@@ -532,8 +525,7 @@ class NotificationService extends ChangeNotifier {
         return;
       }
 
-      final client =
-          _supabaseService.serviceRoleClient ?? _supabaseService.client!;
+      final client = _supabaseService.client!;
 
       // اختبار الاتصال البسيط
       final testResponse = await client

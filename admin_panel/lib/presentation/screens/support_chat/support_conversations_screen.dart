@@ -20,7 +20,6 @@ class _SupportConversationsScreenState
   List<SupportConversation> _conversations = [];
   bool _isLoading = true;
   String _searchQuery = '';
-  String _statusFilter = 'all'; // all, open, closed
 
   @override
   void initState() {
@@ -49,15 +48,9 @@ class _SupportConversationsScreenState
       // اختبار الرسائل غير المقروءة
       await _chatService.testUnreadMessages();
 
-      // جلب المحادثات حسب التصفية المحددة
-      List<SupportConversation> conversations;
-      if (_statusFilter == 'unread') {
-        conversations = await _chatService.getUnreadConversations();
-        print('📊 تم جلب ${conversations.length} محادثة غير مقروءة');
-      } else {
-        conversations = await _chatService.getConversations();
-        print('📊 تم جلب ${conversations.length} محادثة');
-      }
+      // جلب جميع المحادثات
+      final conversations = await _chatService.getConversations();
+      print('📊 تم جلب ${conversations.length} محادثة');
 
       setState(() {
         _conversations = conversations;
@@ -189,9 +182,6 @@ class _SupportConversationsScreenState
           // أزرار التصفية
           Row(
             children: [
-              _buildFilterChip('الكل', 'all'),
-              const SizedBox(width: 8),
-              _buildFilterChip('غير مقروءة', 'unread'),
               const Spacer(),
               IconButton(
                 icon: Icon(Icons.refresh, color: AppColors.primary),
@@ -209,41 +199,11 @@ class _SupportConversationsScreenState
     );
   }
 
-  Widget _buildFilterChip(String label, String value) {
-    final isSelected = _statusFilter == value;
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          _statusFilter = value;
-        });
-        // إعادة تحميل المحادثات عند تغيير التصفية
-        _loadConversations();
-      },
-      selectedColor: AppColors.primary.withValues(alpha: 0.2),
-      checkmarkColor: AppColors.primary,
-      labelStyle: TextStyle(
-        color: isSelected ? AppColors.primary : AppColors.text,
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-      ),
-    );
-  }
-
   Widget _buildEmptyState() {
-    String title;
-    String subtitle;
-    IconData icon;
-
-    if (_statusFilter == 'unread') {
-      title = 'لا توجد محادثات غير مقروءة';
-      subtitle = 'جميع المحادثات مقروءة حالياً';
-      icon = Icons.mark_email_read;
-    } else {
-      title = 'لا توجد محادثات';
-      subtitle = 'ستظهر محادثات فريق الدعم هنا عندما يبدأ المستخدمون المحادثة';
-      icon = Icons.chat_bubble_outline;
-    }
+    const String title = 'لا توجد محادثات';
+    const String subtitle =
+        'ستظهر محادثات فريق الدعم هنا عندما يبدأ المستخدمون المحادثة';
+    const IconData icon = Icons.chat_bubble_outline;
 
     return Center(
       child: Column(

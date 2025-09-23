@@ -26,14 +26,22 @@ class SupabaseService {
         final url = dotenv.env['SUPABASE_URL'];
         final serviceRoleKey = dotenv.env['SUPABASE_SERVICE_ROLE_KEY'];
 
+        print('🔑 فحص مفاتيح API:');
+        print('🔑 SUPABASE_URL: $url');
+        print(
+          '🔑 SUPABASE_SERVICE_ROLE_KEY: ${serviceRoleKey?.substring(0, 20)}...',
+        );
+
         if (url != null && serviceRoleKey != null) {
           _serviceRoleClient = SupabaseClient(url, serviceRoleKey);
-          print('تم إنشاء عميل service_role بنجاح');
+          print('✅ تم إنشاء عميل service_role بنجاح');
         } else {
-          print('بيانات service_role غير موجودة');
+          print('❌ بيانات service_role غير موجودة');
+          print('❌ URL: $url');
+          print('❌ Service Role Key: $serviceRoleKey');
         }
       } catch (e) {
-        print('خطأ في إنشاء عميل service_role: $e');
+        print('❌ خطأ في إنشاء عميل service_role: $e');
       }
     }
     return _serviceRoleClient;
@@ -345,35 +353,20 @@ class SupabaseService {
 
       print('التحقق من صلاحيات المدير للمستخدم: ${user.email}');
 
-      // محاولة التحقق من جدول admin_users باستخدام user_id
-      try {
-        final response = await _client!
-            .from('admin_users')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('is_active', true)
-            .single();
-
-        print('تم العثور على المستخدم في جدول admin_users: $response');
-        return true;
-      } catch (userIdError) {
-        print('خطأ في البحث بـ user_id: $userIdError');
-
-        // محاولة البحث باستخدام البريد الإلكتروني
+      // البحث باستخدام البريد الإلكتروني مباشرة (أكثر موثوقية)
+      if (user.email != null) {
         try {
-          if (user.email != null) {
-            final response = await _client!
-                .from('admin_users')
-                .select('*')
-                .eq('email', user.email!)
-                .eq('is_active', true)
-                .single();
+          final response = await _client!
+              .from('admin_users')
+              .select('*')
+              .eq('email', user.email!)
+              .eq('is_active', true)
+              .single();
 
-            print(
-              'تم العثور على المستخدم في جدول admin_users باستخدام البريد الإلكتروني: $response',
-            );
-            return true;
-          }
+          print(
+            'تم العثور على المستخدم في جدول admin_users باستخدام البريد الإلكتروني: $response',
+          );
+          return true;
         } catch (emailError) {
           print('خطأ في البحث بـ البريد الإلكتروني: $emailError');
 
@@ -413,33 +406,17 @@ class SupabaseService {
 
       print('محاولة جلب معلومات المدير للمستخدم: ${user.email}');
 
-      // محاولة البحث بـ user_id أولاً
-      try {
-        final response = await _client!
-            .from('admin_users')
-            .select('*')
-            .eq('user_id', user.id)
-            .single();
-
-        print('تم العثور على معلومات المدير بـ user_id: $response');
-        return response;
-      } catch (userIdError) {
-        print('خطأ في البحث بـ user_id: $userIdError');
-
-        // محاولة البحث بـ البريد الإلكتروني
+      // البحث باستخدام البريد الإلكتروني مباشرة (أكثر موثوقية)
+      if (user.email != null) {
         try {
-          if (user.email != null) {
-            final response = await _client!
-                .from('admin_users')
-                .select('*')
-                .eq('email', user.email!)
-                .single();
+          final response = await _client!
+              .from('admin_users')
+              .select('*')
+              .eq('email', user.email!)
+              .single();
 
-            print(
-              'تم العثور على معلومات المدير بـ البريد الإلكتروني: $response',
-            );
-            return response;
-          }
+          print('تم العثور على معلومات المدير بـ البريد الإلكتروني: $response');
+          return response;
         } catch (emailError) {
           print('خطأ في البحث بـ البريد الإلكتروني: $emailError');
 
