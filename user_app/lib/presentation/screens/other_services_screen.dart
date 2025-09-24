@@ -1,9 +1,20 @@
 import 'package:flutter/material.dart';
 import 'mobile_credit_screen.dart';
 import 'game_cards_screen.dart';
+import 'chat_screen.dart';
+import '../../core/services/support_chat_service.dart';
+import 'dart:async';
 
-class OtherServicesScreen extends StatelessWidget {
+class OtherServicesScreen extends StatefulWidget {
   const OtherServicesScreen({super.key});
+
+  @override
+  State<OtherServicesScreen> createState() => _OtherServicesScreenState();
+}
+
+class _OtherServicesScreenState extends State<OtherServicesScreen> {
+  int _unreadMessagesCount = 0;
+  StreamSubscription? _unreadSubscription;
 
   // ألوان الهوية البصرية - نقلها خارج build method
   static const Color _tertiaryColor = Color(0xFF00CED1);
@@ -11,24 +22,63 @@ class OtherServicesScreen extends StatelessWidget {
   static const Color _overlayColor = Color.fromARGB(41, 240, 234, 208);
 
   // قائمة الخدمات - نقلها خارج build method
-  static const List<Map<String, dynamic>> _services = [
-    {'title': 'تواصل معنا', 'icon': Icons.support_agent, 'route': '/chat'},
+  List<Map<String, dynamic>> get _services => [
+    {
+      'title': 'تواصل معنا', 
+      'icon': Icons.support_agent, 
+      'route': '/chat',
+      'unreadCount': _unreadMessagesCount,
+    },
     {
       'title': 'تحويل رصيد الجوال',
       'icon': Icons.phone_android,
       'route': '/mobile-credit',
+      'unreadCount': 0,
     },
     {
       'title': 'خدمات التوصيل',
       'icon': Icons.local_shipping,
       'route': '/service3',
+      'unreadCount': 0,
     },
     {
       'title': 'شحن كروت ألعاب',
       'icon': Icons.videogame_asset,
       'route': '/game-cards',
+      'unreadCount': 0,
     },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeUnreadCount();
+  }
+
+  @override
+  void dispose() {
+    _unreadSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initializeUnreadCount() async {
+    // جلب العدد الأولي
+    final count = await SupportChatService.getUnreadMessagesCount();
+    if (mounted) {
+      setState(() {
+        _unreadMessagesCount = count;
+      });
+    }
+
+    // الاشتراك في التحديثات
+    _unreadSubscription = await SupportChatService.subscribeToUnreadCount((count) {
+      if (mounted) {
+        setState(() {
+          _unreadMessagesCount = count;
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +150,7 @@ class OtherServicesScreen extends StatelessWidget {
                     return ServiceCard(
                       title: service['title'] as String,
                       icon: service['icon'] as IconData,
+                      unreadCount: service['unreadCount'] as int,
                       onTap: () {
                         if (service['route'] == '/mobile-credit') {
                           Navigator.push(
@@ -113,6 +164,13 @@ class OtherServicesScreen extends StatelessWidget {
                             context,
                             MaterialPageRoute(
                               builder: (context) => const GameCardsScreen(),
+                            ),
+                          );
+                        } else if (service['route'] == '/chat') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ChatScreen(),
                             ),
                           );
                         } else {
@@ -137,6 +195,7 @@ class OtherServicesScreen extends StatelessWidget {
 class ServiceCard extends StatelessWidget {
   final String title;
   final IconData icon;
+  final int unreadCount;
   final VoidCallback onTap;
 
   static const Color _tertiaryColor = Color(0xFF00CED1);
@@ -145,6 +204,7 @@ class ServiceCard extends StatelessWidget {
     super.key,
     required this.title,
     required this.icon,
+    this.unreadCount = 0,
     required this.onTap,
   });
 
@@ -190,15 +250,53 @@ class ServiceCard extends StatelessWidget {
   }
 
   Widget _buildIcon() {
-    return Container(
-      width: 91,
-      height: 101,
-      decoration: BoxDecoration(
-        color: _tertiaryColor.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _tertiaryColor.withOpacity(0.2), width: 1),
-      ),
-      child: Icon(icon, size: 45, color: _tertiaryColor),
+    return Stack(
+      children: [
+        Container(
+          width: 91,
+          height: 101,
+          decoration: BoxDecoration(
+            color: _tertiaryColor.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _tertiaryColor.withOpacity(0.2), width: 1),
+          ),
+          child: Icon(icon, size: 45, color: _tertiaryColor),
+        ),
+        // شارة الرسائل غير المقروءة
+        if (unreadCount > 0)
+          Positioned(
+            right: 0,
+            top: 0,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.red.withOpacity(0.3),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              constraints: const BoxConstraints(
+                minWidth: 20,
+                minHeight: 20,
+              ),
+              child: Text(
+                unreadCount > 99 ? '99+' : unreadCount.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
     );
   }
 

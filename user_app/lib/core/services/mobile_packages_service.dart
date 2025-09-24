@@ -17,7 +17,7 @@ class MobilePackagesService {
 
       print('محاولة جلب الباقات من جدول: $_packagesTable');
 
-      // محاولة جلب الباقات بدون join أولاً
+      // جلب الباقات أولاً
       final response = await client
           .from(_packagesTable)
           .select('*')
@@ -37,7 +37,7 @@ class MobilePackagesService {
         try {
           final package = MobilePackage.fromJson(row);
 
-          // محاولة جلب معلومات المشغل بشكل منفصل
+          // جلب معلومات المشغل بشكل منفصل
           if (package.operatorId > 0) {
             try {
               final operatorResponse = await client
@@ -50,6 +50,9 @@ class MobilePackagesService {
               if (operatorResponse != null) {
                 package.operator = MobileOperatorModel.fromJson(
                   operatorResponse,
+                );
+                print(
+                  'تم جلب معلومات المشغل: ${package.operator?.displayNameAr}',
                 );
               }
             } catch (operatorError) {
@@ -92,7 +95,7 @@ class MobilePackagesService {
       // أولاً: جلب معرف المشغل
       final operatorResponse = await client
           .from(_operatorsTable)
-          .select('id')
+          .select('*')
           .eq('name', operatorName)
           .eq('is_active', true)
           .single();
@@ -103,7 +106,10 @@ class MobilePackagesService {
       }
 
       final operatorId = operatorResponse['id'];
-      print('معرف المشغل: $operatorId');
+      final operator = MobileOperatorModel.fromJson(operatorResponse);
+      print(
+        'تم العثور على المشغل: ${operator.displayNameAr} (ID: $operatorId)',
+      );
 
       // ثم جلب الباقات حسب معرف المشغل
       final response = await client
@@ -124,22 +130,7 @@ class MobilePackagesService {
       for (var row in response) {
         try {
           final package = MobilePackage.fromJson(row);
-
-          // إضافة معلومات المشغل
-          try {
-            final operatorData = await client
-                .from(_operatorsTable)
-                .select('*')
-                .eq('id', operatorId)
-                .single();
-
-            if (operatorData != null) {
-              package.operator = MobileOperatorModel.fromJson(operatorData);
-            }
-          } catch (operatorError) {
-            print('خطأ في جلب معلومات المشغل: $operatorError');
-          }
-
+          package.operator = operator; // إضافة معلومات المشغل
           packages.add(package);
         } catch (packageError) {
           print('خطأ في معالجة الباقة: $packageError');
@@ -430,10 +421,33 @@ class MobilePackagesService {
       print('URL: ${client.supabaseUrl}');
       print('Table: $_packagesTable');
 
-      // محاولة جلب عدد صغير من الباقات
-      final response = await client.from(_packagesTable).select('id').limit(1);
+      // اختبار جلب جميع الباقات (بدون فلتر)
+      try {
+        final allPackages = await client.from(_packagesTable).select('*');
+        print('إجمالي الباقات في قاعدة البيانات: ${allPackages?.length ?? 0}');
+      } catch (e) {
+        print('خطأ في جلب جميع الباقات: $e');
+      }
 
-      print('تم الاتصال بنجاح: ${response?.length ?? 0} نتيجة');
+      // اختبار جلب الباقات النشطة
+      try {
+        final activePackages = await client
+            .from(_packagesTable)
+            .select('*')
+            .eq('is_active', true);
+        print('الباقات النشطة: ${activePackages?.length ?? 0}');
+      } catch (e) {
+        print('خطأ في جلب الباقات النشطة: $e');
+      }
+
+      // اختبار جلب المشغلين
+      try {
+        final operators = await client.from(_operatorsTable).select('*');
+        print('إجمالي المشغلين: ${operators?.length ?? 0}');
+      } catch (e) {
+        print('خطأ في جلب المشغلين: $e');
+      }
+
       return true;
     } catch (e) {
       print('فشل في الاتصال: $e');

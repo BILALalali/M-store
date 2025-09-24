@@ -22,7 +22,6 @@ class SupportChatService {
         .from(_conversations)
         .select('id')
         .eq('user_id', user.id)
-        .eq('is_open', true)
         .maybeSingle();
 
     if (existing != null) {
@@ -32,7 +31,11 @@ class SupportChatService {
     // أنشئ محادثة جديدة
     final row = await _client
         .from(_conversations)
-        .insert({'user_id': user.id, 'status': 'open', 'is_open': true})
+        .insert({
+          'user_id': user.id,
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        })
         .select('id')
         .single();
 
@@ -61,7 +64,16 @@ class SupportChatService {
       'sender_id': user?.id,
       'type': 'text',
       'message': text,
+      'is_read':
+          false, // تحديد الرسالة كغير مقروءة للإنشاء إشعار في لوحة الإدارة
+      'created_at': DateTime.now().toIso8601String(),
     });
+
+    // تحديث وقت آخر تحديث للمحادثة
+    await _client
+        .from(_conversations)
+        .update({'updated_at': DateTime.now().toIso8601String()})
+        .eq('id', conversationId);
   }
 
   // إرسال صورة: ترفع إلى التخزين ثم تحفظ الرابط
@@ -89,7 +101,16 @@ class SupportChatService {
       'type': 'image',
       'media_url': url,
       'message': 'صورة',
+      'is_read':
+          false, // تحديد الرسالة كغير مقروءة للإنشاء إشعار في لوحة الإدارة
+      'created_at': DateTime.now().toIso8601String(),
     });
+
+    // تحديث وقت آخر تحديث للمحادثة
+    await _client
+        .from(_conversations)
+        .update({'updated_at': DateTime.now().toIso8601String()})
+        .eq('id', conversationId);
   }
 
   // الاشتراك في الرسائل باستخدام stream (أبسط وأكثر توافقاً)
@@ -120,6 +141,93 @@ class SupportChatService {
               onInsert(row);
             }
           }
+        });
+
+    return sub;
+  }
+
+  // حساب عدد الرسائل غير المقروءة من فريق الدعم للمستخدم الحالي
+  static Future<int> getUnreadMessagesCount() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return 0;
+
+    try {
+      // جلب محادثة المستخدم الحالية
+      final conversation = await _client
+          .from(_conversations)
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+      if (conversation == null) return 0;
+
+      final conversationId = conversation['id'] as String;
+
+      // حساب الرسائل غير المقروءة من فريق الدعم
+      final result = await _client
+          .from(_messages)
+          .select('id')
+          .eq('conversation_id', conversationId)
+          .eq('sender_type', 'admin')
+          .eq('is_read', false);
+
+      return result.length;
+    } catch (e) {
+      print('خطأ في حساب الرسائل غير المقروءة: $e');
+      return 0;
+    }
+  }
+
+  // تحديث حالة الرسائل كمقروءة عند فتح المحادثة
+  static Future<void> markMessagesAsRead(String conversationId) async {
+    try {
+      await _client
+          .from(_messages)
+          .update({'is_read': true})
+          .eq('conversation_id', conversationId)
+          .eq('sender_type', 'admin')
+          .eq('is_read', false);
+    } catch (e) {
+      print('خطأ في تحديث حالة الرسائل: $e');
+    }
+  }
+
+  // الاشتراك في تحديثات عدد الرسائل غير المقروءة
+  static Future<StreamSubscription> subscribeToUnreadCount(
+    void Function(int count) onCountUpdate,
+  ) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      onCountUpdate(0);
+      return StreamController<void>().stream.listen((_) {});
+    }
+
+    // جلب العدد الأولي
+    final initialCount = await getUnreadMessagesCount();
+    onCountUpdate(initialCount);
+
+    // جلب محادثة المستخدم الحالية
+    final conversation = await _client
+        .from(_conversations)
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+    if (conversation == null) {
+      onCountUpdate(0);
+      return StreamController<void>().stream.listen((_) {});
+    }
+
+    final conversationId = conversation['id'] as String;
+
+    // الاشتراك في تحديثات الرسائل للمحادثة المحددة فقط
+    final sub = _client
+        .from(_messages)
+        .stream(primaryKey: ['id'])
+        .eq('conversation_id', conversationId)
+        .listen((_) async {
+          final count = await getUnreadMessagesCount();
+          onCountUpdate(count);
         });
 
     return sub;

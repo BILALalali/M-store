@@ -4,6 +4,8 @@ import 'account_screen.dart';
 import 'orders_screen.dart';
 import 'store_screen.dart';
 import 'other_services_screen.dart';
+import '../../core/services/support_chat_service.dart';
+import 'dart:async';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -14,6 +16,8 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 2; // الرئيسية في المنتصف
+  int _unreadSupportMessages = 0;
+  StreamSubscription? _unreadSubscription;
 
   final List<Widget> _screens = [
     AccountScreen(),
@@ -22,6 +26,39 @@ class _MainScreenState extends State<MainScreen> {
     StoreScreen(),
     OtherServicesScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeUnreadCount();
+  }
+
+  @override
+  void dispose() {
+    _unreadSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initializeUnreadCount() async {
+    // جلب العدد الأولي
+    final count = await SupportChatService.getUnreadMessagesCount();
+    if (mounted) {
+      setState(() {
+        _unreadSupportMessages = count;
+      });
+    }
+
+    // الاشتراك في التحديثات
+    _unreadSubscription = await SupportChatService.subscribeToUnreadCount((
+      count,
+    ) {
+      if (mounted) {
+        setState(() {
+          _unreadSupportMessages = count;
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,6 +121,7 @@ class _MainScreenState extends State<MainScreen> {
                       index: 4,
                       selected: _currentIndex == 4,
                       primaryColor: primaryColor,
+                      badge: _unreadSupportMessages,
                     ),
                   ],
                 ),
