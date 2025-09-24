@@ -711,17 +711,25 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
   /// تنسيق الوقت
   String _formatTime(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
+    final now = DateTime.now().toLocal();
+    final localTimestamp = timestamp.toLocal();
 
-    if (difference.inMinutes < 1) {
-      return 'الآن';
-    } else if (difference.inMinutes < 60) {
-      return 'منذ ${difference.inMinutes} دقيقة';
-    } else if (difference.inHours < 24) {
-      return 'منذ ${difference.inHours} ساعة';
-    } else {
-      return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+    final hour = localTimestamp.hour.toString().padLeft(2, '0');
+    final minute = localTimestamp.minute.toString().padLeft(2, '0');
+
+    // إذا كانت الرسالة من اليوم نفسه، اعرض الوقت فقط
+    if (localTimestamp.year == now.year &&
+        localTimestamp.month == now.month &&
+        localTimestamp.day == now.day) {
+      return '$hour:$minute';
+    }
+    // إذا كانت الرسالة من نفس السنة، اعرض التاريخ والوقت
+    else if (localTimestamp.year == now.year) {
+      return '${localTimestamp.day.toString().padLeft(2, '0')}/${localTimestamp.month.toString().padLeft(2, '0')} $hour:$minute';
+    }
+    // إذا كانت الرسالة من سنة مختلفة، اعرض التاريخ الكامل والوقت
+    else {
+      return '${localTimestamp.day.toString().padLeft(2, '0')}/${localTimestamp.month.toString().padLeft(2, '0')}/${localTimestamp.year} $hour:$minute';
     }
   }
 

@@ -16,6 +16,7 @@ class ChatMessage {
   final MessageType type;
   final String? filePath;
   final String? imageUrl;
+  final bool isUnread;
 
   const ChatMessage({
     required this.text,
@@ -24,6 +25,7 @@ class ChatMessage {
     required this.type,
     this.filePath,
     this.imageUrl,
+    this.isUnread = false,
   });
 }
 
@@ -83,6 +85,7 @@ class _ChatScreenState extends State<ChatScreen> {
         final type = (row['type'] == 'image')
             ? MessageType.image
             : MessageType.text;
+        final isUnread = !isFromUser && (row['is_read'] == false);
         _messages.add(
           ChatMessage(
             text: row['message'] ?? '',
@@ -90,8 +93,14 @@ class _ChatScreenState extends State<ChatScreen> {
             timestamp: DateTime.parse(row['created_at']),
             type: type,
             imageUrl: row['media_url'],
+            isUnread: isUnread,
           ),
         );
+      }
+
+      // تحديث حالة الرسائل كمقروءة عند فتح المحادثة
+      if (_conversationId != null) {
+        await SupportChatService.markMessagesAsRead(_conversationId!);
       }
       _sub = await SupportChatService.subscribeToMessages(convId, (row) {
         final uidNow = SupabaseService.client!.auth.currentUser?.id;
@@ -100,6 +109,7 @@ class _ChatScreenState extends State<ChatScreen> {
         final type = (row['type'] == 'image')
             ? MessageType.image
             : MessageType.text;
+        final isUnread = !isFromUser && (row['is_read'] == false);
         setState(() {
           _messages.add(
             ChatMessage(
@@ -108,6 +118,7 @@ class _ChatScreenState extends State<ChatScreen> {
               timestamp: DateTime.parse(row['created_at']),
               type: type,
               imageUrl: row['media_url'],
+              isUnread: isUnread,
             ),
           );
         });
@@ -128,25 +139,6 @@ class _ChatScreenState extends State<ChatScreen> {
     SupportChatService.sendTextMessage(_conversationId!, messageText);
     _messageController.clear();
     _scrollToBottom();
-  }
-
-  /// محاكاة رد الإدارة
-  void _simulateAdminResponse() {
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _messages.add(
-            ChatMessage(
-              text: 'شكراً لك على رسالتك. سنقوم بالرد عليك في أقرب وقت ممكن.',
-              isFromUser: false,
-              timestamp: DateTime.now(),
-              type: MessageType.text,
-            ),
-          );
-        });
-        _scrollToBottom();
-      }
-    });
   }
 
   /// التمرير إلى أسفل المحادثة
@@ -337,13 +329,41 @@ class _ChatScreenState extends State<ChatScreen> {
             offset: const Offset(0, 2),
           ),
         ],
+        // تمييز الرسائل غير المقروءة بحدود زرقاء
+        border: message.isUnread && !message.isFromUser
+            ? Border.all(color: Colors.blue, width: 2)
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildMessageText(message),
           const SizedBox(height: 4),
-          _buildMessageTime(message.timestamp, message.isFromUser),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildMessageTime(message.timestamp, message.isFromUser),
+              if (message.isUnread && !message.isFromUser)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blue,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    'جديد',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -507,17 +527,25 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// تنسيق الوقت
   String _formatTime(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
+    final now = DateTime.now().toLocal();
+    final localTimestamp = timestamp.toLocal();
 
-    if (difference.inMinutes < 1) {
-      return 'الآن';
-    } else if (difference.inMinutes < 60) {
-      return 'منذ ${difference.inMinutes} دقيقة';
-    } else if (difference.inHours < 24) {
-      return 'منذ ${difference.inHours} ساعة';
-    } else {
-      return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+    final hour = localTimestamp.hour.toString().padLeft(2, '0');
+    final minute = localTimestamp.minute.toString().padLeft(2, '0');
+
+    // إذا كانت الرسالة من اليوم نفسه، اعرض الوقت فقط
+    if (localTimestamp.year == now.year &&
+        localTimestamp.month == now.month &&
+        localTimestamp.day == now.day) {
+      return '$hour:$minute';
+    }
+    // إذا كانت الرسالة من نفس السنة، اعرض التاريخ والوقت
+    else if (localTimestamp.year == now.year) {
+      return '${localTimestamp.day.toString().padLeft(2, '0')}/${localTimestamp.month.toString().padLeft(2, '0')} $hour:$minute';
+    }
+    // إذا كانت الرسالة من سنة مختلفة، اعرض التاريخ الكامل والوقت
+    else {
+      return '${localTimestamp.day.toString().padLeft(2, '0')}/${localTimestamp.month.toString().padLeft(2, '0')}/${localTimestamp.year} $hour:$minute';
     }
   }
 }
