@@ -11,6 +11,8 @@ import 'advertisements/index.dart';
 import 'mobile_packages/index.dart';
 import 'game_cards/index.dart';
 import 'support_chat/index.dart';
+import 'orders/index.dart';
+import 'wholesale/index.dart';
 import '../../core/services/auth_service.dart'; // Added import for AuthService
 import 'dart:async';
 
@@ -36,6 +38,8 @@ class _AdminMainScreenState extends State<AdminMainScreen>
   // قائمة الشاشات
   final List<Widget> _screens = [
     const DashboardScreen(),
+    const OrdersScreen(), // شاشة إدارة الطلبات
+    const WholesaleRequestsScreen(), // شاشة إدارة طلبات الجملة
     const ProductsScreen(), // شاشة إدارة المنتجات
     const MobilePackagesScreen(), // شاشة إدارة بطاقات الجوال
     const GameCardsScreen(), // شاشة إدارة بطاقات الألعاب
@@ -48,6 +52,8 @@ class _AdminMainScreenState extends State<AdminMainScreen>
   // عناوين الشاشات
   final List<String> _screenTitles = [
     'لوحة الإدارة',
+    'إدارة الطلبات',
+    'طلبات الجملة',
     'إدارة المنتجات',
     'بطاقات الجوال',
     'بطاقات الألعاب',
@@ -244,12 +250,12 @@ class _AdminMainScreenState extends State<AdminMainScreen>
                 },
                 onProfileTap: () {
                   setState(() {
-                    _selectedIndex = 5; // الانتقال لصفحة الملف الشخصي
+                    _selectedIndex = 7; // الانتقال لصفحة الملف الشخصي
                   });
                 },
                 onSettingsTap: () {
                   setState(() {
-                    _selectedIndex = 6; // الانتقال لصفحة الإعدادات
+                    _selectedIndex = 8; // الانتقال لصفحة الإعدادات
                   });
                 },
                 onLogoutTap: _handleLogout,
@@ -350,7 +356,7 @@ class _AdminMainScreenState extends State<AdminMainScreen>
                       onPressed: () {
                         // الانتقال إلى شاشة المحادثات
                         setState(() {
-                          _selectedIndex = 7; // شاشة دردشات فريق الدعم
+                          _selectedIndex = 9; // شاشة دردشات فريق الدعم
                         });
                       },
                     ),

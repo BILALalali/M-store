@@ -1,0 +1,741 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/wholesale_request.dart';
+import '../models/wholesale_message.dart';
+import 'supabase_service.dart';
+import 'dart:async';
+
+class WholesaleService {
+  static final WholesaleService _instance = WholesaleService._internal();
+  factory WholesaleService() => _instance;
+  WholesaleService._internal();
+
+  final SupabaseService _supabaseService = SupabaseService();
+
+  // Stream controllers للتحديثات في الوقت الفعلي
+  final StreamController<List<WholesaleRequest>> _requestsController =
+      StreamController<List<WholesaleRequest>>.broadcast();
+  final StreamController<List<WholesaleMessage>> _messagesController =
+      StreamController<List<WholesaleMessage>>.broadcast();
+
+  // Streams للاستماع للتحديثات
+  Stream<List<WholesaleRequest>> get requestsStream =>
+      _requestsController.stream;
+  Stream<List<WholesaleMessage>> get messagesStream =>
+      _messagesController.stream;
+
+  // subscriptions
+  RealtimeChannel? _requestsSubscription;
+  RealtimeChannel? _messagesSubscription;
+
+  // بدء الاستماع للتحديثات في الوقت الفعلي
+  void startRealtimeSubscriptions() {
+    if (!_supabaseService.isReady) return;
+
+    final client = _supabaseService.client!;
+
+    // الاستماع لتغييرات في جدول wholesale_requests
+    _requestsSubscription = client
+        .channel('wholesale_requests_changes')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'wholesale_requests',
+          callback: (payload) {
+            print('🔄 تغيير في طلبات الجملة: ${payload.eventType}');
+            _handleRequestsChange(payload);
+          },
+        )
+        .subscribe();
+
+    print('✅ تم بدء الاستماع للتحديثات في الوقت الفعلي لطلبات الجملة');
+  }
+
+  // إيقاف الاستماع
+  void stopRealtimeSubscriptions() {
+    _requestsSubscription?.unsubscribe();
+    _messagesSubscription?.unsubscribe();
+    _requestsSubscription = null;
+    _messagesSubscription = null;
+    print('🛑 تم إيقاف الاستماع للتحديثات في الوقت الفعلي');
+  }
+
+  // معالجة التغييرات في طلبات الجملة
+  void _handleRequestsChange(PostgresChangePayload payload) async {
+    print('📊 معالجة تغيير في طلبات الجملة...');
+
+    try {
+      // إعادة جلب البيانات عند أي تغيير
+      final updatedRequests = await getWholesaleRequests();
+      _requestsController.add(updatedRequests);
+
+      print('✅ تم تحديث قائمة طلبات الجملة: ${updatedRequests.length} طلب');
+    } catch (e) {
+      print('❌ خطأ في معالجة تغيير طلبات الجملة: $e');
+    }
+  }
+
+  // إنهاء الموارد
+  void dispose() {
+    stopRealtimeSubscriptions();
+    _requestsController.close();
+    _messagesController.close();
+  }
+
+  // الحصول على جميع طلبات الجملة
+  Future<List<WholesaleRequest>> getWholesaleRequests() async {
+    try {
+      if (!_supabaseService.isReady) {
+        print('❌ Supabase غير مهيأ');
+        return [];
+      }
+
+      print('🔄 جلب طلبات الجملة من قاعدة البيانات...');
+      final client = _supabaseService.client!;
+
+      // جلب جميع طلبات الجملة الحقيقية
+      final response = await client
+          .from('wholesale_requests')
+          .select('*')
+          .order('created_at', ascending: false);
+
+      print('✅ تم جلب ${response.length} طلب جملة من قاعدة البيانات');
+
+      if (response.isEmpty) {
+        print('⚠️ لا توجد طلبات جملة في قاعدة البيانات');
+        return [];
+      }
+
+      final requests = <WholesaleRequest>[];
+
+      for (var item in response) {
+        // جلب اسم المستخدم من profiles
+        String userName = 'عميل الجملة';
+        try {
+          final userId = item['user_id'];
+          if (userId != null) {
+            final profileResponse = await _supabaseService.client!
+                .from('profiles')
+                .select('name')
+                .eq('id', userId)
+                .maybeSingle();
+            userName =
+                profileResponse?['name'] ??
+                'عميل ${userId.toString().substring(0, 8)}';
+          }
+        } catch (e) {
+          print('تحذير: لا يمكن جلب اسم المستخدم: $e');
+        }
+
+        // معالجة البيانات الحقيقية
+        final String productName = (item['product_name'] ?? '')
+            .toString()
+            .trim();
+        final String description = (item['description'] ?? '')
+            .toString()
+            .trim();
+        final int quantity = (item['quantity'] is int)
+            ? item['quantity']
+            : int.tryParse(item['quantity']?.toString() ?? '1') ?? 1;
+        final String status = (item['status'] ?? 'pending').toString();
+
+        // تحديد اسم المنتج للعرض
+        final String displayProductName = productName.isNotEmpty
+            ? productName
+            : description.isNotEmpty
+            ? (description.length > 50
+                  ? '${description.substring(0, 50)}...'
+                  : description)
+            : 'طلب جملة ${item['id'].toString().substring(0, 8)}';
+
+        // معالجة التواريخ
+        DateTime createdAt = DateTime.now();
+        DateTime updatedAt = DateTime.now();
+
+        try {
+          if (item['created_at'] != null) {
+            createdAt = DateTime.parse(item['created_at'].toString());
+          }
+          if (item['updated_at'] != null) {
+            updatedAt = DateTime.parse(item['updated_at'].toString());
+          }
+        } catch (e) {
+          print('تحذير: خطأ في تحليل التاريخ: $e');
+        }
+
+        // إضافة الطلب للقائمة
+        requests.add(
+          WholesaleRequest(
+            id: item['id']?.toString() ?? 'unknown',
+            userId: item['user_id']?.toString() ?? 'unknown',
+            productName: displayProductName,
+            description: description.isNotEmpty ? description : 'لا يوجد وصف',
+            quantity: quantity,
+            status: status,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            userName: userName,
+            userEmail: null,
+            lastMessage: null,
+            lastMessageAt: null,
+            unreadCount: 0,
+            hasUnreadMessages: false,
+          ),
+        );
+
+        print('📋 تم إضافة طلب: $displayProductName (الكمية: $quantity)');
+      }
+
+      print('🎉 تم جلب ${requests.length} طلب جملة حقيقي من قاعدة البيانات');
+
+      // إرسال البيانات للـ stream
+      _requestsController.add(requests);
+
+      return requests;
+    } catch (e) {
+      print('❌ خطأ في جلب طلبات الجملة: $e');
+      return [];
+    }
+  }
+
+  // الحصول على طلب جملة محدد
+  Future<WholesaleRequest?> getWholesaleRequest(String requestId) async {
+    try {
+      if (!_supabaseService.isReady) {
+        return null;
+      }
+
+      print('جلب طلب الجملة: $requestId');
+
+      final response = await _supabaseService.client!
+          .from('wholesale_requests')
+          .select('*')
+          .eq('id', requestId)
+          .single();
+
+      final userId = response['user_id'];
+      String? userName;
+
+      try {
+        final profileResponse = await _supabaseService.client!
+            .from('profiles')
+            .select('name')
+            .eq('id', userId)
+            .maybeSingle();
+        if (profileResponse != null && profileResponse['name'] != null) {
+          userName = profileResponse['name'];
+        }
+      } catch (e) {
+        print('❌ خطأ في جلب اسم المستخدم: $e');
+      }
+
+      // جلب آخر رسالة وعدد الرسائل غير المقروءة
+      WholesaleMessage? lastMessage;
+      int unreadCount = 0;
+      try {
+        lastMessage = await _getLastWholesaleMessage(requestId);
+        unreadCount = await _getUnreadWholesaleMessagesCount(requestId);
+      } catch (e) {
+        print('تحذير: لا يمكن جلب رسائل طلب الجملة: $e');
+      }
+
+      return WholesaleRequest(
+        id: response['id'],
+        userId: userId,
+        productName: response['product_name'] ?? 'منتج غير محدد',
+        description: response['description'] ?? 'لا يوجد وصف',
+        quantity: response['quantity'] ?? 1,
+        status: response['status'] ?? 'pending',
+        createdAt: DateTime.parse(response['created_at']),
+        updatedAt: DateTime.parse(response['updated_at']),
+        userName: userName,
+        lastMessage: lastMessage?.message,
+        lastMessageAt: lastMessage?.createdAt,
+        unreadCount: unreadCount,
+        hasUnreadMessages: unreadCount > 0,
+      );
+    } catch (e) {
+      print('خطأ في جلب طلب الجملة: $e');
+      return null;
+    }
+  }
+
+  // الحصول على رسائل طلب جملة محدد
+  Future<List<WholesaleMessage>> getWholesaleMessages(String requestId) async {
+    try {
+      if (!_supabaseService.isReady) {
+        return [];
+      }
+
+      print('جلب رسائل طلب الجملة: $requestId');
+
+      // محاولة جلب رسائل من جدول wholesale_messages أولاً
+      try {
+        final response = await _supabaseService.client!
+            .from('wholesale_messages')
+            .select('*')
+            .eq('conversation_id', requestId)
+            .order('created_at', ascending: true);
+
+        print('تم جلب ${response.length} رسالة من جدول wholesale_messages');
+        return _processWholesaleMessages(response);
+      } catch (e) {
+        print(
+          'جدول wholesale_messages غير موجود أو فارغ، محاولة استخدام support_messages: $e',
+        );
+
+        // إذا لم يكن جدول wholesale_messages موجوداً، استخدم support_messages
+        try {
+          final response = await _supabaseService.client!
+              .from('support_messages')
+              .select('*')
+              .eq('conversation_id', requestId)
+              .order('created_at', ascending: true);
+
+          print('تم جلب ${response.length} رسالة من جدول support_messages');
+          return _processSupportMessagesAsWholesaleMessages(
+            response,
+            requestId,
+          );
+        } catch (supportError) {
+          print('خطأ في جلب الرسائل من support_messages: $supportError');
+          return [];
+        }
+      }
+    } catch (e) {
+      print('خطأ في جلب رسائل طلب الجملة: $e');
+      return [];
+    }
+  }
+
+  // إرسال رسالة لطلب الجملة
+  Future<WholesaleMessage?> sendWholesaleMessage({
+    required String requestId,
+    required String message,
+    String? mediaUrl,
+    String type = 'text',
+  }) async {
+    try {
+      if (!_supabaseService.isReady) {
+        throw Exception('Supabase غير مهيأ');
+      }
+
+      final currentUser = _supabaseService.currentUser;
+      if (currentUser == null) {
+        throw Exception('المستخدم غير مسجل الدخول');
+      }
+
+      print('إرسال رسالة جديدة لطلب الجملة: $requestId');
+
+      final messageData = {
+        'conversation_id': requestId,
+        'sender_type': 'admin',
+        'sender_id': currentUser.id,
+        'type': type,
+        'message': message,
+        'media_url': mediaUrl,
+        'created_at': DateTime.now().toIso8601String(),
+        'is_read': false,
+      };
+
+      // محاولة إدراج في جدول wholesale_messages أولاً
+      try {
+        final response = await _supabaseService.client!
+            .from('wholesale_messages')
+            .insert(messageData)
+            .select()
+            .single();
+
+        await _updateWholesaleRequestTimestamp(requestId);
+        return WholesaleMessage.fromJson(response);
+      } catch (e) {
+        print(
+          'جدول wholesale_messages غير موجود، استخدام support_messages: $e',
+        );
+
+        // إذا لم يكن جدول wholesale_messages موجوداً، استخدم support_messages
+        final response = await _supabaseService.client!
+            .from('support_messages')
+            .insert(messageData)
+            .select()
+            .single();
+
+        await _updateWholesaleRequestTimestamp(requestId);
+
+        // تحويل من support_message إلى wholesale_message
+        return WholesaleMessage(
+          id: response['id'],
+          conversationId: requestId,
+          senderType: response['sender_type'],
+          senderId: response['sender_id'],
+          type: response['type'],
+          message: response['message'],
+          mediaUrl: response['media_url'],
+          createdAt: DateTime.parse(response['created_at']),
+          isRead: response['is_read'] ?? false,
+          senderName: 'فريق المبيعات',
+        );
+      }
+    } catch (e) {
+      print('خطأ في إرسال رسالة طلب الجملة: $e');
+      rethrow;
+    }
+  }
+
+  // تحديث حالة طلب الجملة
+  Future<bool> updateWholesaleRequestStatus(
+    String requestId,
+    String status,
+  ) async {
+    try {
+      if (!_supabaseService.isReady) {
+        return false;
+      }
+
+      print('تحديث حالة طلب الجملة $requestId إلى $status');
+
+      await _supabaseService.client!
+          .from('wholesale_requests')
+          .update({
+            'status': status,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', requestId);
+
+      print('✅ تم تحديث حالة طلب الجملة بنجاح');
+      return true;
+    } catch (e) {
+      print('❌ خطأ في تحديث حالة طلب الجملة: $e');
+      return false;
+    }
+  }
+
+  // تعيين رسائل طلب الجملة كمقروءة
+  Future<void> markWholesaleMessagesAsRead(String requestId) async {
+    try {
+      print('📖 تحديث رسائل طلب الجملة كمقروءة: $requestId');
+
+      final client = _supabaseService.client!;
+
+      // محاولة تحديث في جدول wholesale_messages أولاً
+      try {
+        await client
+            .from('wholesale_messages')
+            .update({'is_read': true})
+            .eq('conversation_id', requestId)
+            .eq('sender_type', 'user')
+            .eq('is_read', false);
+      } catch (e) {
+        // إذا لم يكن الجدول موجوداً، استخدم support_messages
+        await client
+            .from('support_messages')
+            .update({'is_read': true})
+            .eq('conversation_id', requestId)
+            .eq('sender_type', 'user')
+            .eq('is_read', false);
+      }
+
+      print('✅ تم تحديث رسائل طلب الجملة كمقروءة بنجاح');
+    } catch (e) {
+      print('خطأ في تحديث حالة رسائل طلب الجملة: $e');
+    }
+  }
+
+  // إحصائيات طلبات الجملة
+  Future<Map<String, dynamic>> getWholesaleStats() async {
+    try {
+      if (!_supabaseService.isReady) {
+        return _getDefaultWholesaleStats();
+      }
+
+      final client = _supabaseService.client!;
+
+      // إجمالي طلبات الجملة
+      final totalRequests = await client
+          .from('wholesale_requests')
+          .select('id');
+
+      // الطلبات المعلقة
+      final pendingRequests = await client
+          .from('wholesale_requests')
+          .select('id')
+          .eq('status', 'pending');
+
+      // الطلبات قيد الدراسة
+      final underReviewRequests = await client
+          .from('wholesale_requests')
+          .select('id')
+          .eq('status', 'under_review');
+
+      // الطلبات الموافق عليها
+      final approvedRequests = await client
+          .from('wholesale_requests')
+          .select('id')
+          .eq('status', 'approved');
+
+      // الطلبات المكتملة
+      final completedRequests = await client
+          .from('wholesale_requests')
+          .select('id')
+          .eq('status', 'completed');
+
+      return {
+        'total_requests': totalRequests.length,
+        'pending_requests': pendingRequests.length,
+        'under_review_requests': underReviewRequests.length,
+        'approved_requests': approvedRequests.length,
+        'completed_requests': completedRequests.length,
+      };
+    } catch (e) {
+      print('خطأ في جلب إحصائيات طلبات الجملة: $e');
+      return _getDefaultWholesaleStats();
+    }
+  }
+
+  // دوال مساعدة خاصة
+
+  // الحصول على آخر رسالة في طلب الجملة
+  Future<WholesaleMessage?> _getLastWholesaleMessage(String requestId) async {
+    try {
+      // محاولة جلب من wholesale_messages أولاً
+      try {
+        final response = await _supabaseService.client!
+            .from('wholesale_messages')
+            .select('*')
+            .eq('conversation_id', requestId)
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+
+        if (response != null) {
+          return WholesaleMessage.fromJson(response);
+        }
+      } catch (e) {
+        // جلب من support_messages
+        final response = await _supabaseService.client!
+            .from('support_messages')
+            .select('*')
+            .eq('conversation_id', requestId)
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+
+        if (response != null) {
+          return WholesaleMessage(
+            id: response['id'],
+            conversationId: requestId,
+            senderType: response['sender_type'] ?? 'user',
+            senderId: response['sender_id'],
+            type: response['type'] ?? 'text',
+            message: response['message'] ?? '',
+            mediaUrl: response['media_url'],
+            createdAt: DateTime.parse(response['created_at']),
+            isRead: response['is_read'] ?? false,
+          );
+        }
+      }
+
+      return null;
+    } catch (e) {
+      print('خطأ في جلب آخر رسالة لطلب الجملة: $e');
+      return null;
+    }
+  }
+
+  // حساب عدد الرسائل غير المقروءة لطلب الجملة
+  Future<int> _getUnreadWholesaleMessagesCount(String requestId) async {
+    try {
+      // محاولة العد من wholesale_messages أولاً
+      try {
+        final response = await _supabaseService.client!
+            .from('wholesale_messages')
+            .select('id')
+            .eq('conversation_id', requestId)
+            .eq('sender_type', 'user')
+            .eq('is_read', false);
+
+        return response.length;
+      } catch (e) {
+        // العد من support_messages
+        final response = await _supabaseService.client!
+            .from('support_messages')
+            .select('id')
+            .eq('conversation_id', requestId)
+            .eq('sender_type', 'user')
+            .eq('is_read', false);
+
+        return response.length;
+      }
+    } catch (e) {
+      print('خطأ في حساب الرسائل غير المقروءة لطلب الجملة: $e');
+      return 0;
+    }
+  }
+
+  // تحديث وقت آخر تحديث لطلب الجملة
+  Future<void> _updateWholesaleRequestTimestamp(String requestId) async {
+    try {
+      await _supabaseService.client!
+          .from('wholesale_requests')
+          .update({'updated_at': DateTime.now().toIso8601String()})
+          .eq('id', requestId);
+    } catch (e) {
+      print('خطأ في تحديث وقت طلب الجملة: $e');
+    }
+  }
+
+  // معالجة رسائل wholesale_messages
+  List<WholesaleMessage> _processWholesaleMessages(List<dynamic> response) {
+    final messages = <WholesaleMessage>[];
+
+    for (var item in response) {
+      try {
+        messages.add(WholesaleMessage.fromJson(item));
+      } catch (e) {
+        print('خطأ في معالجة رسالة طلب الجملة: $e');
+      }
+    }
+
+    return messages;
+  }
+
+  // معالجة رسائل support_messages كرسائل طلبات جملة
+  List<WholesaleMessage> _processSupportMessagesAsWholesaleMessages(
+    List<dynamic> response,
+    String requestId,
+  ) {
+    final messages = <WholesaleMessage>[];
+
+    for (var item in response) {
+      try {
+        messages.add(
+          WholesaleMessage(
+            id: item['id'],
+            conversationId: requestId,
+            senderType: item['sender_type'] ?? 'user',
+            senderId: item['sender_id'],
+            type: item['type'] ?? 'text',
+            message: item['message'] ?? '',
+            mediaUrl: item['media_url'],
+            createdAt: DateTime.parse(item['created_at']),
+            isRead: item['is_read'] ?? false,
+            senderName: item['sender_type'] == 'admin'
+                ? 'فريق المبيعات'
+                : 'العميل',
+          ),
+        );
+      } catch (e) {
+        print('خطأ في معالجة رسالة الدعم كرسالة طلب جملة: $e');
+      }
+    }
+
+    return messages;
+  }
+
+  Map<String, dynamic> _getDefaultWholesaleStats() {
+    return {
+      'total_requests': 0,
+      'pending_requests': 0,
+      'under_review_requests': 0,
+      'approved_requests': 0,
+      'completed_requests': 0,
+    };
+  }
+
+  // الاستماع للتحديثات المباشرة
+  RealtimeChannel? _wholesaleRequestsChannel;
+  RealtimeChannel? _wholesaleMessagesChannel;
+
+  // بدء الاستماع للتحديثات المباشرة لطلبات الجملة
+  void startListeningToWholesaleRequests(
+    Function(List<WholesaleRequest>) onUpdate,
+  ) {
+    try {
+      if (!_supabaseService.isReady) return;
+
+      _wholesaleRequestsChannel = _supabaseService.client!
+          .channel('wholesale_requests_changes')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'wholesale_requests',
+            callback: (payload) async {
+              print('تحديث في طلبات الجملة: $payload');
+              final requests = await getWholesaleRequests();
+              onUpdate(requests);
+            },
+          )
+          .subscribe();
+
+      print('بدأ الاستماع لتحديثات طلبات الجملة');
+    } catch (e) {
+      print('خطأ في بدء الاستماع لطلبات الجملة: $e');
+    }
+  }
+
+  // بدء الاستماع للتحديثات المباشرة لرسائل طلب الجملة
+  void startListeningToWholesaleMessages(
+    String requestId,
+    Function(List<WholesaleMessage>) onUpdate,
+  ) {
+    try {
+      if (!_supabaseService.isReady) return;
+
+      // الاستماع لرسائل wholesale_messages
+      _wholesaleMessagesChannel = _supabaseService.client!
+          .channel('wholesale_messages_changes_$requestId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'wholesale_messages',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'conversation_id',
+              value: requestId,
+            ),
+            callback: (payload) async {
+              print('تحديث في رسائل طلب الجملة: $payload');
+              final messages = await getWholesaleMessages(requestId);
+              onUpdate(messages);
+            },
+          )
+          .subscribe();
+
+      // إضافة استماع لـ support_messages أيضاً كبديل
+      _supabaseService.client!
+          .channel('support_messages_for_wholesale_$requestId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'support_messages',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'conversation_id',
+              value: requestId,
+            ),
+            callback: (payload) async {
+              print('تحديث في رسائل الدعم لطلب الجملة: $payload');
+              final messages = await getWholesaleMessages(requestId);
+              onUpdate(messages);
+            },
+          )
+          .subscribe();
+
+      print('بدأ الاستماع لتحديثات رسائل طلب الجملة: $requestId');
+    } catch (e) {
+      print('خطأ في بدء الاستماع لرسائل طلب الجملة: $e');
+    }
+  }
+
+  // إيقاف الاستماع للتحديثات
+  void stopListening() {
+    try {
+      _wholesaleRequestsChannel?.unsubscribe();
+      _wholesaleMessagesChannel?.unsubscribe();
+      _wholesaleRequestsChannel = null;
+      _wholesaleMessagesChannel = null;
+      print('تم إيقاف الاستماع لتحديثات طلبات الجملة');
+    } catch (e) {
+      print('خطأ في إيقاف الاستماع: $e');
+    }
+  }
+}
