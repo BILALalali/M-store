@@ -30,9 +30,9 @@ class AdminSidebar extends StatefulWidget {
 
 class _AdminSidebarState extends State<AdminSidebar> {
   // حالة الأقسام القابلة للطي
-  bool _isGeneralExpanded = true;
-  bool _isManagementExpanded = true;
-  bool _isChatsExpanded = false;
+  bool _isGeneralExpanded = false;
+  bool _isManagementExpanded = false;
+  bool _isChatsExpanded = true;
 
   @override
   void initState() {
@@ -123,42 +123,11 @@ class _AdminSidebarState extends State<AdminSidebar> {
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 16),
       children: [
-        // قسم عام
+        // قسم الدعم والطلبات
         _buildCollapsibleSection(
-          title: 'عام',
-          isExpanded: _isGeneralExpanded,
-          onToggle: () =>
-              setState(() => _isGeneralExpanded = !_isGeneralExpanded),
-          children: [
-            _buildNavItem(
-              icon: Icons.dashboard,
-              title: 'الرئيسية',
-              subtitle: 'لوحة التحكم الرئيسية',
-              index: 0,
-            ),
-            _buildNavItem(
-              icon: Icons.person,
-              title: 'الملف الشخصي',
-              subtitle: 'إدارة الملف الشخصي',
-              index: 7,
-            ),
-            _buildNavItem(
-              icon: Icons.settings,
-              title: 'الإعدادات',
-              subtitle: 'إعدادات النظام والحساب',
-              index: 8,
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 8),
-
-        // قسم إدارة
-        _buildCollapsibleSection(
-          title: 'إدارة',
-          isExpanded: _isManagementExpanded,
-          onToggle: () =>
-              setState(() => _isManagementExpanded = !_isManagementExpanded),
+          title: 'الدعم والطلبات',
+          isExpanded: _isChatsExpanded,
+          onToggle: () => setState(() => _isChatsExpanded = !_isChatsExpanded),
           children: [
             _buildNavItem(
               icon: Icons.shopping_cart,
@@ -172,6 +141,25 @@ class _AdminSidebarState extends State<AdminSidebar> {
               subtitle: 'إدارة ومتابعة طلبات الجملة',
               index: 2,
             ),
+            _buildNavItemWithNotification(
+              icon: Icons.support_agent,
+              title: 'فريق الدعم',
+              subtitle: 'إدارة دردشات الدعم',
+              index: 9,
+              notificationCount: widget.totalUnreadMessages,
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 8),
+
+        // قسم إدارة المحتوى
+        _buildCollapsibleSection(
+          title: 'إدارة المحتوى',
+          isExpanded: _isManagementExpanded,
+          onToggle: () =>
+              setState(() => _isManagementExpanded = !_isManagementExpanded),
+          children: [
             _buildNavItem(
               icon: Icons.inventory,
               title: 'المنتجات',
@@ -201,18 +189,30 @@ class _AdminSidebarState extends State<AdminSidebar> {
 
         const SizedBox(height: 8),
 
-        // قسم الدردشات
+        // قسم عام
         _buildCollapsibleSection(
-          title: 'الدردشات',
-          isExpanded: _isChatsExpanded,
-          onToggle: () => setState(() => _isChatsExpanded = !_isChatsExpanded),
+          title: 'عام',
+          isExpanded: _isGeneralExpanded,
+          onToggle: () =>
+              setState(() => _isGeneralExpanded = !_isGeneralExpanded),
           children: [
-            _buildNavItemWithNotification(
-              icon: Icons.support_agent,
-              title: 'فريق الدعم',
-              subtitle: 'إدارة دردشات الدعم',
-              index: 9,
-              notificationCount: widget.totalUnreadMessages,
+            _buildNavItem(
+              icon: Icons.dashboard,
+              title: 'الرئيسية',
+              subtitle: 'لوحة التحكم الرئيسية',
+              index: 0,
+            ),
+            _buildNavItem(
+              icon: Icons.person,
+              title: 'الملف الشخصي',
+              subtitle: 'إدارة الملف الشخصي',
+              index: 7,
+            ),
+            _buildNavItem(
+              icon: Icons.settings,
+              title: 'الإعدادات',
+              subtitle: 'إعدادات النظام والحساب',
+              index: 8,
             ),
           ],
         ),
