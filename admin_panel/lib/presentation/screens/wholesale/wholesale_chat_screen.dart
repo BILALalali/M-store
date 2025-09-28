@@ -22,11 +22,21 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
   bool _isLoading = true;
   bool _isSending = false;
   bool _hasUnreadMessages = false;
+  bool _isConnected = false;
   WholesaleRequest? _currentRequest;
 
   @override
   void initState() {
     super.initState();
+    print('🎬 ==== تهيئة شاشة محادثة طلب الجملة ====');
+    print('📋 معلومات طلب الجملة:');
+    print('   - ID: ${widget.request.id}');
+    print('   - Product Name: ${widget.request.productName}');
+    print('   - User ID: ${widget.request.userId}');
+    print('   - User Name: ${widget.request.userName}');
+    print('   - Status: ${widget.request.status}');
+    print('   - Quantity: ${widget.request.quantity}');
+    
     _currentRequest = widget.request;
     _loadMessages();
     _startListening();
@@ -51,10 +61,28 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
     });
 
     try {
+      print('🚀 ==== بدء تحميل رسائل طلب الجملة في واجهة المشرف ====');
+      print('📋 معرف طلب الجملة: ${widget.request.id}');
+      print('📋 اسم المنتج: ${widget.request.productName}');
+      print('👤 معرف المستخدم: ${widget.request.userId}');
+      print('👤 اسم المستخدم: ${widget.request.userName}');
+
       final messages = await _wholesaleService.getWholesaleMessages(widget.request.id);
 
-      print('=== جلب رسائل طلب الجملة ===');
+      print('=== نتيجة جلب رسائل طلب الجملة ===');
       print('عدد الرسائل المستلمة: ${messages.length}');
+      
+      if (messages.isNotEmpty) {
+        print('📋 تفاصيل رسائل طلب الجملة:');
+        for (int i = 0; i < messages.length; i++) {
+          final msg = messages[i];
+          print(
+            '   ${i + 1}. ${msg.senderType}: ${msg.message} (${msg.detailedTime})',
+          );
+        }
+      } else {
+        print('⚠️ لم يتم العثور على أي رسائل لطلب الجملة');
+      }
 
       setState(() {
         _messages = messages;
@@ -66,7 +94,10 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollToBottom();
       });
+      
+      print('✅ انتهاء تحميل رسائل طلب الجملة في واجهة المشرف');
     } catch (e) {
+      print('❌ خطأ في تحميل رسائل طلب الجملة: $e');
       setState(() {
         _isLoading = false;
       });
@@ -75,6 +106,7 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
           SnackBar(
             content: Text('خطأ في جلب رسائل طلب الجملة: $e'),
             backgroundColor: AppColors.error,
+            duration: Duration(seconds: 5),
           ),
         );
       }
@@ -82,19 +114,40 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
   }
 
   void _startListening() {
+    setState(() {
+      _isConnected = true;
+    });
+
     _wholesaleService.startListeningToWholesaleMessages(widget.request.id, (messages) {
       if (mounted) {
         print('=== تحديث مباشر لرسائل طلب الجملة ===');
         print('عدد الرسائل المستلمة: ${messages.length}');
 
+        // التحقق من وجود رسائل جديدة
+        final oldCount = _messages.length;
+        final newCount = messages.length;
+        final hasNewMessages = newCount > oldCount;
+
         setState(() {
           _messages = messages;
           _updateUnreadStatus();
+          _isConnected = true;
         });
 
-        // التمرير إلى آخر رسالة عند وصول رسالة جديدة
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _scrollToBottom();
+        // التمرير إلى آخر رسالة عند وصول رسالة جديدة فقط
+        if (hasNewMessages) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToBottom();
+          });
+        }
+      }
+    });
+
+    // مراقبة حالة الاتصال
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted && !_isConnected) {
+        setState(() {
+          _isConnected = false;
         });
       }
     });
@@ -164,21 +217,45 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
     });
 
     try {
-      await _wholesaleService.sendWholesaleMessage(
+      final sentMessage = await _wholesaleService.sendWholesaleMessage(
         requestId: widget.request.id,
         message: message,
       );
 
       _messageController.clear();
 
+      // إضافة الرسالة للقائمة فوراً لتحسين تجربة المستخدم
+      if (sentMessage != null && mounted) {
+        setState(() {
+          _messages.add(sentMessage);
+        });
+
+        // التمرير إلى آخر رسالة
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+      }
+
       // تعيين الرسائل كمقروءة بعد الإرسال
       await _wholesaleService.markWholesaleMessagesAsRead(widget.request.id);
+
+      // إظهار رسالة نجاح
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم إرسال رسالة طلب الجملة بنجاح'),
+            backgroundColor: AppColors.success,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('خطأ في إرسال الرسالة: $e'),
+            content: Text('خطأ في إرسال رسالة طلب الجملة: $e'),
             backgroundColor: AppColors.error,
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -281,6 +358,21 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
         ],
       ),
       actions: [
+        // مؤشر حالة الاتصال
+        Container(
+          margin: const EdgeInsets.only(right: 8),
+          child: Center(
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: _isConnected ? AppColors.success : AppColors.warning,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ),
+        
         // قائمة خيارات الحالة
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert),
@@ -288,6 +380,10 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
             switch (value) {
               case 'refresh':
                 _loadMessages();
+                _startListening(); // إعادة تفعيل الاستماع
+                break;
+              case 'diagnose':
+                _runDiagnostics();
                 break;
               case 'mark_read':
                 _markMessagesAsRead(showMessage: true);
@@ -316,7 +412,7 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
                 children: [
                   Icon(Icons.refresh),
                   SizedBox(width: 8),
-                  Text('تحديث'),
+                  Text('تحديث المحادثة'),
                 ],
               ),
             ),
@@ -327,6 +423,16 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
                   Icon(Icons.mark_email_read),
                   SizedBox(width: 8),
                   Text('تعيين كمقروء'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'diagnose',
+              child: Row(
+                children: [
+                  Icon(Icons.bug_report, color: AppColors.warning),
+                  SizedBox(width: 8),
+                  Text('تشخيص المشاكل'),
                 ],
               ),
             ),
@@ -613,6 +719,21 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
               color: AppColors.text.withValues(alpha: 0.5),
             ),
           ),
+          const SizedBox(height: 16),
+          if (!_isConnected) ...[
+            ElevatedButton.icon(
+              onPressed: () {
+                _loadMessages();
+                _startListening();
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('إعادة الاتصال'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -841,5 +962,28 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
     final minute = localDateTime.minute.toString().padLeft(2, '0');
 
     return '$day/$month/$year $hour:$minute';
+  }
+
+  // تشخيص المشاكل لطلبات الجملة
+  Future<void> _runDiagnostics() async {
+    print('🔧 بدء تشخيص المشاكل لطلبات الجملة من واجهة المحادثة...');
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('جاري تشخيص مشاكل طلبات الجملة... تحقق من Console'),
+        backgroundColor: AppColors.info,
+        duration: Duration(seconds: 3),
+      ),
+    );
+
+    await _wholesaleService.diagnoseWholesaleChatSystem();
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم الانتهاء من تشخيص طلبات الجملة - راجع Console للتفاصيل'),
+        backgroundColor: AppColors.success,
+        duration: Duration(seconds: 3),
+      ),
+    );
   }
 }

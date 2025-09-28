@@ -233,7 +233,7 @@ class WholesaleService {
       int unreadCount = 0;
       try {
         lastMessage = await _getLastWholesaleMessage(requestId);
-        unreadCount = await _getUnreadWholesaleMessagesCount(requestId);
+        unreadCount = await _getUnreadCount(requestId);
       } catch (e) {
         print('تحذير: لا يمكن جلب رسائل طلب الجملة: $e');
       }
@@ -263,12 +263,21 @@ class WholesaleService {
   Future<List<WholesaleMessage>> getWholesaleMessages(String requestId) async {
     try {
       if (!_supabaseService.isReady) {
+        print('❌ Supabase غير مهيأ');
         return [];
       }
 
-      print('جلب رسائل طلب الجملة: $requestId');
+      print('🔍 ==== بدء جلب رسائل طلب الجملة ====');
+      print('📋 معرف طلب الجملة: $requestId');
+      print(
+        '👤 المستخدم الحالي: ${_supabaseService.currentUser?.id ?? 'غير مسجل'}',
+      );
 
       // محاولة جلب رسائل من جدول wholesale_messages أولاً
+      print(
+        '🔍 البحث عن الرسائل بـ conversation_id = $requestId في wholesale_messages',
+      );
+
       try {
         final response = await _supabaseService.client!
             .from('wholesale_messages')
@@ -276,33 +285,48 @@ class WholesaleService {
             .eq('conversation_id', requestId)
             .order('created_at', ascending: true);
 
-        print('تم جلب ${response.length} رسالة من جدول wholesale_messages');
-        return _processWholesaleMessages(response);
-      } catch (e) {
-        print(
-          'جدول wholesale_messages غير موجود أو فارغ، محاولة استخدام support_messages: $e',
-        );
+        print('✅ استجابة wholesale_messages: ${response.length} رسالة');
 
-        // إذا لم يكن جدول wholesale_messages موجوداً، استخدم support_messages
-        try {
-          final response = await _supabaseService.client!
-              .from('support_messages')
-              .select('*')
-              .eq('conversation_id', requestId)
-              .order('created_at', ascending: true);
+        if (response.isEmpty) {
+          print('⚠️ لم يتم العثور على رسائل في wholesale_messages');
+          print('🔍 محاولة البحث في جميع الرسائل للتأكد...');
 
-          print('تم جلب ${response.length} رسالة من جدول support_messages');
-          return _processSupportMessagesAsWholesaleMessages(
-            response,
-            requestId,
-          );
-        } catch (supportError) {
-          print('خطأ في جلب الرسائل من support_messages: $supportError');
-          return [];
+          // محاولة جلب جميع الرسائل للتشخيص
+          final allMessages = await _supabaseService.client!
+              .from('wholesale_messages')
+              .select('conversation_id, sender_type, message, created_at')
+              .limit(10);
+
+          print('📊 عينة من رسائل wholesale_messages الموجودة:');
+          for (var msg in allMessages) {
+            print(
+              '   - conversation_id: ${msg['conversation_id']}, sender: ${msg['sender_type']}, message: ${msg['message']}',
+            );
+          }
+        } else {
+          print('📋 تفاصيل الرسائل المستلمة من wholesale_messages:');
+          for (var msg in response) {
+            print(
+              '   - ID: ${msg['id']}, sender: ${msg['sender_type']}, message: ${msg['message']}',
+            );
+          }
         }
+
+        final processedMessages = _processWholesaleMessages(response);
+        print(
+          '✅ تم معالجة ${processedMessages.length} رسالة بنجاح من wholesale_messages',
+        );
+        print('🔍 ==== انتهاء جلب رسائل طلب الجملة ====');
+
+        return processedMessages;
+      } catch (e) {
+        print('❌ خطأ في الوصول لجدول wholesale_messages: $e');
+        return [];
       }
     } catch (e) {
-      print('خطأ في جلب رسائل طلب الجملة: $e');
+      print('❌ خطأ عام في جلب رسائل طلب الجملة: $e');
+      print('❌ نوع الخطأ: ${e.runtimeType}');
+      print('❌ تفاصيل الخطأ: ${e.toString()}');
       return [];
     }
   }
@@ -324,7 +348,10 @@ class WholesaleService {
         throw Exception('المستخدم غير مسجل الدخول');
       }
 
-      print('إرسال رسالة جديدة لطلب الجملة: $requestId');
+      print('📤 ==== بدء إرسال رسالة طلب جملة جديدة ====');
+      print('📋 معرف طلب الجملة: $requestId');
+      print('👤 المرسل: ${currentUser.id} (admin)');
+      print('💬 الرسالة: $message');
 
       final messageData = {
         'conversation_id': requestId,
@@ -337,6 +364,8 @@ class WholesaleService {
         'is_read': false,
       };
 
+      print('📊 بيانات الرسالة: $messageData');
+
       // محاولة إدراج في جدول wholesale_messages أولاً
       try {
         final response = await _supabaseService.client!
@@ -345,38 +374,25 @@ class WholesaleService {
             .select()
             .single();
 
-        await _updateWholesaleRequestTimestamp(requestId);
-        return WholesaleMessage.fromJson(response);
-      } catch (e) {
         print(
-          'جدول wholesale_messages غير موجود، استخدام support_messages: $e',
+          '✅ تم إدراج الرسالة في جدول wholesale_messages: ${response['id']}',
         );
-
-        // إذا لم يكن جدول wholesale_messages موجوداً، استخدم support_messages
-        final response = await _supabaseService.client!
-            .from('support_messages')
-            .insert(messageData)
-            .select()
-            .single();
 
         await _updateWholesaleRequestTimestamp(requestId);
 
-        // تحويل من support_message إلى wholesale_message
-        return WholesaleMessage(
-          id: response['id'],
-          conversationId: requestId,
-          senderType: response['sender_type'],
-          senderId: response['sender_id'],
-          type: response['type'],
-          message: response['message'],
-          mediaUrl: response['media_url'],
-          createdAt: DateTime.parse(response['created_at']),
-          isRead: response['is_read'] ?? false,
-          senderName: 'فريق المبيعات',
-        );
+        final wholesaleMessage = WholesaleMessage.fromJson(response);
+        print('✅ تم إنشاء كائن WholesaleMessage بنجاح');
+        print('📤 ==== انتهاء إرسال رسالة طلب الجملة ====');
+
+        return wholesaleMessage;
+      } catch (e) {
+        print('❌ خطأ في إدراج رسالة في wholesale_messages: $e');
+        rethrow;
       }
     } catch (e) {
-      print('خطأ في إرسال رسالة طلب الجملة: $e');
+      print('❌ خطأ في إرسال رسالة طلب الجملة: $e');
+      print('❌ نوع الخطأ: ${e.runtimeType}');
+      print('❌ تفاصيل الخطأ: ${e.toString()}');
       rethrow;
     }
   }
@@ -409,34 +425,24 @@ class WholesaleService {
     }
   }
 
-  // تعيين رسائل طلب الجملة كمقروءة
+  // تحديث حالة الرسائل كمقروءة عند فتح المحادثة (نسخة من support_messages)
   Future<void> markWholesaleMessagesAsRead(String requestId) async {
     try {
-      print('📖 تحديث رسائل طلب الجملة كمقروءة: $requestId');
+      print('📖 تحديث الرسائل كمقروءة لطلب الجملة: $requestId');
 
       final client = _supabaseService.client!;
 
-      // محاولة تحديث في جدول wholesale_messages أولاً
-      try {
-        await client
-            .from('wholesale_messages')
-            .update({'is_read': true})
-            .eq('conversation_id', requestId)
-            .eq('sender_type', 'user')
-            .eq('is_read', false);
-      } catch (e) {
-        // إذا لم يكن الجدول موجوداً، استخدم support_messages
-        await client
-            .from('support_messages')
-            .update({'is_read': true})
-            .eq('conversation_id', requestId)
-            .eq('sender_type', 'user')
-            .eq('is_read', false);
-      }
+      // تحديث رسائل المستخدمين فقط كمقروءة (نفس منطق support_messages)
+      await client
+          .from('wholesale_messages')
+          .update({'is_read': true})
+          .eq('conversation_id', requestId)
+          .eq('sender_type', 'user')
+          .eq('is_read', false);
 
-      print('✅ تم تحديث رسائل طلب الجملة كمقروءة بنجاح');
+      print('✅ تم تحديث الرسائل كمقروءة بنجاح');
     } catch (e) {
-      print('خطأ في تحديث حالة رسائل طلب الجملة: $e');
+      print('خطأ في تحديث حالة الرسائل: $e');
     }
   }
 
@@ -541,32 +547,88 @@ class WholesaleService {
     }
   }
 
-  // حساب عدد الرسائل غير المقروءة لطلب الجملة
-  Future<int> _getUnreadWholesaleMessagesCount(String requestId) async {
+  // الحصول على عدد الرسائل غير المقروءة (نسخة من support_messages)
+  Future<int> _getUnreadCount(String requestId) async {
     try {
-      // محاولة العد من wholesale_messages أولاً
-      try {
-        final response = await _supabaseService.client!
-            .from('wholesale_messages')
-            .select('id')
-            .eq('conversation_id', requestId)
-            .eq('sender_type', 'user')
-            .eq('is_read', false);
+      print('🔍 حساب الرسائل غير المقروءة لطلب الجملة: $requestId');
 
-        return response.length;
-      } catch (e) {
-        // العد من support_messages
-        final response = await _supabaseService.client!
-            .from('support_messages')
-            .select('id')
-            .eq('conversation_id', requestId)
-            .eq('sender_type', 'user')
-            .eq('is_read', false);
+      final client = _supabaseService.client!;
 
-        return response.length;
-      }
+      // حساب الرسائل غير المقروءة من المستخدمين فقط (نفس منطق support_messages)
+      final unreadMessages = await client
+          .from('wholesale_messages')
+          .select('id, message, created_at')
+          .eq('conversation_id', requestId)
+          .eq('sender_type', 'user')
+          .eq('is_read', false);
+
+      final count = unreadMessages.length;
+      print('📊 عدد الرسائل غير المقروءة في طلب الجملة: $count');
+
+      return count;
     } catch (e) {
-      print('خطأ في حساب الرسائل غير المقروءة لطلب الجملة: $e');
+      print('❌ خطأ في حساب الرسائل غير المقروءة: $e');
+      return 0;
+    }
+  }
+
+  // حساب إجمالي الرسائل غير المقروءة من جميع طلبات الجملة (نسخة من support_messages)
+  Future<int> getTotalUnreadWholesaleMessagesCount() async {
+    try {
+      print('🔍 حساب إجمالي الرسائل غير المقروءة من جميع طلبات الجملة');
+
+      final client = _supabaseService.client!;
+
+      // جلب جميع الرسائل غير المقروءة من المستخدمين (نفس منطق support_messages)
+      final result = await client
+          .from('wholesale_messages')
+          .select('id, message, created_at')
+          .eq('sender_type', 'user')
+          .eq('is_read', false);
+
+      final count = result.length;
+      print('📊 إجمالي الرسائل غير المقروءة في طلبات الجملة: $count');
+
+      // طباعة تفاصيل الرسائل غير المقروءة للتأكد
+      for (final msg in result) {
+        print(
+          '📨 رسالة غير مقروءة: "${msg['message']}" - ${msg['created_at']}',
+        );
+      }
+
+      return count;
+    } catch (e) {
+      print('خطأ في حساب إجمالي الرسائل غير المقروءة في طلبات الجملة: $e');
+      return 0;
+    }
+  }
+
+  // حساب عدد طلبات الجملة التي تحتوي على رسائل غير مقروءة (نسخة من support_messages)
+  Future<int> getUnreadWholesaleRequestsCount() async {
+    try {
+      print('🔍 حساب عدد طلبات الجملة غير المقروءة');
+
+      final client = _supabaseService.client!;
+
+      // جلب جميع طلبات الجملة المفتوحة
+      final wholesaleRequests = await client
+          .from('wholesale_requests')
+          .select('id');
+
+      int unreadRequests = 0;
+
+      // فحص كل طلب لوجود رسائل غير مقروءة
+      for (final request in wholesaleRequests) {
+        final unreadCount = await _getUnreadCount(request['id']);
+        if (unreadCount > 0) {
+          unreadRequests++;
+        }
+      }
+
+      print('📊 عدد طلبات الجملة غير المقروءة: $unreadRequests');
+      return unreadRequests;
+    } catch (e) {
+      print('خطأ في حساب طلبات الجملة غير المقروءة: $e');
       return 0;
     }
   }
@@ -592,39 +654,6 @@ class WholesaleService {
         messages.add(WholesaleMessage.fromJson(item));
       } catch (e) {
         print('خطأ في معالجة رسالة طلب الجملة: $e');
-      }
-    }
-
-    return messages;
-  }
-
-  // معالجة رسائل support_messages كرسائل طلبات جملة
-  List<WholesaleMessage> _processSupportMessagesAsWholesaleMessages(
-    List<dynamic> response,
-    String requestId,
-  ) {
-    final messages = <WholesaleMessage>[];
-
-    for (var item in response) {
-      try {
-        messages.add(
-          WholesaleMessage(
-            id: item['id'],
-            conversationId: requestId,
-            senderType: item['sender_type'] ?? 'user',
-            senderId: item['sender_id'],
-            type: item['type'] ?? 'text',
-            message: item['message'] ?? '',
-            mediaUrl: item['media_url'],
-            createdAt: DateTime.parse(item['created_at']),
-            isRead: item['is_read'] ?? false,
-            senderName: item['sender_type'] == 'admin'
-                ? 'فريق المبيعات'
-                : 'العميل',
-          ),
-        );
-      } catch (e) {
-        print('خطأ في معالجة رسالة الدعم كرسالة طلب جملة: $e');
       }
     }
 
@@ -680,6 +709,11 @@ class WholesaleService {
     try {
       if (!_supabaseService.isReady) return;
 
+      // إيقاف أي استماع سابق
+      stopListeningToWholesaleMessages();
+
+      print('🔥 بدء الاستماع لرسائل طلب الجملة: $requestId');
+
       // الاستماع لرسائل wholesale_messages
       _wholesaleMessagesChannel = _supabaseService.client!
           .channel('wholesale_messages_changes_$requestId')
@@ -693,12 +727,23 @@ class WholesaleService {
               value: requestId,
             ),
             callback: (payload) async {
-              print('تحديث في رسائل طلب الجملة: $payload');
-              final messages = await getWholesaleMessages(requestId);
-              onUpdate(messages);
+              print('🔔 تحديث في رسائل طلب الجملة: ${payload.eventType}');
+              print('📋 تفاصيل التحديث: ${payload.newRecord}');
+              try {
+                final messages = await getWholesaleMessages(requestId);
+                onUpdate(messages);
+                print('✅ تم تحديث رسائل طلب الجملة: ${messages.length} رسالة');
+              } catch (e) {
+                print('❌ خطأ في تحديث رسائل طلب الجملة: $e');
+              }
             },
           )
-          .subscribe();
+          .subscribe((status, [error]) {
+            print('📡 حالة الاشتراك wholesale_messages: $status');
+            if (error != null) {
+              print('❌ خطأ في الاشتراك wholesale_messages: $error');
+            }
+          });
 
       // إضافة استماع لـ support_messages أيضاً كبديل
       _supabaseService.client!
@@ -713,16 +758,43 @@ class WholesaleService {
               value: requestId,
             ),
             callback: (payload) async {
-              print('تحديث في رسائل الدعم لطلب الجملة: $payload');
-              final messages = await getWholesaleMessages(requestId);
-              onUpdate(messages);
+              print(
+                '🔔 تحديث في رسائل الدعم لطلب الجملة: ${payload.eventType}',
+              );
+              try {
+                final messages = await getWholesaleMessages(requestId);
+                onUpdate(messages);
+                print(
+                  '✅ تم تحديث رسائل الدعم للجملة: ${messages.length} رسالة',
+                );
+              } catch (e) {
+                print('❌ خطأ في تحديث رسائل الدعم للجملة: $e');
+              }
             },
           )
-          .subscribe();
+          .subscribe((status, [error]) {
+            print('📡 حالة الاشتراك support_messages: $status');
+            if (error != null) {
+              print('❌ خطأ في الاشتراك support_messages: $error');
+            }
+          });
 
-      print('بدأ الاستماع لتحديثات رسائل طلب الجملة: $requestId');
+      print('✅ تم بدء الاستماع لتحديثات رسائل طلب الجملة: $requestId');
     } catch (e) {
-      print('خطأ في بدء الاستماع لرسائل طلب الجملة: $e');
+      print('❌ خطأ في بدء الاستماع لرسائل طلب الجملة: $e');
+    }
+  }
+
+  // إيقاف الاستماع لرسائل طلب جملة محدد
+  void stopListeningToWholesaleMessages() {
+    try {
+      if (_wholesaleMessagesChannel != null) {
+        _wholesaleMessagesChannel!.unsubscribe();
+        _wholesaleMessagesChannel = null;
+        print('🛑 تم إيقاف الاستماع لرسائل طلب الجملة');
+      }
+    } catch (e) {
+      print('❌ خطأ في إيقاف الاستماع لرسائل طلب الجملة: $e');
     }
   }
 
@@ -730,12 +802,235 @@ class WholesaleService {
   void stopListening() {
     try {
       _wholesaleRequestsChannel?.unsubscribe();
-      _wholesaleMessagesChannel?.unsubscribe();
       _wholesaleRequestsChannel = null;
-      _wholesaleMessagesChannel = null;
+      stopListeningToWholesaleMessages();
       print('تم إيقاف الاستماع لتحديثات طلبات الجملة');
     } catch (e) {
       print('خطأ في إيقاف الاستماع: $e');
+    }
+  }
+
+  // اختبار شامل لنظام محادثة طلبات الجملة
+  Future<void> diagnoseWholesaleChatSystem() async {
+    try {
+      print('🔧 ==== بدء تشخيص نظام محادثة طلبات الجملة ====');
+
+      // 1. فحص حالة Supabase
+      print('1️⃣ فحص حالة Supabase...');
+      if (!_supabaseService.isReady) {
+        print('❌ Supabase غير مهيأ');
+        return;
+      }
+      print('✅ Supabase جاهز');
+
+      // 2. فحص المستخدم الحالي
+      print('2️⃣ فحص المستخدم الحالي...');
+      final currentUser = _supabaseService.currentUser;
+      if (currentUser == null) {
+        print('❌ لا يوجد مستخدم مسجل دخول');
+        return;
+      }
+      print(
+        '✅ المستخدم: ${currentUser.id} (${currentUser.email ?? 'بدون بريد'})',
+      );
+
+      // 3. اختبار الوصول لجدول wholesale_messages
+      print('3️⃣ اختبار الوصول لجدول wholesale_messages...');
+      try {
+        final testQuery = await _supabaseService.client!
+            .from('wholesale_messages')
+            .select('id')
+            .limit(1);
+        print('✅ يمكن الوصول لجدول wholesale_messages');
+        print('📊 نتيجة الاستعلام التجريبي: ${testQuery.length} صف');
+      } catch (e) {
+        print('❌ لا يمكن الوصول لجدول wholesale_messages: $e');
+        print('❌ نوع الخطأ: ${e.runtimeType}');
+
+        // محاولة معرفة المزيد عن الخطأ
+        if (e.toString().contains('RLS')) {
+          print(
+            '💡 المشكلة: Row Level Security (RLS) - المشرف لا يملك صلاحيات',
+          );
+        } else if (e.toString().contains('permission')) {
+          print('💡 المشكلة: صلاحيات - تحقق من permissions');
+        } else if (e.toString().contains('relation') ||
+            e.toString().contains('does not exist')) {
+          print('💡 المشكلة: الجدول غير موجود');
+        }
+      }
+
+      // 4. جلب عينة من رسائل طلبات الجملة
+      print('4️⃣ جلب عينة من رسائل طلبات الجملة...');
+      try {
+        final sampleMessages = await _supabaseService.client!
+            .from('wholesale_messages')
+            .select('id, conversation_id, sender_type, message, created_at')
+            .limit(5)
+            .order('created_at', ascending: false);
+
+        print('✅ تم جلب ${sampleMessages.length} رسالة من wholesale_messages');
+        for (var msg in sampleMessages) {
+          print(
+            '   📨 ${msg['conversation_id']}: ${msg['sender_type']} - ${msg['message']}',
+          );
+        }
+      } catch (e) {
+        print('❌ خطأ في جلب الرسائل من wholesale_messages: $e');
+        print('❌ تفاصيل الخطأ: ${e.toString()}');
+
+        // تحليل نوع الخطأ
+        if (e.toString().contains('42501') ||
+            e.toString().contains('insufficient_privilege')) {
+          print(
+            '💡 السبب: المشرف لا يملك صلاحية SELECT على جدول wholesale_messages',
+          );
+          print('🔧 الحل المطلوب: إضافة RLS Policy للمشرفين');
+        } else if (e.toString().contains('42P01') ||
+            e.toString().contains('relation') ||
+            e.toString().contains('does not exist')) {
+          print('💡 السبب: جدول wholesale_messages غير موجود');
+          print('🔧 الحل المطلوب: إنشاء الجدول أو التحقق من اسم الجدول');
+        }
+
+        // محاولة support_messages كبديل
+        print('🔄 محاولة البحث في support_messages...');
+        try {
+          final supportMessages = await _supabaseService.client!
+              .from('support_messages')
+              .select('id, conversation_id, sender_type, message, created_at')
+              .limit(5)
+              .order('created_at', ascending: false);
+
+          print('✅ تم جلب ${supportMessages.length} رسالة من support_messages');
+          for (var msg in supportMessages) {
+            print(
+              '   📨 ${msg['conversation_id']}: ${msg['sender_type']} - ${msg['message']}',
+            );
+          }
+        } catch (supportError) {
+          print('❌ خطأ في جلب الرسائل من support_messages: $supportError');
+        }
+      }
+
+      // 5. اختبار إدراج رسالة تجريبية في wholesale_messages
+      print('5️⃣ اختبار إدراج رسالة تجريبية في wholesale_messages...');
+      try {
+        final testMessage = {
+          'conversation_id': 'test-wholesale-conversation-id',
+          'sender_type': 'admin',
+          'sender_id': currentUser.id,
+          'type': 'text',
+          'message': 'رسالة تجريبية من مشرف طلبات الجملة',
+          'created_at': DateTime.now().toIso8601String(),
+        };
+
+        final insertResult = await _supabaseService.client!
+            .from('wholesale_messages')
+            .insert(testMessage)
+            .select();
+
+        print(
+          '✅ تم إدراج رسالة تجريبية في wholesale_messages: ${insertResult.first['id']}',
+        );
+
+        // حذف الرسالة التجريبية
+        await _supabaseService.client!
+            .from('wholesale_messages')
+            .delete()
+            .eq('id', insertResult.first['id']);
+        print('✅ تم حذف الرسالة التجريبية من wholesale_messages');
+      } catch (e) {
+        print('❌ خطأ في إدراج رسالة تجريبية في wholesale_messages: $e');
+        print('❌ تفاصيل خطأ الإدراج: ${e.toString()}');
+
+        // تحليل نوع الخطأ في الإدراج
+        if (e.toString().contains('42501') ||
+            e.toString().contains('insufficient_privilege')) {
+          print(
+            '💡 السبب: المشرف لا يملك صلاحية INSERT على جدول wholesale_messages',
+          );
+          print('🔧 الحل المطلوب: إضافة RLS Policy للكتابة');
+        } else if (e.toString().contains('23503') ||
+            e.toString().contains('foreign key')) {
+          print('💡 السبب: قيود Foreign Key');
+          print('🔧 الحل المطلوب: التحقق من قيود الجدول');
+        }
+
+        // محاولة support_messages كبديل
+        print('🔄 محاولة إدراج رسالة تجريبية في support_messages...');
+        try {
+          final testMessage = {
+            'conversation_id': 'test-wholesale-conversation-id',
+            'sender_type': 'admin',
+            'sender_id': currentUser.id,
+            'type': 'text',
+            'message': 'رسالة تجريبية من مشرف طلبات الجملة (support_messages)',
+            'created_at': DateTime.now().toIso8601String(),
+          };
+
+          final insertResult = await _supabaseService.client!
+              .from('support_messages')
+              .insert(testMessage)
+              .select();
+
+          print(
+            '✅ تم إدراج رسالة تجريبية في support_messages: ${insertResult.first['id']}',
+          );
+
+          // حذف الرسالة التجريبية
+          await _supabaseService.client!
+              .from('support_messages')
+              .delete()
+              .eq('id', insertResult.first['id']);
+          print('✅ تم حذف الرسالة التجريبية من support_messages');
+        } catch (supportError) {
+          print(
+            '❌ خطأ في إدراج رسالة تجريبية في support_messages: $supportError',
+          );
+        }
+      }
+
+      print('🔧 ==== انتهاء تشخيص نظام محادثة طلبات الجملة ====');
+
+      // إضافة دليل إصلاح المشاكل
+      print('');
+      print('📋 ==== دليل إصلاح المشاكل الشائعة ====');
+      print('');
+      print('❌ إذا ظهر خطأ "insufficient_privilege" أو "42501":');
+      print('   🔧 الحل: إضافة RLS Policy في Supabase:');
+      print('   💻 SQL Command:');
+      print(
+        '   CREATE POLICY "Admins can read wholesale messages" ON wholesale_messages',
+      );
+      print('   FOR SELECT USING (true);');
+      print('   ');
+      print(
+        '   CREATE POLICY "Admins can insert wholesale messages" ON wholesale_messages',
+      );
+      print('   FOR INSERT WITH CHECK (sender_type = \'admin\');');
+      print('');
+      print('❌ إذا ظهر خطأ "relation does not exist":');
+      print('   🔧 الحل: إنشاء جدول wholesale_messages:');
+      print('   💻 SQL Command:');
+      print('   CREATE TABLE wholesale_messages (');
+      print('     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,');
+      print('     conversation_id UUID NOT NULL,');
+      print('     sender_type TEXT NOT NULL,');
+      print('     sender_id UUID NOT NULL,');
+      print('     type TEXT DEFAULT \'text\',');
+      print('     message TEXT NOT NULL,');
+      print('     media_url TEXT,');
+      print('     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()');
+      print('   );');
+      print('');
+      print('❌ إذا كانت الرسائل لا تظهر في الوقت الفعلي:');
+      print('   🔧 الحل: التأكد من Real-time subscriptions في Supabase');
+      print('   💻 Settings → API → Real-time → Enable for wholesale_messages');
+      print('');
+      print('📋 ==== انتهاء دليل الإصلاح ====');
+    } catch (e) {
+      print('❌ خطأ عام في تشخيص طلبات الجملة: $e');
     }
   }
 }

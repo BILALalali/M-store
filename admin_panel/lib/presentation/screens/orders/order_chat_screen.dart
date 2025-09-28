@@ -22,11 +22,21 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
   bool _isLoading = true;
   bool _isSending = false;
   bool _hasUnreadMessages = false;
+  bool _isConnected = false;
   OrderThread? _currentOrder;
 
   @override
   void initState() {
     super.initState();
+    print('🎬 ==== تهيئة شاشة محادثة الطلب ====');
+    print('📋 معلومات الطلب:');
+    print('   - ID: ${widget.order.id}');
+    print('   - Title: ${widget.order.title}');
+    print('   - User ID: ${widget.order.userId}');
+    print('   - User Name: ${widget.order.userName}');
+    print('   - Status: ${widget.order.status}');
+    print('   - Order Type: ${widget.order.orderType}');
+
     _currentOrder = widget.order;
     _loadMessages();
     _startListening();
@@ -51,10 +61,28 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     });
 
     try {
+      print('🚀 ==== بدء تحميل الرسائل في واجهة المشرف ====');
+      print('📋 معرف الطلب: ${widget.order.id}');
+      print('📋 عنوان الطلب: ${widget.order.title}');
+      print('👤 معرف المستخدم: ${widget.order.userId}');
+      print('👤 اسم المستخدم: ${widget.order.userName}');
+
       final messages = await _orderService.getOrderMessages(widget.order.id);
 
-      print('=== جلب رسائل الطلب ===');
+      print('=== نتيجة جلب رسائل الطلب ===');
       print('عدد الرسائل المستلمة: ${messages.length}');
+
+      if (messages.isNotEmpty) {
+        print('📋 تفاصيل الرسائل:');
+        for (int i = 0; i < messages.length; i++) {
+          final msg = messages[i];
+          print(
+            '   ${i + 1}. ${msg.senderType}: ${msg.message} (${msg.detailedTime})',
+          );
+        }
+      } else {
+        print('⚠️ لم يتم العثور على أي رسائل');
+      }
 
       setState(() {
         _messages = messages;
@@ -66,7 +94,10 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollToBottom();
       });
+
+      print('✅ انتهاء تحميل الرسائل في واجهة المشرف');
     } catch (e) {
+      print('❌ خطأ في تحميل الرسائل: $e');
       setState(() {
         _isLoading = false;
       });
@@ -75,6 +106,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
           SnackBar(
             content: Text('خطأ في جلب رسائل الطلب: $e'),
             backgroundColor: AppColors.error,
+            duration: Duration(seconds: 5),
           ),
         );
       }
@@ -82,19 +114,40 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
   }
 
   void _startListening() {
+    setState(() {
+      _isConnected = true;
+    });
+
     _orderService.startListeningToOrderMessages(widget.order.id, (messages) {
       if (mounted) {
         print('=== تحديث مباشر لرسائل الطلب ===');
         print('عدد الرسائل المستلمة: ${messages.length}');
 
+        // التحقق من وجود رسائل جديدة
+        final oldCount = _messages.length;
+        final newCount = messages.length;
+        final hasNewMessages = newCount > oldCount;
+
         setState(() {
           _messages = messages;
           _updateUnreadStatus();
+          _isConnected = true;
         });
 
-        // التمرير إلى آخر رسالة عند وصول رسالة جديدة
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _scrollToBottom();
+        // التمرير إلى آخر رسالة عند وصول رسالة جديدة فقط
+        if (hasNewMessages) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToBottom();
+          });
+        }
+      }
+    });
+
+    // مراقبة حالة الاتصال
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted && !_isConnected) {
+        setState(() {
+          _isConnected = false;
         });
       }
     });
@@ -164,21 +217,45 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     });
 
     try {
-      await _orderService.sendOrderMessage(
+      final sentMessage = await _orderService.sendOrderMessage(
         orderId: widget.order.id,
         message: message,
       );
 
       _messageController.clear();
 
+      // إضافة الرسالة للقائمة فوراً لتحسين تجربة المستخدم
+      if (sentMessage != null && mounted) {
+        setState(() {
+          _messages.add(sentMessage);
+        });
+
+        // التمرير إلى آخر رسالة
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+      }
+
       // تعيين الرسائل كمقروءة بعد الإرسال
       await _orderService.markOrderMessagesAsRead(widget.order.id);
+
+      // إظهار رسالة نجاح
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم إرسال الرسالة بنجاح'),
+            backgroundColor: AppColors.success,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('خطأ في إرسال الرسالة: $e'),
             backgroundColor: AppColors.error,
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -191,14 +268,19 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
   Future<void> _updateOrderStatus(String newStatus) async {
     try {
-      final success = await _orderService.updateOrderStatus(widget.order.id, newStatus);
+      final success = await _orderService.updateOrderStatus(
+        widget.order.id,
+        newStatus,
+      );
       if (success && mounted) {
         setState(() {
           _currentOrder = _currentOrder?.copyWith(status: newStatus);
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم تحديث حالة الطلب إلى ${_getStatusDisplayName(newStatus)}'),
+            content: Text(
+              'تم تحديث حالة الطلب إلى ${_getStatusDisplayName(newStatus)}',
+            ),
             backgroundColor: AppColors.success,
           ),
         );
@@ -274,6 +356,21 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         ],
       ),
       actions: [
+        // مؤشر حالة الاتصال
+        Container(
+          margin: const EdgeInsets.only(right: 8),
+          child: Center(
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: _isConnected ? AppColors.success : AppColors.warning,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ),
+
         // زر تحديث حالة الطلب
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert),
@@ -281,6 +378,10 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             switch (value) {
               case 'refresh':
                 _loadMessages();
+                _startListening(); // إعادة تفعيل الاستماع
+                break;
+              case 'diagnose':
+                _runDiagnostics();
                 break;
               case 'mark_read':
                 _markMessagesAsRead(showMessage: true);
@@ -303,7 +404,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                 children: [
                   Icon(Icons.refresh),
                   SizedBox(width: 8),
-                  Text('تحديث'),
+                  Text('تحديث المحادثة'),
                 ],
               ),
             ),
@@ -314,6 +415,16 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                   Icon(Icons.mark_email_read),
                   SizedBox(width: 8),
                   Text('تعيين كمقروء'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'diagnose',
+              child: Row(
+                children: [
+                  Icon(Icons.bug_report, color: AppColors.warning),
+                  SizedBox(width: 8),
+                  Text('تشخيص المشاكل'),
                 ],
               ),
             ),
@@ -411,7 +522,10 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
               // حالة الطلب
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: _getStatusColor(_currentOrder?.status ?? 'pending'),
                   borderRadius: BorderRadius.circular(16),
@@ -430,9 +544,14 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
               // حالة الرسائل
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: _hasUnreadMessages ? AppColors.warning : AppColors.success,
+                  color: _hasUnreadMessages
+                      ? AppColors.warning
+                      : AppColors.success,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
@@ -450,10 +569,15 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
           const SizedBox(height: 12),
 
           // تفاصيل الطلب
-          if (_currentOrder?.productNames != null && _currentOrder!.productNames!.isNotEmpty) ...[
+          if (_currentOrder?.productNames != null &&
+              _currentOrder!.productNames!.isNotEmpty) ...[
             Row(
               children: [
-                Icon(Icons.shopping_cart, size: 16, color: AppColors.text.withValues(alpha: 0.6)),
+                Icon(
+                  Icons.shopping_cart,
+                  size: 16,
+                  color: AppColors.text.withValues(alpha: 0.6),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -469,11 +593,16 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             const SizedBox(height: 8),
           ],
 
-          if (_currentOrder?.summary != null && _currentOrder!.summary!.isNotEmpty) ...[
+          if (_currentOrder?.summary != null &&
+              _currentOrder!.summary!.isNotEmpty) ...[
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.description, size: 16, color: AppColors.text.withValues(alpha: 0.6)),
+                Icon(
+                  Icons.description,
+                  size: 16,
+                  color: AppColors.text.withValues(alpha: 0.6),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -495,7 +624,9 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _getTypeColor(_currentOrder?.orderType ?? 'retail').withValues(alpha: 0.2),
+                  color: _getTypeColor(
+                    _currentOrder?.orderType ?? 'retail',
+                  ).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: _getTypeColor(_currentOrder?.orderType ?? 'retail'),
@@ -555,6 +686,21 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
               color: AppColors.text.withValues(alpha: 0.5),
             ),
           ),
+          const SizedBox(height: 16),
+          if (!_isConnected) ...[
+            ElevatedButton.icon(
+              onPressed: () {
+                _loadMessages();
+                _startListening();
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('إعادة الاتصال'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -792,5 +938,28 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     final minute = localDateTime.minute.toString().padLeft(2, '0');
 
     return '$day/$month/$year $hour:$minute';
+  }
+
+  // تشخيص المشاكل
+  Future<void> _runDiagnostics() async {
+    print('🔧 بدء تشخيص المشاكل من واجهة المحادثة...');
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('جاري تشخيص المشاكل... تحقق من Console'),
+        backgroundColor: AppColors.info,
+        duration: Duration(seconds: 3),
+      ),
+    );
+
+    await _orderService.diagnoseChatSystem();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم الانتهاء من التشخيص - راجع Console للتفاصيل'),
+        backgroundColor: AppColors.success,
+        duration: Duration(seconds: 3),
+      ),
+    );
   }
 }

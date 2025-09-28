@@ -112,6 +112,96 @@ class OrderService {
     }
   }
 
+  // اختبار شامل لنظام المحادثة
+  Future<void> diagnoseChatSystem() async {
+    try {
+      print('🔧 ==== بدء تشخيص نظام المحادثة ====');
+
+      // 1. فحص حالة Supabase
+      print('1️⃣ فحص حالة Supabase...');
+      if (!_supabaseService.isReady) {
+        print('❌ Supabase غير مهيأ');
+        return;
+      }
+      print('✅ Supabase جاهز');
+
+      // 2. فحص المستخدم الحالي
+      print('2️⃣ فحص المستخدم الحالي...');
+      final currentUser = _supabaseService.currentUser;
+      if (currentUser == null) {
+        print('❌ لا يوجد مستخدم مسجل دخول');
+        return;
+      }
+      print(
+        '✅ المستخدم: ${currentUser.id} (${currentUser.email ?? 'بدون بريد'})',
+      );
+
+      // 3. اختبار الوصول لجدول order_messages
+      print('3️⃣ اختبار الوصول لجدول order_messages...');
+      try {
+        await _supabaseService.client!
+            .from('order_messages')
+            .select('id')
+            .limit(1);
+        print('✅ يمكن الوصول لجدول order_messages');
+      } catch (e) {
+        print('❌ لا يمكن الوصول لجدول order_messages: $e');
+      }
+
+      // 4. جلب عينة من الرسائل
+      print('4️⃣ جلب عينة من الرسائل...');
+      try {
+        final sampleMessages = await _supabaseService.client!
+            .from('order_messages')
+            .select('id, conversation_id, sender_type, message, created_at')
+            .limit(5)
+            .order('created_at', ascending: false);
+
+        print('✅ تم جلب ${sampleMessages.length} رسالة');
+        for (var msg in sampleMessages) {
+          print(
+            '   📨 ${msg['conversation_id']}: ${msg['sender_type']} - ${msg['message']}',
+          );
+        }
+      } catch (e) {
+        print('❌ خطأ في جلب الرسائل: $e');
+      }
+
+      // 5. اختبار إدراج رسالة تجريبية
+      print('5️⃣ اختبار إدراج رسالة تجريبية...');
+      try {
+        final testMessage = {
+          'conversation_id': 'test-conversation-id',
+          'sender_type': 'admin',
+          'sender_id': currentUser.id,
+          'type': 'text',
+          'message': 'رسالة تجريبية من المشرف',
+          'created_at': DateTime.now().toIso8601String(),
+        };
+
+        final insertResult = await _supabaseService.client!
+            .from('order_messages')
+            .insert(testMessage)
+            .select();
+
+        print('✅ تم إدراج رسالة تجريبية: ${insertResult.first['id']}');
+
+        // حذف الرسالة التجريبية
+        await _supabaseService.client!
+            .from('order_messages')
+            .delete()
+            .eq('id', insertResult.first['id']);
+        print('✅ تم حذف الرسالة التجريبية');
+      } catch (e) {
+        print('❌ خطأ في إدراج رسالة تجريبية: $e');
+      }
+
+      print('🔧 ==== انتهاء تشخيص نظام المحادثة ====');
+    } catch (e) {
+      print('❌ خطأ عام في التشخيص: $e');
+    }
+  }
+
   // الحصول على جميع الطلبات
   Future<List<OrderThread>> getOrders() async {
     try {
@@ -177,7 +267,7 @@ class OrderService {
         int unreadCount = 0;
         try {
           lastMessage = await _getLastOrderMessage(item['id']);
-          unreadCount = await _getUnreadOrderMessagesCount(item['id']);
+          unreadCount = await _getUnreadCount(item['id']);
         } catch (e) {
           print(
             'تحذير: لا يمكن جلب رسائل الطلب (قد لا يكون النظام مُعَد بعد): $e',
@@ -298,7 +388,7 @@ class OrderService {
       int unreadCount = 0;
       try {
         lastMessage = await _getLastOrderMessage(orderId);
-        unreadCount = await _getUnreadOrderMessagesCount(orderId);
+        unreadCount = await _getUnreadCount(orderId);
       } catch (e) {
         print('تحذير: لا يمكن جلب رسائل الطلب: $e');
       }
@@ -330,43 +420,61 @@ class OrderService {
   Future<List<OrderMessage>> getOrderMessages(String orderId) async {
     try {
       if (!_supabaseService.isReady) {
+        print('❌ Supabase غير مهيأ');
         return [];
       }
 
-      print('جلب رسائل الطلب: $orderId');
+      print('🔍 ==== بدء جلب رسائل الطلب ====');
+      print('📋 معرف الطلب: $orderId');
+      print(
+        '👤 المستخدم الحالي: ${_supabaseService.currentUser?.id ?? 'غير مسجل'}',
+      );
 
-      // محاولة جلب رسائل من جدول order_messages أولاً
-      try {
-        final response = await _supabaseService.client!
+      // جلب رسائل من جدول order_messages باستخدام conversation_id
+      print('🔍 البحث عن الرسائل بـ conversation_id = $orderId');
+
+      final response = await _supabaseService.client!
+          .from('order_messages')
+          .select('*')
+          .eq('conversation_id', orderId)
+          .order('created_at', ascending: true);
+
+      print('✅ استجابة قاعدة البيانات: ${response.length} رسالة');
+
+      if (response.isEmpty) {
+        print('⚠️ لم يتم العثور على رسائل');
+        print('🔍 محاولة البحث في جميع الرسائل للتأكد...');
+
+        // محاولة جلب جميع الرسائل للتشخيص
+        final allMessages = await _supabaseService.client!
             .from('order_messages')
-            .select('*')
-            .eq('order_thread_id', orderId)
-            .order('created_at', ascending: true);
+            .select('conversation_id, sender_type, message, created_at')
+            .limit(10);
 
-        print('تم جلب ${response.length} رسالة من جدول order_messages');
-        return _processOrderMessages(response);
-      } catch (e) {
-        print(
-          'جدول order_messages غير موجود، محاولة استخدام support_messages: $e',
-        );
-
-        // إذا لم يكن جدول order_messages موجوداً، استخدم support_messages مع ربط مختلف
-        try {
-          final response = await _supabaseService.client!
-              .from('support_messages')
-              .select('*')
-              .eq('conversation_id', orderId)
-              .order('created_at', ascending: true);
-
-          print('تم جلب ${response.length} رسالة من جدول support_messages');
-          return _processSupportMessagesAsOrderMessages(response, orderId);
-        } catch (supportError) {
-          print('خطأ في جلب الرسائل من support_messages: $supportError');
-          return [];
+        print('📊 عينة من الرسائل الموجودة:');
+        for (var msg in allMessages) {
+          print(
+            '   - conversation_id: ${msg['conversation_id']}, sender: ${msg['sender_type']}, message: ${msg['message']}',
+          );
+        }
+      } else {
+        print('📋 تفاصيل الرسائل المستلمة:');
+        for (var msg in response) {
+          print(
+            '   - ID: ${msg['id']}, sender: ${msg['sender_type']}, message: ${msg['message']}',
+          );
         }
       }
+
+      final processedMessages = _processOrderMessages(response);
+      print('✅ تم معالجة ${processedMessages.length} رسالة بنجاح');
+      print('🔍 ==== انتهاء جلب رسائل الطلب ====');
+
+      return processedMessages;
     } catch (e) {
-      print('خطأ في جلب رسائل الطلب: $e');
+      print('❌ خطأ في جلب رسائل الطلب: $e');
+      print('❌ نوع الخطأ: ${e.runtimeType}');
+      print('❌ تفاصيل الخطأ: ${e.toString()}');
       return [];
     }
   }
@@ -388,68 +496,46 @@ class OrderService {
         throw Exception('المستخدم غير مسجل الدخول');
       }
 
-      print('إرسال رسالة جديدة للطلب: $orderId');
+      print('📤 ==== بدء إرسال رسالة جديدة ====');
+      print('📋 معرف الطلب: $orderId');
+      print('👤 المرسل: ${currentUser.id} (admin)');
+      print('💬 الرسالة: $message');
 
       final messageData = {
-        'order_thread_id': orderId,
+        'conversation_id': orderId,
         'sender_type': 'admin',
         'sender_id': currentUser.id,
         'type': type,
         'message': message,
         'media_url': mediaUrl,
         'created_at': DateTime.now().toIso8601String(),
-        'is_read': false,
       };
 
-      // محاولة إدراج في جدول order_messages أولاً
-      try {
-        final response = await _supabaseService.client!
-            .from('order_messages')
-            .insert(messageData)
-            .select()
-            .single();
+      print('📊 بيانات الرسالة: $messageData');
 
-        await _updateOrderTimestamp(orderId);
-        return OrderMessage.fromJson(response);
-      } catch (e) {
-        print('جدول order_messages غير موجود، استخدام support_messages: $e');
+      final response = await _supabaseService.client!
+          .from('order_messages')
+          .insert(messageData)
+          .select()
+          .single();
 
-        // إذا لم يكن جدول order_messages موجوداً، استخدم support_messages
-        final supportMessageData = {
-          'conversation_id': orderId,
-          'sender_type': 'admin',
-          'sender_id': currentUser.id,
-          'type': type,
-          'message': message,
-          'media_url': mediaUrl,
-          'created_at': DateTime.now().toIso8601String(),
-          'is_read': false,
-        };
+      print('✅ تم إدراج الرسالة في قاعدة البيانات: ${response['id']}');
 
-        final response = await _supabaseService.client!
-            .from('support_messages')
-            .insert(supportMessageData)
-            .select()
-            .single();
+      await _updateOrderTimestamp(orderId);
 
-        await _updateOrderTimestamp(orderId);
+      // إضافة اسم المرسل
+      final processedResponse = Map<String, dynamic>.from(response);
+      processedResponse['sender_name'] = 'فريق الدعم';
 
-        // تحويل من support_message إلى order_message
-        return OrderMessage(
-          id: response['id'],
-          orderThreadId: orderId,
-          senderType: response['sender_type'],
-          senderId: response['sender_id'],
-          type: response['type'],
-          message: response['message'],
-          mediaUrl: response['media_url'],
-          createdAt: DateTime.parse(response['created_at']),
-          isRead: response['is_read'] ?? false,
-          senderName: 'فريق الدعم',
-        );
-      }
+      final orderMessage = OrderMessage.fromJson(processedResponse);
+      print('✅ تم إنشاء كائن OrderMessage بنجاح');
+      print('📤 ==== انتهاء إرسال الرسالة ====');
+
+      return orderMessage;
     } catch (e) {
-      print('خطأ في إرسال رسالة الطلب: $e');
+      print('❌ خطأ في إرسال رسالة الطلب: $e');
+      print('❌ نوع الخطأ: ${e.runtimeType}');
+      print('❌ تفاصيل الخطأ: ${e.toString()}');
       rethrow;
     }
   }
@@ -479,34 +565,24 @@ class OrderService {
     }
   }
 
-  // تعيين رسائل الطلب كمقروءة
+  // تحديث حالة الرسائل كمقروءة عند فتح المحادثة (نسخة من support_messages)
   Future<void> markOrderMessagesAsRead(String orderId) async {
     try {
-      print('📖 تحديث رسائل الطلب كمقروءة: $orderId');
+      print('📖 تحديث الرسائل كمقروءة للطلب: $orderId');
 
       final client = _supabaseService.client!;
 
-      // محاولة تحديث في جدول order_messages أولاً
-      try {
-        await client
-            .from('order_messages')
-            .update({'is_read': true})
-            .eq('order_thread_id', orderId)
-            .eq('sender_type', 'user')
-            .eq('is_read', false);
-      } catch (e) {
-        // إذا لم يكن الجدول موجوداً، استخدم support_messages
-        await client
-            .from('support_messages')
-            .update({'is_read': true})
-            .eq('conversation_id', orderId)
-            .eq('sender_type', 'user')
-            .eq('is_read', false);
-      }
+      // تحديث رسائل المستخدمين فقط كمقروءة (نفس منطق support_messages)
+      await client
+          .from('order_messages')
+          .update({'is_read': true})
+          .eq('conversation_id', orderId)
+          .eq('sender_type', 'user')
+          .eq('is_read', false);
 
-      print('✅ تم تحديث رسائل الطلب كمقروءة بنجاح');
+      print('✅ تم تحديث الرسائل كمقروءة بنجاح');
     } catch (e) {
-      print('خطأ في تحديث حالة رسائل الطلب: $e');
+      print('خطأ في تحديث حالة الرسائل: $e');
     }
   }
 
@@ -557,42 +633,23 @@ class OrderService {
   // الحصول على آخر رسالة في الطلب
   Future<OrderMessage?> _getLastOrderMessage(String orderId) async {
     try {
-      // محاولة جلب من order_messages أولاً
-      try {
-        final response = await _supabaseService.client!
-            .from('order_messages')
-            .select('*')
-            .eq('order_thread_id', orderId)
-            .order('created_at', ascending: false)
-            .limit(1)
-            .maybeSingle();
+      final response = await _supabaseService.client!
+          .from('order_messages')
+          .select('*')
+          .eq('conversation_id', orderId)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
 
-        if (response != null) {
-          return OrderMessage.fromJson(response);
-        }
-      } catch (e) {
-        // جلب من support_messages
-        final response = await _supabaseService.client!
-            .from('support_messages')
-            .select('*')
-            .eq('conversation_id', orderId)
-            .order('created_at', ascending: false)
-            .limit(1)
-            .maybeSingle();
+      if (response != null) {
+        // إضافة اسم المرسل وقيمة افتراضية لـ is_read
+        final processedResponse = Map<String, dynamic>.from(response);
+        processedResponse['sender_name'] = response['sender_type'] == 'admin'
+            ? 'فريق الدعم'
+            : 'المستخدم';
+        // تم استلام حقل is_read من قاعدة البيانات
 
-        if (response != null) {
-          return OrderMessage(
-            id: response['id'],
-            orderThreadId: orderId,
-            senderType: response['sender_type'] ?? 'user',
-            senderId: response['sender_id'],
-            type: response['type'] ?? 'text',
-            message: response['message'] ?? '',
-            mediaUrl: response['media_url'],
-            createdAt: DateTime.parse(response['created_at']),
-            isRead: response['is_read'] ?? false,
-          );
-        }
+        return OrderMessage.fromJson(processedResponse);
       }
 
       return null;
@@ -602,32 +659,86 @@ class OrderService {
     }
   }
 
-  // حساب عدد الرسائل غير المقروءة للطلب
-  Future<int> _getUnreadOrderMessagesCount(String orderId) async {
+  // الحصول على عدد الرسائل غير المقروءة (نسخة من support_messages)
+  Future<int> _getUnreadCount(String orderId) async {
     try {
-      // محاولة العد من order_messages أولاً
-      try {
-        final response = await _supabaseService.client!
-            .from('order_messages')
-            .select('id')
-            .eq('order_thread_id', orderId)
-            .eq('sender_type', 'user')
-            .eq('is_read', false);
+      print('🔍 حساب الرسائل غير المقروءة للطلب: $orderId');
 
-        return response.length;
-      } catch (e) {
-        // العد من support_messages
-        final response = await _supabaseService.client!
-            .from('support_messages')
-            .select('id')
-            .eq('conversation_id', orderId)
-            .eq('sender_type', 'user')
-            .eq('is_read', false);
+      final client = _supabaseService.client!;
 
-        return response.length;
-      }
+      // حساب الرسائل غير المقروءة من المستخدمين فقط (نفس منطق support_messages)
+      final unreadMessages = await client
+          .from('order_messages')
+          .select('id, message, created_at')
+          .eq('conversation_id', orderId)
+          .eq('sender_type', 'user')
+          .eq('is_read', false);
+
+      final count = unreadMessages.length;
+      print('📊 عدد الرسائل غير المقروءة في الطلب: $count');
+
+      return count;
     } catch (e) {
-      print('خطأ في حساب الرسائل غير المقروءة للطلب: $e');
+      print('❌ خطأ في حساب الرسائل غير المقروءة: $e');
+      return 0;
+    }
+  }
+
+  // حساب إجمالي الرسائل غير المقروءة من جميع الطلبات (نسخة من support_messages)
+  Future<int> getTotalUnreadOrderMessagesCount() async {
+    try {
+      print('🔍 حساب إجمالي الرسائل غير المقروءة من جميع الطلبات');
+
+      final client = _supabaseService.client!;
+
+      // جلب جميع الرسائل غير المقروءة من المستخدمين (نفس منطق support_messages)
+      final result = await client
+          .from('order_messages')
+          .select('id, message, created_at')
+          .eq('sender_type', 'user')
+          .eq('is_read', false);
+
+      final count = result.length;
+      print('📊 إجمالي الرسائل غير المقروءة في الطلبات: $count');
+
+      // طباعة تفاصيل الرسائل غير المقروءة للتأكد
+      for (final msg in result) {
+        print(
+          '📨 رسالة غير مقروءة: "${msg['message']}" - ${msg['created_at']}',
+        );
+      }
+
+      return count;
+    } catch (e) {
+      print('خطأ في حساب إجمالي الرسائل غير المقروءة في الطلبات: $e');
+      return 0;
+    }
+  }
+
+  // حساب عدد الطلبات التي تحتوي على رسائل غير مقروءة (نسخة من support_messages)
+  Future<int> getUnreadOrderThreadsCount() async {
+    try {
+      print('🔍 حساب عدد الطلبات غير المقروءة');
+
+      final client = _supabaseService.client!;
+
+      // جلب جميع الطلبات المفتوحة
+      final orderThreads = await client.from('order_threads').select('id');
+
+      int unreadThreads = 0;
+
+      // فحص كل طلب لوجود رسائل غير مقروءة
+      for (final thread in orderThreads) {
+        final unreadCount = await _getUnreadCount(thread['id']);
+        if (unreadCount > 0) {
+          unreadThreads++;
+        }
+      }
+
+      print('📊 عدد الطلبات غير المقروءة: $unreadThreads');
+      return unreadThreads;
+    } catch (e) {
+      print('خطأ في حساب الطلبات غير المقروءة: $e');
       return 0;
     }
   }
@@ -650,42 +761,15 @@ class OrderService {
 
     for (var item in response) {
       try {
-        messages.add(OrderMessage.fromJson(item));
+        // إضافة اسم المرسل وقيمة افتراضية لـ is_read
+        final processedItem = Map<String, dynamic>.from(item);
+        processedItem['sender_name'] = item['sender_type'] == 'admin'
+            ? 'فريق الدعم'
+            : 'المستخدم';
+        // تم استلام حقل is_read من قاعدة البيانات
+        messages.add(OrderMessage.fromJson(processedItem));
       } catch (e) {
         print('خطأ في معالجة رسالة الطلب: $e');
-      }
-    }
-
-    return messages;
-  }
-
-  // معالجة رسائل support_messages كرسائل طلبات
-  List<OrderMessage> _processSupportMessagesAsOrderMessages(
-    List<dynamic> response,
-    String orderId,
-  ) {
-    final messages = <OrderMessage>[];
-
-    for (var item in response) {
-      try {
-        messages.add(
-          OrderMessage(
-            id: item['id'],
-            orderThreadId: orderId,
-            senderType: item['sender_type'] ?? 'user',
-            senderId: item['sender_id'],
-            type: item['type'] ?? 'text',
-            message: item['message'] ?? '',
-            mediaUrl: item['media_url'],
-            createdAt: DateTime.parse(item['created_at']),
-            isRead: item['is_read'] ?? false,
-            senderName: item['sender_type'] == 'admin'
-                ? 'فريق الدعم'
-                : 'المستخدم',
-          ),
-        );
-      } catch (e) {
-        print('خطأ في معالجة رسالة الدعم كرسالة طلب: $e');
       }
     }
 
@@ -738,6 +822,11 @@ class OrderService {
     try {
       if (!_supabaseService.isReady) return;
 
+      // إيقاف أي استماع سابق
+      stopListeningToOrderMessages();
+
+      print('🔥 بدء الاستماع لرسائل الطلب: $orderId');
+
       // الاستماع لرسائل order_messages
       _orderMessagesChannel = _supabaseService.client!
           .channel('order_messages_changes_$orderId')
@@ -747,40 +836,44 @@ class OrderService {
             table: 'order_messages',
             filter: PostgresChangeFilter(
               type: PostgresChangeFilterType.eq,
-              column: 'order_thread_id',
-              value: orderId,
-            ),
-            callback: (payload) async {
-              print('تحديث في رسائل الطلب: $payload');
-              final messages = await getOrderMessages(orderId);
-              onUpdate(messages);
-            },
-          )
-          .subscribe();
-
-      // إضافة استماع لـ support_messages أيضاً كبديل
-      _supabaseService.client!
-          .channel('support_messages_for_order_$orderId')
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: 'support_messages',
-            filter: PostgresChangeFilter(
-              type: PostgresChangeFilterType.eq,
               column: 'conversation_id',
               value: orderId,
             ),
             callback: (payload) async {
-              print('تحديث في رسائل الدعم للطلب: $payload');
-              final messages = await getOrderMessages(orderId);
-              onUpdate(messages);
+              print('🔔 تحديث في رسائل الطلب: ${payload.eventType}');
+              print('📋 تفاصيل التحديث: ${payload.newRecord}');
+              try {
+                final messages = await getOrderMessages(orderId);
+                onUpdate(messages);
+                print('✅ تم تحديث الرسائل: ${messages.length} رسالة');
+              } catch (e) {
+                print('❌ خطأ في تحديث الرسائل: $e');
+              }
             },
           )
-          .subscribe();
+          .subscribe((status, [error]) {
+            print('📡 حالة الاشتراك: $status');
+            if (error != null) {
+              print('❌ خطأ في الاشتراك: $error');
+            }
+          });
 
-      print('بدأ الاستماع لتحديثات رسائل الطلب: $orderId');
+      print('✅ تم بدء الاستماع لتحديثات رسائل الطلب: $orderId');
     } catch (e) {
-      print('خطأ في بدء الاستماع لرسائل الطلب: $e');
+      print('❌ خطأ في بدء الاستماع لرسائل الطلب: $e');
+    }
+  }
+
+  // إيقاف الاستماع لرسائل طلب محدد
+  void stopListeningToOrderMessages() {
+    try {
+      if (_orderMessagesChannel != null) {
+        _orderMessagesChannel!.unsubscribe();
+        _orderMessagesChannel = null;
+        print('🛑 تم إيقاف الاستماع لرسائل الطلب');
+      }
+    } catch (e) {
+      print('❌ خطأ في إيقاف الاستماع لرسائل الطلب: $e');
     }
   }
 
@@ -788,9 +881,8 @@ class OrderService {
   void stopListening() {
     try {
       _ordersChannel?.unsubscribe();
-      _orderMessagesChannel?.unsubscribe();
       _ordersChannel = null;
-      _orderMessagesChannel = null;
+      stopListeningToOrderMessages();
       print('تم إيقاف الاستماع لتحديثات الطلبات');
     } catch (e) {
       print('خطأ في إيقاف الاستماع: $e');

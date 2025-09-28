@@ -31,7 +31,7 @@ class OrderMessage {
   factory OrderMessage.fromJson(Map<String, dynamic> json) {
     return OrderMessage(
       id: json['id'] as String,
-      orderThreadId: json['order_thread_id'] as String,
+      orderThreadId: (json['conversation_id'] ?? json['order_thread_id']) as String,
       senderType: json['sender_type'] as String,
       senderId: json['sender_id'] as String,
       type: json['type'] as String? ?? 'text',
@@ -48,7 +48,7 @@ class OrderMessage {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'order_thread_id': orderThreadId,
+      'conversation_id': orderThreadId,
       'sender_type': senderType,
       'sender_id': senderId,
       'type': type,
