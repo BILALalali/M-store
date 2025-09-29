@@ -13,6 +13,7 @@ import 'game_cards/index.dart';
 import 'support_chat/index.dart';
 import 'orders/index.dart';
 import 'wholesale/index.dart';
+import 'admin_invite/index.dart';
 import '../../core/services/auth_service.dart'; // Added import for AuthService
 import 'dart:async';
 
@@ -47,6 +48,7 @@ class _AdminMainScreenState extends State<AdminMainScreen>
     const ProfileScreen(), // شاشة الملف الشخصي
     const SettingsScreen(), // شاشة الإعدادات
     const SupportConversationsScreen(), // شاشة دردشات فريق الدعم
+    const AdminInviteScreen(), // شاشة دعوة مشرف جديد
   ];
 
   // عناوين الشاشات
@@ -61,6 +63,7 @@ class _AdminMainScreenState extends State<AdminMainScreen>
     'الملف الشخصي',
     'الإعدادات',
     'دردشات فريق الدعم',
+    'دعوة مشرف جديد',
   ];
 
   @override

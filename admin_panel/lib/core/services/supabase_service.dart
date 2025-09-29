@@ -343,6 +343,83 @@ class SupabaseService {
     }
   }
 
+  // تأكيد البريد الإلكتروني للمدير باستخدام service_role
+  Future<void> confirmAdminEmail(String email) async {
+    try {
+      final serviceClient = serviceRoleClient;
+      if (serviceClient == null) {
+        throw Exception('عميل service_role غير متاح');
+      }
+
+      print('تأكيد البريد الإلكتروني للمدير: $email');
+
+      // البحث عن المستخدم في Authentication
+      final usersResponse = await serviceClient.auth.admin.listUsers();
+      final user = usersResponse.firstWhere(
+        (user) => user.email == email,
+        orElse: () => throw Exception('المستخدم غير موجود في Authentication'),
+      );
+
+      // تأكيد البريد الإلكتروني
+      await serviceClient.auth.admin.updateUserById(
+        user.id,
+        attributes: AdminUserAttributes(emailConfirm: true),
+      );
+
+      print('تم تأكيد البريد الإلكتروني بنجاح للمدير: $email');
+
+      // التأكد من وجود user_id في جدول admin_users
+      await _ensureAdminUserIdExists(email, user.id);
+    } catch (e) {
+      print('خطأ في تأكيد البريد الإلكتروني: $e');
+      rethrow;
+    }
+  }
+
+  // التأكد من وجود user_id للمدير في جدول admin_users
+  Future<void> _ensureAdminUserIdExists(String email, String userId) async {
+    try {
+      final serviceClient = serviceRoleClient;
+      if (serviceClient == null) {
+        throw Exception('عميل service_role غير متاح');
+      }
+
+      print('فحص وجود user_id للمدير: $email');
+
+      // البحث عن المدير في جدول admin_users
+      final adminRecord = await serviceClient
+          .from('admin_users')
+          .select('*')
+          .eq('email', email)
+          .maybeSingle();
+
+      if (adminRecord != null) {
+        // إذا كان المدير موجود ولكن بدون user_id، قم بتحديثه
+        if (adminRecord['user_id'] == null ||
+            adminRecord['user_id'].toString().isEmpty) {
+          print('تحديث user_id للمدير الموجود: $email');
+
+          await serviceClient
+              .from('admin_users')
+              .update({
+                'user_id': userId,
+                'updated_at': DateTime.now().toIso8601String(),
+              })
+              .eq('email', email);
+
+          print('تم تحديث user_id بنجاح');
+        } else {
+          print('user_id موجود بالفعل للمدير: ${adminRecord['user_id']}');
+        }
+      } else {
+        print('المدير غير موجود في جدول admin_users');
+      }
+    } catch (e) {
+      print('خطأ في فحص/تحديث user_id: $e');
+      // لا نرمي الخطأ هنا لأنه ليس خطأ حرج
+    }
+  }
+
   // التحقق من أن المستخدم مدير
   Future<bool> isAdmin() async {
     try {
@@ -921,7 +998,9 @@ class SupabaseService {
         throw Exception('Supabase غير مهيأ');
       }
 
-      // إنشاء المستخدم
+      print('إنشاء حساب مدير جديد: $email');
+
+      // استخدام signUp العادي (الطريقة المجربة والموثوقة)
       final authResponse = await _auth!.signUp(
         email: email,
         password: password,
@@ -932,39 +1011,17 @@ class SupabaseService {
         print('تم إنشاء المستخدم في Authentication بنجاح');
         print('User ID: ${authResponse.user!.id}');
 
-        // محاولة إضافة المستخدم كمدير في جدول admin_users
-        try {
-          await _client!.from('admin_users').insert({
-            'id': authResponse.user!.id,
-            'email': email,
-            'full_name': fullName,
-            'phone': phone,
-            'role': 'super_admin',
-            'is_active': true,
-            'created_at': DateTime.now().toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
-          });
-          print('تم إضافة المستخدم كمدير في جدول admin_users');
-        } catch (tableError) {
-          print('خطأ في إضافة المستخدم لجدول admin_users: $tableError');
-          print('محاولة إنشاء صف ببيانات بسيطة...');
-
-          // محاولة إنشاء صف ببيانات بسيطة
-          try {
-            await _client!.from('admin_users').insert({
-              'email': email,
-              'full_name': fullName,
-              'role': 'super_admin',
-              'is_active': true,
-            });
-            print('تم إنشاء صف ببيانات بسيطة بنجاح');
-          } catch (simpleError) {
-            print('خطأ في إنشاء صف بسيط: $simpleError');
-            print('يبدو أن جدول admin_users غير موجود أو له هيكل مختلف');
-          }
-        }
+        // إضافة المستخدم كمدير في جدول admin_users
+        await _addAdminToDatabase(
+          authResponse.user!.id,
+          email,
+          fullName,
+          phone,
+        );
 
         print('تم إنشاء حساب المدير بنجاح');
+      } else {
+        throw Exception('فشل في إنشاء المستخدم');
       }
     } catch (e) {
       print('خطأ في إنشاء حساب المدير: $e');
@@ -1982,6 +2039,148 @@ class SupabaseService {
       'total_operators': 0,
       'active_operators': 0,
     };
+  }
+
+  // إضافة المدير إلى قاعدة البيانات (مساعدة)
+  Future<void> _addAdminToDatabase(
+    String userId,
+    String email,
+    String fullName,
+    String? phone,
+  ) async {
+    try {
+      // إعداد البيانات الأساسية
+      final adminData = {
+        'user_id': userId,
+        'email': email,
+        'full_name': fullName,
+        'role': 'super_admin',
+        'is_active': true,
+      };
+
+      // إضافة الهاتف إذا كان متوفراً
+      if (phone != null && phone.isNotEmpty) {
+        adminData['phone'] = phone;
+      }
+
+      print('محاولة إدراج بيانات المدير: $adminData');
+
+      try {
+        final result = await _client!
+            .from('admin_users')
+            .insert(adminData)
+            .select()
+            .single();
+
+        print('تم إضافة المستخدم كمدير في جدول admin_users بنجاح: $result');
+      } catch (tableError) {
+        print('خطأ في إضافة المستخدم لجدول admin_users: $tableError');
+
+        // إذا كان المستخدم موجود، حدث بياناته
+        if (tableError.toString().contains('duplicate key value') ||
+            tableError.toString().contains('already exists')) {
+          print('المستخدم موجود، محاولة التحديث...');
+
+          final updateResult = await _client!
+              .from('admin_users')
+              .update({
+                'full_name': fullName,
+                'phone': phone,
+                'is_active': true,
+                'updated_at': DateTime.now().toIso8601String(),
+              })
+              .eq('user_id', userId)
+              .select()
+              .single();
+
+          print('تم تحديث بيانات المدير الموجود: $updateResult');
+        } else {
+          // إذا كان خطأ آخر، اطرحه
+          rethrow;
+        }
+      }
+    } catch (e) {
+      print('خطأ في إضافة المدير إلى قاعدة البيانات: $e');
+      rethrow;
+    }
+  }
+
+  // إصلاح جميع المدراء الموجودين وربطهم بـ user_id الصحيح
+  Future<void> fixAllAdminUserIds() async {
+    try {
+      final serviceClient = serviceRoleClient;
+      if (serviceClient == null) {
+        throw Exception('عميل service_role غير متاح');
+      }
+
+      print('بدء إصلاح user_id لجميع المدراء...');
+
+      // جلب جميع المدراء من قاعدة البيانات
+      final allAdmins = await serviceClient.from('admin_users').select('*');
+
+      print('تم العثور على ${allAdmins.length} مدير');
+
+      // جلب جميع المستخدمين من Authentication
+      final authUsers = await serviceClient.auth.admin.listUsers();
+      print('تم العثور على ${authUsers.length} مستخدم في Authentication');
+
+      int fixedCount = 0;
+      int alreadyCorrectCount = 0;
+
+      for (var admin in allAdmins) {
+        final email = admin['email'] as String?;
+        final currentUserId = admin['user_id'] as String?;
+
+        if (email == null || email.isEmpty) {
+          print('تجاهل مدير بدون بريد إلكتروني: $admin');
+          continue;
+        }
+
+        // البحث عن المستخدم المطابق في Authentication
+        final matchingAuthUser = authUsers
+            .where((user) => user.email == email)
+            .firstOrNull;
+
+        if (matchingAuthUser == null) {
+          print('لم يتم العثور على مستخدم في Authentication للبريد: $email');
+          continue;
+        }
+
+        // التحقق من أن user_id صحيح
+        if (currentUserId == null ||
+            currentUserId.isEmpty ||
+            currentUserId != matchingAuthUser.id) {
+          print('إصلاح user_id للمدير: $email');
+          print('user_id القديم: $currentUserId');
+          print('user_id الجديد: ${matchingAuthUser.id}');
+
+          try {
+            await serviceClient
+                .from('admin_users')
+                .update({
+                  'user_id': matchingAuthUser.id,
+                  'updated_at': DateTime.now().toIso8601String(),
+                })
+                .eq('id', admin['id']);
+
+            fixedCount++;
+            print('تم إصلاح user_id للمدير: $email');
+          } catch (updateError) {
+            print('خطأ في إصلاح user_id للمدير $email: $updateError');
+          }
+        } else {
+          alreadyCorrectCount++;
+          print('user_id صحيح للمدير: $email');
+        }
+      }
+
+      print('انتهى إصلاح user_id للمدراء');
+      print('تم إصلاح: $fixedCount مدير');
+      print('كان صحيحاً مسبقاً: $alreadyCorrectCount مدير');
+    } catch (e) {
+      print('خطأ في إصلاح user_id للمدراء: $e');
+      rethrow;
+    }
   }
 
   // تحديث آخر تحديث لكلمة المرور

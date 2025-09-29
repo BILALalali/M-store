@@ -214,6 +214,12 @@ class _AdminSidebarState extends State<AdminSidebar> {
               subtitle: 'إعدادات النظام والحساب',
               index: 8,
             ),
+            _buildNavItem(
+              icon: Icons.person_add,
+              title: 'دعوة مشرف',
+              subtitle: 'إضافة مدير جديد للنظام',
+              index: 10,
+            ),
           ],
         ),
       ],
