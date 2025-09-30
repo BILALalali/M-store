@@ -112,96 +112,6 @@ class OrderService {
     }
   }
 
-  // اختبار شامل لنظام المحادثة
-  Future<void> diagnoseChatSystem() async {
-    try {
-      print('🔧 ==== بدء تشخيص نظام المحادثة ====');
-
-      // 1. فحص حالة Supabase
-      print('1️⃣ فحص حالة Supabase...');
-      if (!_supabaseService.isReady) {
-        print('❌ Supabase غير مهيأ');
-        return;
-      }
-      print('✅ Supabase جاهز');
-
-      // 2. فحص المستخدم الحالي
-      print('2️⃣ فحص المستخدم الحالي...');
-      final currentUser = _supabaseService.currentUser;
-      if (currentUser == null) {
-        print('❌ لا يوجد مستخدم مسجل دخول');
-        return;
-      }
-      print(
-        '✅ المستخدم: ${currentUser.id} (${currentUser.email ?? 'بدون بريد'})',
-      );
-
-      // 3. اختبار الوصول لجدول order_messages
-      print('3️⃣ اختبار الوصول لجدول order_messages...');
-      try {
-        await _supabaseService.client!
-            .from('order_messages')
-            .select('id')
-            .limit(1);
-        print('✅ يمكن الوصول لجدول order_messages');
-      } catch (e) {
-        print('❌ لا يمكن الوصول لجدول order_messages: $e');
-      }
-
-      // 4. جلب عينة من الرسائل
-      print('4️⃣ جلب عينة من الرسائل...');
-      try {
-        final sampleMessages = await _supabaseService.client!
-            .from('order_messages')
-            .select('id, conversation_id, sender_type, message, created_at')
-            .limit(5)
-            .order('created_at', ascending: false);
-
-        print('✅ تم جلب ${sampleMessages.length} رسالة');
-        for (var msg in sampleMessages) {
-          print(
-            '   📨 ${msg['conversation_id']}: ${msg['sender_type']} - ${msg['message']}',
-          );
-        }
-      } catch (e) {
-        print('❌ خطأ في جلب الرسائل: $e');
-      }
-
-      // 5. اختبار إدراج رسالة تجريبية
-      print('5️⃣ اختبار إدراج رسالة تجريبية...');
-      try {
-        final testMessage = {
-          'conversation_id': 'test-conversation-id',
-          'sender_type': 'admin',
-          'sender_id': currentUser.id,
-          'type': 'text',
-          'message': 'رسالة تجريبية من المشرف',
-          'created_at': DateTime.now().toIso8601String(),
-        };
-
-        final insertResult = await _supabaseService.client!
-            .from('order_messages')
-            .insert(testMessage)
-            .select();
-
-        print('✅ تم إدراج رسالة تجريبية: ${insertResult.first['id']}');
-
-        // حذف الرسالة التجريبية
-        await _supabaseService.client!
-            .from('order_messages')
-            .delete()
-            .eq('id', insertResult.first['id']);
-        print('✅ تم حذف الرسالة التجريبية');
-      } catch (e) {
-        print('❌ خطأ في إدراج رسالة تجريبية: $e');
-      }
-
-      print('🔧 ==== انتهاء تشخيص نظام المحادثة ====');
-    } catch (e) {
-      print('❌ خطأ عام في التشخيص: $e');
-    }
-  }
-
   // الحصول على جميع الطلبات
   Future<List<OrderThread>> getOrders() async {
     try {
@@ -565,24 +475,274 @@ class OrderService {
     }
   }
 
-  // تحديث حالة الرسائل كمقروءة عند فتح المحادثة (نسخة من support_messages)
-  Future<void> markOrderMessagesAsRead(String orderId) async {
+  // حل نهائي باستخدام RPC function المحسنة
+  Future<int> _forceUpdateMessagesAsRead(String orderId) async {
     try {
-      print('📖 تحديث الرسائل كمقروءة للطلب: $orderId');
+      print('🔧 استخدام RPC function المحسنة...');
 
       final client = _supabaseService.client!;
 
-      // تحديث رسائل المستخدمين فقط كمقروءة (نفس منطق support_messages)
-      await client
-          .from('order_messages')
-          .update({'is_read': true})
-          .eq('conversation_id', orderId)
-          .eq('sender_type', 'user')
-          .eq('is_read', false);
+      // استخدام الدالة الجديدة المحسنة
+      final result = await client.rpc(
+        'mark_order_messages_as_read',
+        params: {'conversation_id_param': orderId},
+      );
 
-      print('✅ تم تحديث الرسائل كمقروءة بنجاح');
+      print('✅ نتيجة RPC المحسنة: $result');
+
+      // التحقق من النتيجة
+      final verificationResult = await client.rpc(
+        'get_unread_count_for_conversation',
+        params: {'conversation_id_param': orderId},
+      );
+
+      print('🔍 عدد الرسائل غير المقروءة بعد التحديث: $verificationResult');
+
+      return result as int? ?? 0;
     } catch (e) {
-      print('خطأ في تحديث حالة الرسائل: $e');
+      print('❌ فشل في RPC function: $e');
+
+      // محاولة بديلة: تحديث مباشر مع تجاهل RLS
+      try {
+        print('🔧 محاولة تحديث مباشر مع تجاهل RLS...');
+        final client = _supabaseService.client!;
+
+        // جلب الرسائل غير المقروءة
+        final unreadMessages = await client
+            .from('order_messages')
+            .select('id, message')
+            .eq('conversation_id', orderId)
+            .eq('sender_type', 'user')
+            .eq('is_read', false);
+
+        print('📊 عدد الرسائل غير المقروءة للتحديث: ${unreadMessages.length}');
+
+        if (unreadMessages.isEmpty) {
+          print('ℹ️ لا توجد رسائل غير مقروءة');
+          return 0;
+        }
+
+        // طباعة تفاصيل الرسائل
+        for (var msg in unreadMessages) {
+          print('📄 رسالة غير مقروءة: ${msg['id']} - "${msg['message']}"');
+        }
+
+        int successCount = 0;
+
+        // تحديث كل رسالة بشكل منفصل
+        for (var message in unreadMessages) {
+          try {
+            print('🔄 محاولة تحديث رسالة: ${message['id']}');
+
+            final updateResult = await client
+                .from('order_messages')
+                .update({
+                  'is_read': true,
+                  'updated_at': DateTime.now().toIso8601String(),
+                })
+                .eq('id', message['id'])
+                .select();
+
+            if (updateResult.isNotEmpty) {
+              print('✅ نجح تحديث رسالة: ${message['id']}');
+              successCount++;
+            } else {
+              print('❌ فشل تحديث رسالة: ${message['id']} - لم يتم إرجاع نتيجة');
+            }
+          } catch (singleError) {
+            print('❌ خطأ في تحديث رسالة ${message['id']}: $singleError');
+          }
+
+          // انتظار قصير بين المحاولات
+          await Future.delayed(const Duration(milliseconds: 200));
+        }
+
+        print(
+          '📊 النتيجة النهائية: تم تحديث $successCount من أصل ${unreadMessages.length} رسالة',
+        );
+        return successCount;
+      } catch (finalError) {
+        print('❌ فشل في المحاولة البديلة: $finalError');
+        return 0;
+      }
+    }
+  }
+
+  // تحديث حالة الرسائل كمقروءة عند فتح المحادثة من تطبيق المشرف
+  Future<int> markOrderMessagesAsRead(String orderId) async {
+    try {
+      print('📖 ==== بدء تحديث الرسائل كمقروءة ====');
+      print('🔍 معرف الطلب: $orderId');
+
+      if (!_supabaseService.isReady) {
+        print('❌ Supabase غير مهيأ');
+        return 0;
+      }
+
+      final client = _supabaseService.client!;
+
+      // أولاً: محاولة استخدام RPC function إذا كانت موجودة
+      try {
+        print('🚀 محاولة استخدام RPC function...');
+
+        final rpcResult = await client.rpc(
+          'mark_order_messages_as_read',
+          params: {'conversation_id_param': orderId},
+        );
+
+        final updatedCount = rpcResult as int? ?? 0;
+        print('✅ نجح RPC function! تم تحديث $updatedCount رسالة');
+
+        if (updatedCount > 0) {
+          // التحقق من النتيجة
+          final verifyCount = await client.rpc(
+            'get_unread_count_for_conversation',
+            params: {'conversation_id_param': orderId},
+          );
+
+          print('🔍 عدد الرسائل غير المقروءة المتبقية: $verifyCount');
+          print('🎉 تم حل المشكلة باستخدام RPC function!');
+          return updatedCount;
+        }
+      } catch (rpcError) {
+        print('❌ RPC function غير متوفرة أو فشلت: $rpcError');
+        print('🔄 التحول إلى الطريقة التقليدية...');
+      }
+
+      // فحص المستخدم الحالي
+      final currentUser = _supabaseService.currentUser;
+      print('👤 المستخدم الحالي: ${currentUser?.id ?? 'غير مسجل'}');
+      print(
+        '🔑 دور المستخدم: ${currentUser?.userMetadata?['role'] ?? 'غير محدد'}',
+      );
+
+      // أولاً: عرض جميع الرسائل في المحادثة للتشخيص
+      print('🔍 جلب جميع الرسائل في المحادثة...');
+      final allMessages = await client
+          .from('order_messages')
+          .select(
+            'id, message, sender_type, is_read, created_at, conversation_id',
+          )
+          .eq('conversation_id', orderId)
+          .order('created_at', ascending: true);
+
+      print('📊 إجمالي الرسائل في المحادثة: ${allMessages.length}');
+
+      if (allMessages.isNotEmpty) {
+        print('📋 تفاصيل جميع الرسائل:');
+        for (var msg in allMessages) {
+          print(
+            '   - ID: ${msg['id']}, Type: ${msg['sender_type']}, Read: ${msg['is_read']}, Text: "${msg['message']}"',
+          );
+        }
+      } else {
+        print('⚠️ لم يتم العثور على أي رسائل في المحادثة!');
+        return 0;
+      }
+
+      // فلترة الرسائل غير المقروءة من المستخدمين
+      final unreadUserMessages = allMessages
+          .where(
+            (msg) => msg['sender_type'] == 'user' && msg['is_read'] == false,
+          )
+          .toList();
+
+      print('🆕 عدد رسائل المستخدم غير المقروءة: ${unreadUserMessages.length}');
+
+      if (unreadUserMessages.isEmpty) {
+        print('ℹ️ لا توجد رسائل غير مقروءة من المستخدم لتحديثها');
+        return 0;
+      }
+
+      print('📋 رسائل المستخدم غير المقروءة:');
+      for (var msg in unreadUserMessages) {
+        print(
+          '   - ID: ${msg['id']}, Message: "${msg['message']}", Created: ${msg['created_at']}',
+        );
+      }
+
+      // ثانياً: محاولة تحديث كل رسالة بشكل منفصل للتشخيص الأفضل
+      print('🔄 بدء تحديث الرسائل واحدة تلو الأخرى...');
+      int successCount = 0;
+      List<String> failedIds = [];
+
+      for (var msg in unreadUserMessages) {
+        try {
+          print('   🔄 تحديث الرسالة: ${msg['id']}');
+
+          final singleUpdateResult = await client
+              .from('order_messages')
+              .update({'is_read': true})
+              .eq('id', msg['id'])
+              .select();
+
+          if (singleUpdateResult.isNotEmpty) {
+            print('   ✅ تم تحديث الرسالة: ${msg['id']} بنجاح');
+            successCount++;
+          } else {
+            print('   ❌ فشل تحديث الرسالة: ${msg['id']} - لم يتم إرجاع نتيجة');
+            failedIds.add(msg['id']);
+          }
+        } catch (singleError) {
+          print('   ❌ خطأ في تحديث الرسالة: ${msg['id']} - $singleError');
+          failedIds.add(msg['id']);
+        }
+
+        // انتظار قصير بين التحديثات
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+
+      print('📊 نتائج التحديث الفردي:');
+      print('   - نجح: $successCount رسالة');
+      print('   - فشل: ${failedIds.length} رسالة');
+      if (failedIds.isNotEmpty) {
+        print('   - الرسائل الفاشلة: $failedIds');
+      }
+
+      // ثالثاً: التحقق النهائي من النتيجة
+      print('🔍 التحقق النهائي من حالة الرسائل...');
+      final finalCheck = await client
+          .from('order_messages')
+          .select('id, is_read')
+          .eq('conversation_id', orderId)
+          .eq('sender_type', 'user');
+
+      final stillUnread = finalCheck
+          .where((msg) => msg['is_read'] == false)
+          .length;
+
+      print('📊 النتائج النهائية:');
+      print('   - رسائل تم تحديثها بنجاح: $successCount');
+      print('   - رسائل لا تزال غير مقروءة: $stillUnread');
+
+      if (stillUnread == 0 && successCount > 0) {
+        print('🎉 تم تحديث جميع رسائل المستخدم كمقروءة بنجاح!');
+      } else if (stillUnread > 0) {
+        print('⚠️ لا تزال هناك رسائل غير مقروءة - محاولة الحل المؤقت...');
+
+        // محاولة الحل المؤقت
+        final forceResult = await _forceUpdateMessagesAsRead(orderId);
+        if (forceResult > 0) {
+          print('✅ نجح الحل المؤقت في تحديث $forceResult رسالة');
+          return forceResult;
+        } else {
+          print('❌ فشل الحل المؤقت أيضاً - المشكلة في صلاحيات Supabase');
+        }
+      }
+
+      print('📖 ==== انتهاء تحديث الرسائل كمقروءة ====');
+      return successCount;
+    } catch (e) {
+      print('❌ خطأ عام في تحديث حالة الرسائل: $e');
+      print('❌ نوع الخطأ: ${e.runtimeType}');
+      print('❌ تفاصيل الخطأ: ${e.toString()}');
+
+      // طباعة stack trace للمساعدة في التشخيص
+      if (e is Exception) {
+        print('❌ Stack trace: ${StackTrace.current}');
+      }
+
+      return 0;
     }
   }
 

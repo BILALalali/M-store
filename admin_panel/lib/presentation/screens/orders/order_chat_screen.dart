@@ -184,19 +184,34 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     if (_currentOrder == null) return;
 
     try {
-      await _orderService.markOrderMessagesAsRead(_currentOrder!.id);
+      print('🔄 بدء تحديث الرسائل كمقروءة من شاشة المحادثة...');
+
+      final updatedCount = await _orderService.markOrderMessagesAsRead(
+        _currentOrder!.id,
+      );
+
       setState(() {
         _hasUnreadMessages = false;
       });
+
       if (mounted && showMessage) {
+        final message = updatedCount > 0
+            ? 'تم تعيين $updatedCount رسالة كمقروءة'
+            : 'لا توجد رسائل غير مقروءة';
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم تعيين الرسائل كمقروءة'),
-            backgroundColor: AppColors.success,
+          SnackBar(
+            content: Text(message),
+            backgroundColor: updatedCount > 0
+                ? AppColors.success
+                : AppColors.info,
           ),
         );
       }
+
+      print('✅ تم تحديث $updatedCount رسالة في شاشة المحادثة');
     } catch (e) {
+      print('❌ خطأ في تحديث الرسائل من شاشة المحادثة: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -237,7 +252,10 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
       }
 
       // تعيين الرسائل كمقروءة بعد الإرسال
-      await _orderService.markOrderMessagesAsRead(widget.order.id);
+      final updatedAfterSend = await _orderService.markOrderMessagesAsRead(
+        widget.order.id,
+      );
+      print('📖 تم تحديث $updatedAfterSend رسالة بعد إرسال الرد');
 
       // إظهار رسالة نجاح
       if (mounted) {
@@ -380,9 +398,6 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                 _loadMessages();
                 _startListening(); // إعادة تفعيل الاستماع
                 break;
-              case 'diagnose':
-                _runDiagnostics();
-                break;
               case 'mark_read':
                 _markMessagesAsRead(showMessage: true);
                 break;
@@ -415,16 +430,6 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                   Icon(Icons.mark_email_read),
                   SizedBox(width: 8),
                   Text('تعيين كمقروء'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'diagnose',
-              child: Row(
-                children: [
-                  Icon(Icons.bug_report, color: AppColors.warning),
-                  SizedBox(width: 8),
-                  Text('تشخيص المشاكل'),
                 ],
               ),
             ),
@@ -938,28 +943,5 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     final minute = localDateTime.minute.toString().padLeft(2, '0');
 
     return '$day/$month/$year $hour:$minute';
-  }
-
-  // تشخيص المشاكل
-  Future<void> _runDiagnostics() async {
-    print('🔧 بدء تشخيص المشاكل من واجهة المحادثة...');
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('جاري تشخيص المشاكل... تحقق من Console'),
-        backgroundColor: AppColors.info,
-        duration: Duration(seconds: 3),
-      ),
-    );
-
-    await _orderService.diagnoseChatSystem();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('تم الانتهاء من التشخيص - راجع Console للتفاصيل'),
-        backgroundColor: AppColors.success,
-        duration: Duration(seconds: 3),
-      ),
-    );
   }
 }
