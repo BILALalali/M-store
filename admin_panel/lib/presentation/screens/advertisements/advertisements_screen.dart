@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/advertisement.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/util_screen.dart';
+// import '../../../core/utils/util_screen.dart';
 import 'add_advertisement_screen.dart';
 
 class AdvertisementsScreen extends StatefulWidget {

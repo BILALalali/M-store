@@ -36,14 +36,32 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
     print('   - User Name: ${widget.request.userName}');
     print('   - Status: ${widget.request.status}');
     print('   - Quantity: ${widget.request.quantity}');
-    
+
     _currentRequest = widget.request;
     _loadMessages();
     _startListening();
 
     // تعيين الرسائل كمقروءة عند فتح المحادثة
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _markMessagesAsRead();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      print('📖 ==== تحديث الرسائل عند فتح المحادثة ====');
+      print('📋 معرف المحادثة: ${_currentRequest?.id}');
+      
+      // تأخير للتأكد من تحميل الرسائل
+      await Future.delayed(const Duration(milliseconds: 1500));
+      
+      try {
+        // تحديث الرسائل كمقروءة
+        await _wholesaleService.markWholesaleMessagesAsRead(_currentRequest!.id);
+        
+        // إعادة تحميل الرسائل
+        await _loadMessages();
+        
+        print('✅ تم تحديث الرسائل بنجاح');
+      } catch (e) {
+        print('❌ خطأ في تحديث الرسائل: $e');
+      }
+      
+      print('📖 ==== انتهاء التحديث ====');
     });
   }
 
@@ -67,11 +85,13 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
       print('👤 معرف المستخدم: ${widget.request.userId}');
       print('👤 اسم المستخدم: ${widget.request.userName}');
 
-      final messages = await _wholesaleService.getWholesaleMessages(widget.request.id);
+      final messages = await _wholesaleService.getWholesaleMessages(
+        widget.request.id,
+      );
 
       print('=== نتيجة جلب رسائل طلب الجملة ===');
       print('عدد الرسائل المستلمة: ${messages.length}');
-      
+
       if (messages.isNotEmpty) {
         print('📋 تفاصيل رسائل طلب الجملة:');
         for (int i = 0; i < messages.length; i++) {
@@ -87,14 +107,22 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
       setState(() {
         _messages = messages;
         _isLoading = false;
-        _updateUnreadStatus();
       });
+      
+      // تحديث حالة الرسائل غير المقروءة
+      _updateUnreadStatus();
+      
+      // تحديث حالة الرسائل غير المقروءة في الواجهة
+      print('📊 حالة الرسائل بعد التحميل:');
+      print('   - إجمالي الرسائل: ${_messages.length}');
+      print('   - الرسائل غير المقروءة: ${_getUnreadCount()}');
+      print('   - حالة الرسائل غير المقروءة: $_hasUnreadMessages');
 
       // التمرير إلى آخر رسالة
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollToBottom();
       });
-      
+
       print('✅ انتهاء تحميل رسائل طلب الجملة في واجهة المشرف');
     } catch (e) {
       print('❌ خطأ في تحميل رسائل طلب الجملة: $e');
@@ -118,7 +146,9 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
       _isConnected = true;
     });
 
-    _wholesaleService.startListeningToWholesaleMessages(widget.request.id, (messages) {
+    _wholesaleService.startListeningToWholesaleMessages(widget.request.id, (
+      messages,
+    ) {
       if (mounted) {
         print('=== تحديث مباشر لرسائل طلب الجملة ===');
         print('عدد الرسائل المستلمة: ${messages.length}');
@@ -130,9 +160,11 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
 
         setState(() {
           _messages = messages;
-          _updateUnreadStatus();
           _isConnected = true;
         });
+        
+        // تحديث حالة الرسائل غير المقروءة
+        _updateUnreadStatus();
 
         // التمرير إلى آخر رسالة عند وصول رسالة جديدة فقط
         if (hasNewMessages) {
@@ -169,39 +201,78 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
       return;
     }
 
-    // البحث عن آخر رسالة من المستخدم
-    for (int i = _messages.length - 1; i >= 0; i--) {
-      if (_messages[i].senderType == 'user') {
-        _hasUnreadMessages = true;
-        return;
+    // البحث عن رسائل غير مقروءة من المستخدمين فقط
+    int unreadCount = 0;
+    for (var message in _messages) {
+      if (message.senderType == 'user' && !message.isRead) {
+        unreadCount++;
       }
     }
 
-    _hasUnreadMessages = false;
+    bool newUnreadStatus = unreadCount > 0;
+    
+    // تحديث الواجهة فقط إذا تغيرت الحالة
+    if (mounted && _hasUnreadMessages != newUnreadStatus) {
+      setState(() {
+        _hasUnreadMessages = newUnreadStatus;
+      });
+      print('📊 تم تحديث حالة الرسائل غير المقروءة: $_hasUnreadMessages (عدد الرسائل: $unreadCount)');
+    } else {
+      print('📊 عدد الرسائل غير المقروءة: $unreadCount (الحالة لم تتغير)');
+    }
+  }
+
+  int _getUnreadCount() {
+    if (_messages.isEmpty) return 0;
+
+    int unreadCount = 0;
+    for (var message in _messages) {
+      if (message.senderType == 'user' && !message.isRead) {
+        unreadCount++;
+      }
+    }
+
+    return unreadCount;
   }
 
   Future<void> _markMessagesAsRead({bool showMessage = false}) async {
     if (_currentRequest == null) return;
 
     try {
+      print('📖 ==== تحديث الرسائل كمقروءة ====');
+      print('📋 معرف المحادثة: ${_currentRequest!.id}');
+      
+      // تحديث الرسائل في قاعدة البيانات
       await _wholesaleService.markWholesaleMessagesAsRead(_currentRequest!.id);
+      
+      // إعادة تحميل الرسائل
+      final updatedMessages = await _wholesaleService.getWholesaleMessages(_currentRequest!.id);
+      
+      // تحديث الواجهة
       setState(() {
+        _messages = updatedMessages;
         _hasUnreadMessages = false;
       });
+      
       if (mounted && showMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('تم تعيين الرسائل كمقروءة'),
+            content: Text('تم تحديث الرسائل كمقروءة'),
             backgroundColor: AppColors.success,
+            duration: Duration(seconds: 2),
           ),
         );
       }
+      
+      print('✅ تم تحديث الرسائل بنجاح');
     } catch (e) {
-      if (mounted) {
+      print('❌ خطأ في تحديث الرسائل: $e');
+      if (mounted && showMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('خطأ في تعيين الرسائل كمقروءة: $e'),
+            content: Text('خطأ في تحديث الرسائل: $e'),
             backgroundColor: AppColors.error,
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -237,7 +308,7 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
       }
 
       // تعيين الرسائل كمقروءة بعد الإرسال
-      await _wholesaleService.markWholesaleMessagesAsRead(widget.request.id);
+      await _markMessagesAsRead();
 
       // إظهار رسالة نجاح
       if (mounted) {
@@ -278,7 +349,9 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم تحديث حالة الطلب إلى ${_getStatusDisplayName(newStatus)}'),
+            content: Text(
+              'تم تحديث حالة الطلب إلى ${_getStatusDisplayName(newStatus)}',
+            ),
             backgroundColor: AppColors.success,
           ),
         );
@@ -329,8 +402,8 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _messages.isEmpty
-                    ? _buildEmptyState()
-                    : _buildMessagesList(),
+                ? _buildEmptyState()
+                : _buildMessagesList(),
           ),
 
           // شريط إرسال الرسائل
@@ -372,7 +445,7 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
             ),
           ),
         ),
-        
+
         // قائمة خيارات الحالة
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert),
@@ -382,11 +455,41 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
                 _loadMessages();
                 _startListening(); // إعادة تفعيل الاستماع
                 break;
+              case 'quick_test':
+                _runQuickTest();
+                break;
+              case 'test_unread':
+                _testUnreadMessages();
+                break;
+              case 'test_auto_update':
+                _testAutoUpdateMessages();
+                break;
+              case 'test_current_conversation':
+                _testCurrentConversation();
+                break;
+              case 'test_mark_read':
+                _testMarkRead();
+                break;
               case 'diagnose':
                 _runDiagnostics();
                 break;
+              case 'diagnose_is_read':
+                _diagnoseIsReadUpdate();
+                break;
               case 'mark_read':
                 _markMessagesAsRead(showMessage: true);
+                break;
+              case 'test_update':
+                _testUpdateMessages();
+                break;
+              case 'mark_read_improved':
+                _markMessagesAsReadImproved(showMessage: true);
+                break;
+              case 'export_chat':
+                _exportChatHistory();
+                break;
+              case 'create_conversation':
+                _createMissingConversation();
                 break;
               case 'status_under_review':
                 _updateRequestStatus('under_review');
@@ -427,12 +530,122 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
               ),
             ),
             const PopupMenuItem(
+              value: 'test_update',
+              child: Row(
+                children: [
+                  Icon(Icons.refresh, color: AppColors.primary),
+                  SizedBox(width: 8),
+                  Text('اختبار التحديث'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'mark_read_improved',
+              child: Row(
+                children: [
+                  Icon(Icons.mark_email_read, color: AppColors.success),
+                  SizedBox(width: 8),
+                  Text('تعيين كمقروء (محسن)'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'force_update_read',
+              child: Row(
+                children: [
+                  Icon(Icons.refresh, color: AppColors.warning),
+                  SizedBox(width: 8),
+                  Text('إجبار تحديث القراءة'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'export_chat',
+              child: Row(
+                children: [
+                  Icon(Icons.download, color: AppColors.success),
+                  SizedBox(width: 8),
+                  Text('تصدير المحادثة'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'create_conversation',
+              child: Row(
+                children: [
+                  Icon(Icons.add_circle, color: AppColors.warning),
+                  SizedBox(width: 8),
+                  Text('إنشاء محادثة'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'quick_test',
+              child: Row(
+                children: [
+                  Icon(Icons.speed, color: AppColors.info),
+                  SizedBox(width: 8),
+                  Text('اختبار سريع'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'test_unread',
+              child: Row(
+                children: [
+                  Icon(Icons.mark_email_unread, color: AppColors.warning),
+                  SizedBox(width: 8),
+                  Text('اختبار الرسائل غير المقروءة'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'test_auto_update',
+              child: Row(
+                children: [
+                  Icon(Icons.refresh, color: AppColors.primary),
+                  SizedBox(width: 8),
+                  Text('اختبار التحديث التلقائي'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'test_current_conversation',
+              child: Row(
+                children: [
+                  Icon(Icons.chat, color: AppColors.info),
+                  SizedBox(width: 8),
+                  Text('اختبار المحادثة الحالية'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'test_mark_read',
+              child: Row(
+                children: [
+                  Icon(Icons.mark_email_read, color: AppColors.success),
+                  SizedBox(width: 8),
+                  Text('اختبار تحديث القراءة'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
               value: 'diagnose',
               child: Row(
                 children: [
                   Icon(Icons.bug_report, color: AppColors.warning),
                   SizedBox(width: 8),
                   Text('تشخيص المشاكل'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'diagnose_is_read',
+              child: Row(
+                children: [
+                  Icon(Icons.read_more, color: AppColors.error),
+                  SizedBox(width: 8),
+                  Text('تشخيص تحديث is_read'),
                 ],
               ),
             ),
@@ -550,7 +763,10 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
 
               // حالة الطلب
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: _getStatusColor(_currentRequest?.status ?? 'pending'),
                   borderRadius: BorderRadius.circular(16),
@@ -567,20 +783,51 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
 
               const SizedBox(width: 8),
 
-              // حالة الرسائل
+              // حالة الرسائل مع العدد
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: _hasUnreadMessages ? AppColors.warning : AppColors.success,
+                  color: _hasUnreadMessages
+                      ? AppColors.warning
+                      : AppColors.success,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Text(
-                  _hasUnreadMessages ? 'رسائل جديدة' : 'مقروءة',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _hasUnreadMessages ? 'رسائل جديدة' : 'مقروءة',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (_hasUnreadMessages) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${_getUnreadCount()}',
+                          style: TextStyle(
+                            color: AppColors.warning,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
@@ -604,11 +851,7 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
                 // اسم المنتج
                 Row(
                   children: [
-                    Icon(
-                      Icons.inventory_2,
-                      size: 16,
-                      color: AppColors.primary,
-                    ),
+                    Icon(Icons.inventory_2, size: 16, color: AppColors.primary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -628,11 +871,7 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
                 // الكمية المطلوبة
                 Row(
                   children: [
-                    Icon(
-                      Icons.numbers,
-                      size: 16,
-                      color: AppColors.info,
-                    ),
+                    Icon(Icons.numbers, size: 16, color: AppColors.info),
                     const SizedBox(width: 8),
                     Text(
                       _currentRequest?.displayQuantity ?? 'الكمية: غير محددة',
@@ -753,6 +992,7 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
 
   Widget _buildMessageBubble(WholesaleMessage message) {
     final isFromAdmin = message.isFromAdmin;
+    final isUnread = !message.isRead && message.senderType == 'user';
 
     return Align(
       alignment: isFromAdmin ? Alignment.centerRight : Alignment.centerLeft,
@@ -766,16 +1006,32 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
               ? CrossAxisAlignment.end
               : CrossAxisAlignment.start,
           children: [
-            // اسم المرسل
+            // اسم المرسل مع مؤشر القراءة
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                message.displaySenderName,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.text.withValues(alpha: 0.6),
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    message.displaySenderName,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  if (isUnread) ...[
+                    const SizedBox(width: 4),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: AppColors.warning,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
 
@@ -785,7 +1041,9 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
               decoration: BoxDecoration(
                 color: isFromAdmin
                     ? AppColors.primary
-                    : AppColors.cardBackground,
+                    : (isUnread
+                          ? AppColors.warning.withValues(alpha: 0.1)
+                          : AppColors.cardBackground),
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),
@@ -797,8 +1055,10 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
                       : const Radius.circular(16),
                 ),
                 border: Border.all(
-                  color: isFromAdmin ? AppColors.primary : AppColors.secondary,
-                  width: 1,
+                  color: isFromAdmin
+                      ? AppColors.primary
+                      : (isUnread ? AppColors.warning : AppColors.secondary),
+                  width: isUnread ? 2 : 1,
                 ),
               ),
               child: Column(
@@ -855,15 +1115,34 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
               ),
             ),
 
-            // وقت الرسالة
+            // وقت الرسالة مع حالة القراءة
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                message.detailedTime,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: AppColors.text.withValues(alpha: 0.5),
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    message.detailedTime,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.text.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  if (isUnread) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      'غير مقروءة',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: AppColors.warning,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ] else if (message.senderType == 'user') ...[
+                    const SizedBox(width: 4),
+                    Icon(Icons.done_all, size: 12, color: AppColors.success),
+                  ],
+                ],
               ),
             ),
           ],
@@ -964,10 +1243,175 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
     return '$day/$month/$year $hour:$minute';
   }
 
+  // اختبار تحديث القراءة
+  Future<void> _testMarkRead() async {
+    if (_currentRequest == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا توجد محادثة حالية للاختبار'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    print('🔄 بدء اختبار تحديث القراءة...');
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('جاري اختبار تحديث القراءة: ${_currentRequest!.id}'),
+        backgroundColor: AppColors.info,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+
+    try {
+      // فحص الرسائل غير المقروءة قبل التحديث
+      int unreadBefore = await _wholesaleService.getUnreadCount(_currentRequest!.id);
+      print('📊 عدد الرسائل غير المقروءة قبل الاختبار: $unreadBefore');
+      
+      if (unreadBefore > 0) {
+        // تحديث الرسائل
+        await _markMessagesAsRead(showMessage: true);
+        
+        // فحص الرسائل غير المقروءة بعد التحديث
+        int unreadAfter = await _wholesaleService.getUnreadCount(_currentRequest!.id);
+        print('📊 عدد الرسائل غير المقروءة بعد الاختبار: $unreadAfter');
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تم تحديث $unreadBefore رسالة كمقروءة'),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('لا توجد رسائل غير مقروءة للاختبار'),
+            backgroundColor: AppColors.info,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ خطأ في اختبار تحديث القراءة: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في اختبار تحديث القراءة: $e'),
+          backgroundColor: AppColors.error,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  // اختبار المحادثة الحالية
+  Future<void> _testCurrentConversation() async {
+    if (_currentRequest == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا توجد محادثة حالية للاختبار'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    print('🔄 بدء اختبار المحادثة الحالية...');
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('جاري اختبار المحادثة: ${_currentRequest!.id}'),
+        backgroundColor: AppColors.info,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+
+    await _wholesaleService.testUpdateSpecificConversation(_currentRequest!.id);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم الانتهاء من اختبار المحادثة - راجع Console للتفاصيل'),
+        backgroundColor: AppColors.success,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // اختبار التحديث التلقائي للرسائل
+  Future<void> _testAutoUpdateMessages() async {
+    print('🔄 بدء اختبار التحديث التلقائي للرسائل...');
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('جاري اختبار التحديث التلقائي... تحقق من Console'),
+        backgroundColor: AppColors.info,
+        duration: Duration(seconds: 3),
+      ),
+    );
+
+    await _wholesaleService.testAutoUpdateMessages();
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم الانتهاء من اختبار التحديث التلقائي - راجع Console للتفاصيل'),
+        backgroundColor: AppColors.success,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // اختبار الرسائل غير المقروءة
+  Future<void> _testUnreadMessages() async {
+    print('🔍 بدء اختبار الرسائل غير المقروءة...');
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('جاري اختبار الرسائل غير المقروءة... تحقق من Console'),
+        backgroundColor: AppColors.info,
+        duration: Duration(seconds: 3),
+      ),
+    );
+
+    await _wholesaleService.testUnreadMessages();
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم الانتهاء من اختبار الرسائل غير المقروءة - راجع Console للتفاصيل'),
+        backgroundColor: AppColors.success,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // اختبار سريع لنظام محادثة طلبات الجملة
+  Future<void> _runQuickTest() async {
+    print('🔧 بدء الاختبار السريع لنظام محادثة طلبات الجملة...');
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('جاري الاختبار السريع... تحقق من Console'),
+        backgroundColor: AppColors.info,
+        duration: Duration(seconds: 3),
+      ),
+    );
+
+    await _wholesaleService.quickTestWholesaleSystem();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم الانتهاء من الاختبار السريع - راجع Console للتفاصيل'),
+        backgroundColor: AppColors.success,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
   // تشخيص المشاكل لطلبات الجملة
   Future<void> _runDiagnostics() async {
     print('🔧 بدء تشخيص المشاكل لطلبات الجملة من واجهة المحادثة...');
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('جاري تشخيص مشاكل طلبات الجملة... تحقق من Console'),
@@ -977,13 +1421,271 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
     );
 
     await _wholesaleService.diagnoseWholesaleChatSystem();
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('تم الانتهاء من تشخيص طلبات الجملة - راجع Console للتفاصيل'),
+        content: Text(
+          'تم الانتهاء من تشخيص طلبات الجملة - راجع Console للتفاصيل',
+        ),
         backgroundColor: AppColors.success,
         duration: Duration(seconds: 3),
       ),
     );
+  }
+
+  // تشخيص مشكلة تحديث is_read
+  Future<void> _diagnoseIsReadUpdate() async {
+    if (_currentRequest == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا توجد محادثة حالية للتشخيص'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    print('🔧 بدء تشخيص مشكلة تحديث is_read...');
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('جاري تشخيص تحديث is_read: ${_currentRequest!.id}'),
+        backgroundColor: AppColors.info,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+
+    await _wholesaleService.diagnoseIsReadUpdate(_currentRequest!.id);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم الانتهاء من التشخيص - راجع Console للتفاصيل'),
+        backgroundColor: AppColors.success,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // تحديث محسن للرسائل كمقروءة
+  Future<void> _markMessagesAsReadImproved({bool showMessage = false}) async {
+    if (_currentRequest == null) return;
+
+    try {
+      print('📖 ==== بدء التحديث المحسن للرسائل كمقروءة ====');
+      print('📋 معرف طلب الجملة: ${_currentRequest!.id}');
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('جاري تحديث الرسائل كمقروءة (الطريقة المحسنة)...'),
+          backgroundColor: AppColors.info,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // استخدام الدالة المحسنة
+      final success = await _wholesaleService.markWholesaleMessagesAsReadImproved(_currentRequest!.id);
+      
+      if (success) {
+        // إعادة تحميل الرسائل من قاعدة البيانات
+        final updatedMessages = await _wholesaleService.getWholesaleMessages(_currentRequest!.id);
+        
+        setState(() {
+          _messages = updatedMessages;
+          _hasUnreadMessages = false;
+        });
+        
+        if (mounted && showMessage) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('تم تحديث الرسائل كمقروءة بنجاح (الطريقة المحسنة)'),
+              backgroundColor: AppColors.success,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        if (mounted && showMessage) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('فشل في تحديث الرسائل - تحقق من Console للتفاصيل'),
+              backgroundColor: AppColors.error,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+      
+      print('📖 ==== انتهاء التحديث المحسن ====');
+    } catch (e) {
+      print('❌ خطأ في التحديث المحسن: $e');
+      if (mounted && showMessage) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في التحديث المحسن: $e'),
+            backgroundColor: AppColors.error,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  // اختبار تحديث الرسائل
+  Future<void> _testUpdateMessages() async {
+    if (_currentRequest == null) return;
+
+    try {
+      print('🧪 ==== اختبار تحديث الرسائل ====');
+      print('📋 معرف المحادثة: ${_currentRequest!.id}');
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('جاري اختبار تحديث الرسائل...'),
+          backgroundColor: AppColors.info,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // 1. فحص الرسائل غير المقروءة قبل التحديث
+      final unreadBefore = await _wholesaleService.getUnreadCount(_currentRequest!.id);
+      print('📊 الرسائل غير المقروءة قبل التحديث: $unreadBefore');
+      
+      if (unreadBefore == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('لا توجد رسائل غير مقروءة للاختبار'),
+            backgroundColor: AppColors.info,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+      
+      // 2. تحديث الرسائل
+      await _wholesaleService.markWholesaleMessagesAsRead(_currentRequest!.id);
+      
+      // 3. فحص الرسائل غير المقروءة بعد التحديث
+      final unreadAfter = await _wholesaleService.getUnreadCount(_currentRequest!.id);
+      print('📊 الرسائل غير المقروءة بعد التحديث: $unreadAfter');
+      
+      // 4. إعادة تحميل الرسائل
+      await _loadMessages();
+      
+      // 5. عرض النتيجة
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('النتيجة: $unreadBefore → $unreadAfter رسالة غير مقروءة'),
+            backgroundColor: unreadAfter == 0 ? AppColors.success : AppColors.warning,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      
+      print('🧪 ==== انتهاء الاختبار ====');
+    } catch (e) {
+      print('❌ خطأ في الاختبار: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في الاختبار: $e'),
+            backgroundColor: AppColors.error,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  // تصدير تاريخ المحادثة
+  void _exportChatHistory() {
+    try {
+      final chatData = {
+        'request_id': _currentRequest?.id,
+        'request_info': {
+          'product_name': _currentRequest?.productName,
+          'user_name': _currentRequest?.userName,
+          'quantity': _currentRequest?.quantity,
+          'status': _currentRequest?.status,
+          'created_at': _currentRequest?.createdAt.toIso8601String(),
+        },
+        'export_date': DateTime.now().toIso8601String(),
+        'total_messages': _messages.length,
+        'messages': _messages
+            .map(
+              (msg) => {
+                'id': msg.id,
+                'sender_type': msg.senderType,
+                'sender_name': msg.displaySenderName,
+                'message': msg.message,
+                'type': msg.type,
+                'created_at': msg.createdAt.toIso8601String(),
+                'is_read': msg.isRead,
+              },
+            )
+            .toList(),
+      };
+
+      // طباعة البيانات في Console
+      print('=== تصدير تاريخ محادثة طلب الجملة ===');
+      print('معرف الطلب: ${_currentRequest?.id}');
+      print('اسم المنتج: ${_currentRequest?.productName}');
+      print('اسم العميل: ${_currentRequest?.userName}');
+      print('عدد الرسائل: ${_messages.length}');
+      print('تاريخ التصدير: ${DateTime.now()}');
+      print('=== بيانات المحادثة ===');
+      print(chatData);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم تصدير تاريخ المحادثة - راجع Console للتفاصيل'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في تصدير تاريخ المحادثة: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  // إنشاء محادثة مفقودة
+  Future<void> _createMissingConversation() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('جاري إنشاء المحادثة المفقودة...'),
+          backgroundColor: AppColors.info,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // التأكد من وجود محادثة لطلب الجملة
+      await _wholesaleService.ensureWholesaleConversationExists(
+        widget.request.id,
+      );
+
+      // إعادة تحميل الرسائل
+      await _loadMessages();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم إنشاء المحادثة بنجاح - يمكنك الآن إرسال الرسائل'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في إنشاء المحادثة: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 }

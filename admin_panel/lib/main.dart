@@ -46,8 +46,8 @@ class AuthWrapper extends StatefulWidget {
 
 class _AuthWrapperState extends State<AuthWrapper> {
   bool _isLoading = true;
-  bool _isAuthenticated = false;
-  bool _isAdmin = false;
+  // bool _isAuthenticated = false;
+  // bool _isAdmin = false;
   String? _errorMessage;
   AuthService? _authService;
 
@@ -80,8 +80,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
       if (_authService == null) {
         print('AuthService غير مهيأ');
         setState(() {
-          _isAuthenticated = false;
-          _isAdmin = false;
           _isLoading = false;
           _errorMessage = 'خطأ في تهيئة النظام';
         });
@@ -96,9 +94,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
       final isAdmin = _authService!.isAdmin;
 
       // تحقق إضافي: إذا كان المستخدم مسجل دخول، تأكد من وجود بيانات المدير
-      bool finalIsAuth = isAuth;
-      bool finalIsAdmin = isAdmin;
-
       if (isAuth && isAdmin) {
         // التحقق من وجود بيانات المدير
         final adminProfile = _authService!.adminProfile;
@@ -106,24 +101,18 @@ class _AuthWrapperState extends State<AuthWrapper> {
           print(
             'المستخدم مسجل دخول لكن لا توجد بيانات المدير - إعادة تعيين الحالة',
           );
-          finalIsAuth = false;
-          finalIsAdmin = false;
           // إعادة تعيين حالة AuthService
           _authService!.resetAuthState();
         }
       }
 
       setState(() {
-        _isAuthenticated = finalIsAuth;
-        _isAdmin = finalIsAdmin;
         _isLoading = false;
         _errorMessage = null;
       });
     } catch (e) {
       print('خطأ في التحقق من حالة تسجيل الدخول: $e');
       setState(() {
-        _isAuthenticated = false;
-        _isAdmin = false;
         _isLoading = false;
         _errorMessage = 'خطأ في الاتصال بالنظام: $e';
       });
