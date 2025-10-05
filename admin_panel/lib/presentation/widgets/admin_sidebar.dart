@@ -9,8 +9,6 @@ class AdminSidebar extends StatefulWidget {
   final VoidCallback? onSettingsTap;
   final VoidCallback? onLogoutTap;
   final NotificationService? notificationService;
-  final int totalUnreadMessages;
-  final int unreadConversations;
 
   const AdminSidebar({
     super.key,
@@ -20,8 +18,6 @@ class AdminSidebar extends StatefulWidget {
     this.onSettingsTap,
     this.onLogoutTap,
     this.notificationService,
-    this.totalUnreadMessages = 0,
-    this.unreadConversations = 0,
   });
 
   @override
@@ -129,24 +125,26 @@ class _AdminSidebarState extends State<AdminSidebar> {
           isExpanded: _isChatsExpanded,
           onToggle: () => setState(() => _isChatsExpanded = !_isChatsExpanded),
           children: [
-            _buildNavItem(
+            _buildNavItemWithNotification(
               icon: Icons.shopping_cart,
               title: 'الطلبات',
               subtitle: 'إدارة ومتابعة طلبات المستخدمين',
               index: 1,
+              notificationCount: widget.notificationService?.ordersUnreadMessages ?? 0,
             ),
-            _buildNavItem(
+            _buildNavItemWithNotification(
               icon: Icons.business_center,
               title: 'طلبات الجملة',
               subtitle: 'إدارة ومتابعة طلبات الجملة',
               index: 2,
+              notificationCount: widget.notificationService?.wholesaleUnreadMessages ?? 0,
             ),
             _buildNavItemWithNotification(
               icon: Icons.support_agent,
               title: 'فريق الدعم',
               subtitle: 'إدارة دردشات الدعم',
               index: 9,
-              notificationCount: widget.totalUnreadMessages,
+              notificationCount: widget.notificationService?.supportUnreadMessages ?? 0,
             ),
           ],
         ),

@@ -49,6 +49,11 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
         // إعادة تحميل الرسائل
         await _loadMessages();
 
+        // تمرير تلقائي للأسفل بعد التحديث
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+
         print('✅ تم تحديث الرسائل بنجاح');
       } catch (e) {
         print('❌ خطأ في تحديث الرسائل: $e');
@@ -83,7 +88,11 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
       });
 
       _updateUnreadStatus();
-      _scrollToBottom();
+
+      // تأخير التمرير حتى يتم بناء الواجهة
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToBottom();
+      });
     } catch (e) {
       print('❌ خطأ في تحميل الرسائل: $e');
       setState(() {
@@ -96,25 +105,44 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
     // بدء الاستماع للرسائل
     _wholesaleService.startListeningToWholesaleMessages(_currentRequest!.id, (
       messages,
-    ) {
+    ) async {
       if (mounted) {
         setState(() {
           _messages = messages;
           _isConnected = true;
         });
         _updateUnreadStatus();
-        _scrollToBottom();
+
+        // تأخير التمرير حتى يتم بناء الواجهة
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+
+        // تحديث الرسائل كمقروءة عند وصول رسائل جديدة
+        try {
+          await _wholesaleService.markWholesaleMessagesAsRead(
+            _currentRequest!.id,
+          );
+          print('✅ تم تحديث الرسائل كمقروءة تلقائياً');
+        } catch (e) {
+          print('❌ خطأ في تحديث الرسائل كمقروءة: $e');
+        }
       }
     });
   }
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      // التأكد من أن الواجهة تم بناؤها بالكامل
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
     }
   }
 
@@ -221,6 +249,16 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
         requestId: _currentRequest!.id,
         message: messageText,
       );
+
+      // تحديث الرسائل كمقروءة بعد الإرسال
+      try {
+        await _wholesaleService.markWholesaleMessagesAsRead(
+          _currentRequest!.id,
+        );
+        print('✅ تم تحديث الرسائل كمقروءة بعد الإرسال');
+      } catch (e) {
+        print('❌ خطأ في تحديث الرسائل بعد الإرسال: $e');
+      }
 
       // إعادة تحميل الرسائل
       await _loadMessages();

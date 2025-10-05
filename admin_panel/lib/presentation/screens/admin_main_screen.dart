@@ -29,12 +29,7 @@ class _AdminMainScreenState extends State<AdminMainScreen>
   int _selectedIndex = 0;
   bool _isSidebarCollapsed = false;
   late NotificationService _notificationService;
-  late SupportChatService _chatService;
 
-  // متغيرات الرسائل غير المقروءة
-  int _totalUnreadMessages = 0;
-  int _unreadConversations = 0;
-  StreamSubscription? _unreadSubscription;
 
   // قائمة الشاشات
   final List<Widget> _screens = [
@@ -71,64 +66,24 @@ class _AdminMainScreenState extends State<AdminMainScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _notificationService = NotificationService();
-    _chatService = SupportChatService();
     // تحديث فوري للإشعارات عند بدء التطبيق
     _notificationService.refreshNotifications();
-    _initializeUnreadCount();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _notificationService.dispose();
-    _unreadSubscription?.cancel();
     super.dispose();
   }
 
-  Future<void> _initializeUnreadCount() async {
-    // جلب العدد الأولي
-    final totalUnread = await _chatService.getTotalUnreadMessagesCount();
-    final unreadConversations = await _chatService
-        .getUnreadConversationsCount();
-
-    if (mounted) {
-      setState(() {
-        _totalUnreadMessages = totalUnread;
-        _unreadConversations = unreadConversations;
-      });
-    }
-
-    // الاشتراك في التحديثات
-    _unreadSubscription = await _chatService.subscribeToUnreadCount((
-      totalUnread,
-      unreadConversations,
-    ) {
-      if (mounted) {
-        setState(() {
-          _totalUnreadMessages = totalUnread;
-          _unreadConversations = unreadConversations;
-        });
-      }
-    });
-  }
-
-  // تحديث يدوي للرسائل غير المقروءة
-  Future<void> _refreshUnreadCount() async {
-    await _chatService.refreshUnreadCount((totalUnread, unreadConversations) {
-      if (mounted) {
-        setState(() {
-          _totalUnreadMessages = totalUnread;
-          _unreadConversations = unreadConversations;
-        });
-      }
-    });
-  }
 
   // إعادة تحميل البيانات عند العودة للشاشة
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _refreshUnreadCount();
+      // تحديث الإشعارات عند العودة للتطبيق
+      _notificationService.refreshNotifications();
     }
   }
 
@@ -263,8 +218,6 @@ class _AdminMainScreenState extends State<AdminMainScreen>
                 },
                 onLogoutTap: _handleLogout,
                 notificationService: _notificationService,
-                totalUnreadMessages: _totalUnreadMessages,
-                unreadConversations: _unreadConversations,
               ),
             ),
 

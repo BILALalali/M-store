@@ -19,7 +19,6 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
   List<WholesaleRequest> _filteredRequests = [];
   bool _isLoading = true;
   String _searchQuery = '';
-  String _selectedStatus = 'all';
 
   // Stream subscription للتحديثات في الوقت الفعلي
   StreamSubscription<List<WholesaleRequest>>? _requestsSubscription;
@@ -39,6 +38,7 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
   }
 
   Future<void> _loadRequests() async {
+    print('🔄 ==== بدء تحميل طلبات الجملة ====');
     setState(() {
       _isLoading = true;
     });
@@ -51,7 +51,11 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
         _applyFilters();
         _isLoading = false;
       });
+      
+      print('✅ تم تحميل ${requests.length} طلب جملة بنجاح');
+      print('📊 عدد المحادثات الجديدة: ${requests.where((r) => r.hasUnreadMessages).length}');
     } catch (e) {
+      print('❌ خطأ في تحميل طلبات الجملة: $e');
       setState(() {
         _isLoading = false;
       });
@@ -92,6 +96,7 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
     // الاستماع لتحديثات الرسائل لتحديث عدد الرسائل غير المقروءة
     _wholesaleService.messagesStream.listen((messages) {
       if (mounted) {
+        print('📨 تم استقبال تحديث في الرسائل - إعادة تحميل الطلبات...');
         // إعادة تحميل الطلبات لتحديث عدد الرسائل غير المقروءة
         _loadRequests();
       }
@@ -113,13 +118,6 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
             userName.contains(query) ||
             description.contains(query);
       }).toList();
-    }
-
-    // تصفية حسب الحالة
-    if (_selectedStatus != 'all') {
-      filtered = filtered
-          .where((request) => request.status == _selectedStatus)
-          .toList();
     }
 
     // ترتيب حسب الأولوية والتاريخ
@@ -247,52 +245,10 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
 
           const SizedBox(height: 12),
 
-          // أزرار التصفية
+          // أزرار التحكم
           Row(
             children: [
-              // تصفية حسب الحالة
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _selectedStatus,
-                  decoration: InputDecoration(
-                    labelText: 'الحالة',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'all', child: Text('جميع الحالات')),
-                    DropdownMenuItem(
-                      value: 'pending',
-                      child: Text('قيد المراجعة'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'under_review',
-                      child: Text('قيد الدراسة'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'approved',
-                      child: Text('موافق عليه'),
-                    ),
-                    DropdownMenuItem(value: 'rejected', child: Text('مرفوض')),
-                    DropdownMenuItem(value: 'completed', child: Text('مكتمل')),
-                    DropdownMenuItem(value: 'cancelled', child: Text('ملغى')),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedStatus = value ?? 'all';
-                      _applyFilters();
-                    });
-                  },
-                ),
-              ),
-
-              const SizedBox(width: 12),
-
+              const Spacer(),
               // زر التحديث
               IconButton(
                 icon: Icon(Icons.refresh, color: AppColors.primary),
@@ -306,28 +262,17 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
 
           // إحصائيات سريعة
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildQuickStat('الإجمالي', _requests.length, AppColors.primary),
               _buildQuickStat(
-                'معلقة',
-                _requests.where((r) => r.status == 'pending').length,
-                AppColors.warning,
+                'المحادثات الإجمالي',
+                _requests.length,
+                AppColors.primary,
               ),
               _buildQuickStat(
-                'قيد الدراسة',
-                _requests.where((r) => r.status == 'under_review').length,
-                AppColors.info,
-              ),
-              _buildQuickStat(
-                'موافق عليها',
-                _requests.where((r) => r.status == 'approved').length,
-                AppColors.success,
-              ),
-              _buildQuickStat(
-                'غير مقروءة',
+                'المحادثات الجديدة',
                 _requests.where((r) => r.hasUnreadMessages).length,
-                AppColors.error,
+                AppColors.warning,
               ),
             ],
           ),
@@ -786,41 +731,16 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildStatRow(
-                'إجمالي الطلبات',
+                'إجمالي المحادثات',
                 '${_requests.length}',
                 AppColors.primary,
               ),
               _buildStatRow(
-                'الطلبات المعلقة',
-                '${_requests.where((r) => r.status == 'pending').length}',
-                AppColors.warning,
-              ),
-              _buildStatRow(
-                'قيد الدراسة',
-                '${_requests.where((r) => r.status == 'under_review').length}',
-                AppColors.info,
-              ),
-              _buildStatRow(
-                'موافق عليها',
-                '${_requests.where((r) => r.status == 'approved').length}',
-                AppColors.success,
-              ),
-              _buildStatRow(
-                'مرفوضة',
-                '${_requests.where((r) => r.status == 'rejected').length}',
-                AppColors.error,
-              ),
-              _buildStatRow(
-                'مكتملة',
-                '${_requests.where((r) => r.status == 'completed').length}',
-                AppColors.success,
-              ),
-              const Divider(),
-              _buildStatRow(
-                'طلبات بها رسائل غير مقروءة',
+                'المحادثات الجديدة',
                 '${_requests.where((r) => r.hasUnreadMessages).length}',
                 AppColors.warning,
               ),
+              const Divider(),
               _buildStatRow(
                 'إجمالي الكمية المطلوبة',
                 '${_requests.fold(0, (sum, r) => sum + r.quantity)} قطعة',

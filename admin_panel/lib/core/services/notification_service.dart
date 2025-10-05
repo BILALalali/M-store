@@ -13,6 +13,11 @@ class NotificationService extends ChangeNotifier {
   int _unreadConversations = 0;
   bool _hasNewMessages = false;
 
+  // إحصائيات منفصلة لكل قسم
+  int _supportUnreadMessages = 0;
+  int _wholesaleUnreadMessages = 0;
+  int _ordersUnreadMessages = 0;
+
   // Timer للتحديث الدوري
   Timer? _updateTimer;
 
@@ -23,6 +28,11 @@ class NotificationService extends ChangeNotifier {
   int get totalUnreadMessages => _totalUnreadMessages;
   int get unreadConversations => _unreadConversations;
   bool get hasNewMessages => _hasNewMessages;
+
+  // Getters للعدادات المنفصلة
+  int get supportUnreadMessages => _supportUnreadMessages;
+  int get wholesaleUnreadMessages => _wholesaleUnreadMessages;
+  int get ordersUnreadMessages => _ordersUnreadMessages;
 
   NotificationService() {
     _startPeriodicUpdate();
@@ -112,45 +122,64 @@ class NotificationService extends ChangeNotifier {
     try {
       debugPrint('🔄 تحديث الإشعارات...');
 
-      // حساب الرسائل غير المقروءة مباشرة من قاعدة البيانات
-      final unreadData = await _calculateUnreadFromDatabase();
-
-      // جلب المحادثات وحساب الإحصائيات
-      final conversations = await _chatService.getConversations();
-
+      // حساب الرسائل غير المقروءة من جميع المصادر
+      int supportUnread = 0;
+      int wholesaleUnread = 0;
+      int ordersUnread = 0;
       int totalUnread = 0;
       int unreadConvCount = 0;
 
-      for (final conversation in conversations) {
-        debugPrint(
-          '📱 محادثة ${conversation.id}: ${conversation.unreadCount} رسائل غير مقروءة',
-        );
-        if (conversation.unreadCount > 0) {
-          totalUnread += conversation.unreadCount;
-          unreadConvCount++;
-        }
+      // 1. رسائل فريق الدعم
+      try {
+        final supportData = await _calculateSupportUnread();
+        supportUnread = supportData['totalUnread']!;
+        unreadConvCount += supportData['unreadConversations']!;
+        debugPrint('📞 رسائل فريق الدعم غير المقروءة: $supportUnread');
+      } catch (e) {
+        debugPrint('❌ خطأ في حساب رسائل فريق الدعم: $e');
       }
 
-      // استخدام البيانات المباشرة من قاعدة البيانات إذا كانت مختلفة
-      if (unreadData['totalUnread'] != null &&
-          unreadData['totalUnread'] != totalUnread) {
-        debugPrint(
-          '⚠️ اختلاف في عدد الرسائل غير المقروءة - استخدام البيانات المباشرة',
-        );
-        totalUnread = unreadData['totalUnread']!;
-        unreadConvCount = unreadData['unreadConversations']!;
+      // 2. رسائل طلبات الجملة
+      try {
+        final wholesaleData = await _calculateWholesaleUnread();
+        wholesaleUnread = wholesaleData['totalUnread']!;
+        unreadConvCount += wholesaleData['unreadConversations']!;
+        debugPrint('🏢 رسائل طلبات الجملة غير المقروءة: $wholesaleUnread');
+      } catch (e) {
+        debugPrint('❌ خطأ في حساب رسائل طلبات الجملة: $e');
       }
 
+      // 3. رسائل الطلبات العادية
+      try {
+        final ordersData = await _calculateOrdersUnread();
+        ordersUnread = ordersData['totalUnread']!;
+        unreadConvCount += ordersData['unreadConversations']!;
+        debugPrint('📦 رسائل الطلبات العادية غير المقروءة: $ordersUnread');
+        debugPrint(
+          '📦 محادثات الطلبات العادية غير المقروءة: ${ordersData['unreadConversations']}',
+        );
+      } catch (e) {
+        debugPrint('❌ خطأ في حساب رسائل الطلبات العادية: $e');
+      }
+
+      // حساب الإجمالي
+      totalUnread = supportUnread + wholesaleUnread + ordersUnread;
       final hasNew = totalUnread > 0;
 
       debugPrint('📊 إجمالي الرسائل غير المقروءة: $totalUnread');
+      debugPrint(
+        '📊 تفصيل: دعم=$supportUnread, جملة=$wholesaleUnread, طلبات=$ordersUnread',
+      );
       debugPrint('📊 عدد المحادثات غير المقروءة: $unreadConvCount');
       debugPrint('📊 هل توجد رسائل جديدة: $hasNew');
 
       // تحديث القيم فقط إذا تغيرت
       if (_totalUnreadMessages != totalUnread ||
           _unreadConversations != unreadConvCount ||
-          _hasNewMessages != hasNew) {
+          _hasNewMessages != hasNew ||
+          _supportUnreadMessages != supportUnread ||
+          _wholesaleUnreadMessages != wholesaleUnread ||
+          _ordersUnreadMessages != ordersUnread) {
         debugPrint('🔄 تحديث قيم الإشعارات...');
 
         // إذا كان هناك رسائل جديدة (زيادة في العدد)
@@ -159,6 +188,17 @@ class NotificationService extends ChangeNotifier {
         _totalUnreadMessages = totalUnread;
         _unreadConversations = unreadConvCount;
         _hasNewMessages = hasNew;
+
+        // تحديث العدادات المنفصلة
+        _supportUnreadMessages = supportUnread;
+        _wholesaleUnreadMessages = wholesaleUnread;
+        _ordersUnreadMessages = ordersUnread;
+
+        debugPrint('🔢 القيم النهائية المحفوظة:');
+        debugPrint('   - supportUnreadMessages: $_supportUnreadMessages');
+        debugPrint('   - wholesaleUnreadMessages: $_wholesaleUnreadMessages');
+        debugPrint('   - ordersUnreadMessages: $_ordersUnreadMessages');
+        debugPrint('   - totalUnreadMessages: $_totalUnreadMessages');
 
         notifyListeners();
         debugPrint('✅ تم تحديث الإشعارات وإشعار المستمعين');
@@ -177,8 +217,8 @@ class NotificationService extends ChangeNotifier {
     }
   }
 
-  // حساب الرسائل غير المقروءة مباشرة من قاعدة البيانات
-  Future<Map<String, int>> _calculateUnreadFromDatabase() async {
+  // حساب رسائل فريق الدعم غير المقروءة
+  Future<Map<String, int>> _calculateSupportUnread() async {
     try {
       if (!_supabaseService.isReady) {
         debugPrint('❌ Supabase غير جاهز');
@@ -276,7 +316,139 @@ class NotificationService extends ChangeNotifier {
         'unreadConversations': uniqueConversations,
       };
     } catch (e) {
-      debugPrint('❌ خطأ في حساب الرسائل غير المقروءة من قاعدة البيانات: $e');
+      debugPrint('❌ خطأ في حساب رسائل فريق الدعم: $e');
+      return {'totalUnread': 0, 'unreadConversations': 0};
+    }
+  }
+
+  // حساب رسائل طلبات الجملة غير المقروءة
+  Future<Map<String, int>> _calculateWholesaleUnread() async {
+    try {
+      if (!_supabaseService.isReady) {
+        debugPrint('❌ Supabase غير جاهز لحساب رسائل طلبات الجملة');
+        return {'totalUnread': 0, 'unreadConversations': 0};
+      }
+
+      final client = _supabaseService.client!;
+      debugPrint('🔍 حساب رسائل طلبات الجملة غير المقروءة...');
+
+      // جلب جميع رسائل المستخدمين من جدول wholesale_messages
+      final userMessages = await client
+          .from('wholesale_messages')
+          .select(
+            'id, conversation_id, sender_type, is_read, message, created_at',
+          )
+          .eq('sender_type', 'user') // فقط رسائل المستخدمين
+          .order('created_at', ascending: false);
+
+      debugPrint(
+        '🔍 جميع رسائل طلبات الجملة من المستخدمين: ${userMessages.length}',
+      );
+
+      // حساب الرسائل غير المقروءة
+      int totalUnread = 0;
+      final unreadConversationIds = <String>{};
+
+      for (var msg in userMessages) {
+        final isRead = msg['is_read'];
+        bool isUnread = false;
+
+        // التحقق من القيم المختلفة لـ is_read
+        if (isRead == null ||
+            isRead == false ||
+            isRead == 'false' ||
+            isRead == 0) {
+          isUnread = true;
+        }
+
+        if (isUnread) {
+          totalUnread++;
+          unreadConversationIds.add(msg['conversation_id']);
+        }
+      }
+
+      final uniqueConversations = unreadConversationIds.length;
+
+      debugPrint('🔍 رسائل طلبات الجملة غير المقروءة: $totalUnread');
+      debugPrint(
+        '🔍 عدد محادثات طلبات الجملة غير المقروءة: $uniqueConversations',
+      );
+
+      return {
+        'totalUnread': totalUnread,
+        'unreadConversations': uniqueConversations,
+      };
+    } catch (e) {
+      debugPrint('❌ خطأ في حساب رسائل طلبات الجملة: $e');
+      return {'totalUnread': 0, 'unreadConversations': 0};
+    }
+  }
+
+  // حساب رسائل الطلبات العادية غير المقروءة
+  Future<Map<String, int>> _calculateOrdersUnread() async {
+    try {
+      if (!_supabaseService.isReady) {
+        debugPrint('❌ Supabase غير جاهز لحساب رسائل الطلبات العادية');
+        return {'totalUnread': 0, 'unreadConversations': 0};
+      }
+
+      final client = _supabaseService.client!;
+      debugPrint('🔍 حساب رسائل الطلبات العادية غير المقروءة...');
+
+      // جلب جميع رسائل المستخدمين من جدول order_messages
+      final userMessages = await client
+          .from('order_messages')
+          .select(
+            'id, conversation_id, sender_type, is_read, message, created_at',
+          )
+          .eq('sender_type', 'user') // فقط رسائل المستخدمين
+          .order('created_at', ascending: false);
+
+      debugPrint(
+        '🔍 جميع رسائل الطلبات العادية من المستخدمين: ${userMessages.length}',
+      );
+
+      // طباعة تفاصيل الرسائل للتشخيص
+      for (var msg in userMessages.take(5)) {
+        debugPrint(
+          '🔍 رسالة طلب: ID=${msg['id']}, conversation_id=${msg['conversation_id']}, sender=${msg['sender_type']}, is_read=${msg['is_read']} (نوع: ${msg['is_read'].runtimeType}), message="${msg['message']}"',
+        );
+      }
+
+      // حساب الرسائل غير المقروءة
+      int totalUnread = 0;
+      final unreadOrderIds = <String>{};
+
+      for (var msg in userMessages) {
+        final isRead = msg['is_read'];
+        bool isUnread = false;
+
+        // التحقق من القيم المختلفة لـ is_read
+        if (isRead == null ||
+            isRead == false ||
+            isRead == 'false' ||
+            isRead == 0) {
+          isUnread = true;
+          debugPrint(
+            '🔍 رسالة طلب غير مقروءة: ID=${msg['id']}, is_read=$isRead',
+          );
+        }
+
+        if (isUnread) {
+          totalUnread++;
+          unreadOrderIds.add(msg['conversation_id']);
+        }
+      }
+
+      final uniqueOrders = unreadOrderIds.length;
+
+      debugPrint('🔍 رسائل الطلبات العادية غير المقروءة: $totalUnread');
+      debugPrint('🔍 عدد طلبات عادية غير مقروءة: $uniqueOrders');
+
+      return {'totalUnread': totalUnread, 'unreadConversations': uniqueOrders};
+    } catch (e) {
+      debugPrint('❌ خطأ في حساب رسائل الطلبات العادية: $e');
+      debugPrint('❌ تفاصيل الخطأ: ${e.toString()}');
       return {'totalUnread': 0, 'unreadConversations': 0};
     }
   }

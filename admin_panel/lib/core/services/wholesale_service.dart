@@ -47,7 +47,21 @@ class WholesaleService {
         )
         .subscribe();
 
-    print('✅ تم بدء الاستماع للتحديثات في الوقت الفعلي لطلبات الجملة');
+    // الاستماع لتغييرات في جدول wholesale_messages
+    _messagesSubscription = client
+        .channel('wholesale_messages_changes')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'wholesale_messages',
+          callback: (payload) {
+            print('🔄 تغيير في رسائل الجملة: ${payload.eventType}');
+            _handleMessagesChange(payload);
+          },
+        )
+        .subscribe();
+
+    print('✅ تم بدء الاستماع للتحديثات في الوقت الفعلي لطلبات ورسائل الجملة');
   }
 
   // إيقاف الاستماع
@@ -71,6 +85,24 @@ class WholesaleService {
       print('✅ تم تحديث قائمة طلبات الجملة: ${updatedRequests.length} طلب');
     } catch (e) {
       print('❌ خطأ في معالجة تغيير طلبات الجملة: $e');
+    }
+  }
+
+  // معالجة التغييرات في رسائل الجملة
+  void _handleMessagesChange(PostgresChangePayload payload) async {
+    print('📊 معالجة تغيير في رسائل الجملة...');
+
+    try {
+      // إعادة جلب طلبات الجملة لتحديث عدد الرسائل غير المقروءة
+      final updatedRequests = await getWholesaleRequests();
+      _requestsController.add(updatedRequests);
+
+      // إشعار المستمعين بتغيير الرسائل
+      _messagesController.add([]); // إرسال قائمة فارغة لإشعار التغيير
+
+      print('✅ تم تحديث قائمة طلبات الجملة بسبب تغيير الرسائل: ${updatedRequests.length} طلب');
+    } catch (e) {
+      print('❌ خطأ في معالجة تغيير رسائل الجملة: $e');
     }
   }
 
