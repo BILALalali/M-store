@@ -88,6 +88,14 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
         );
       }
     });
+
+    // الاستماع لتحديثات الرسائل لتحديث عدد الرسائل غير المقروءة
+    _wholesaleService.messagesStream.listen((messages) {
+      if (mounted) {
+        // إعادة تحميل الطلبات لتحديث عدد الرسائل غير المقروءة
+        _loadRequests();
+      }
+    });
   }
 
   void _applyFilters() {
@@ -174,11 +182,7 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
           // عنوان القسم
           Row(
             children: [
-              Icon(
-                Icons.business_center,
-                color: AppColors.primary,
-                size: 24,
-              ),
+              Icon(Icons.business_center, color: AppColors.primary, size: 24),
               const SizedBox(width: 12),
               Text(
                 'طلبات الجملة',
@@ -200,12 +204,6 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
                 icon: Icon(Icons.download, color: AppColors.success),
                 onPressed: _exportData,
                 tooltip: 'تصدير البيانات',
-              ),
-              // زر إصلاح المحادثات
-              IconButton(
-                icon: Icon(Icons.build, color: AppColors.warning),
-                onPressed: _fixConversations,
-                tooltip: 'إصلاح المحادثات المفقودة',
               ),
             ],
           ),
@@ -748,8 +746,10 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
     final localDateTime = dateTime.toLocal();
     final day = localDateTime.day.toString().padLeft(2, '0');
     final month = localDateTime.month.toString().padLeft(2, '0');
-    final year = localDateTime.year.toString().substring(2); // آخر رقمين من السنة
-    
+    final year = localDateTime.year.toString().substring(
+      2,
+    ); // آخر رقمين من السنة
+
     return '$day/$month/$year';
   }
 
@@ -785,15 +785,47 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildStatRow('إجمالي الطلبات', '${_requests.length}', AppColors.primary),
-              _buildStatRow('الطلبات المعلقة', '${_requests.where((r) => r.status == 'pending').length}', AppColors.warning),
-              _buildStatRow('قيد الدراسة', '${_requests.where((r) => r.status == 'under_review').length}', AppColors.info),
-              _buildStatRow('موافق عليها', '${_requests.where((r) => r.status == 'approved').length}', AppColors.success),
-              _buildStatRow('مرفوضة', '${_requests.where((r) => r.status == 'rejected').length}', AppColors.error),
-              _buildStatRow('مكتملة', '${_requests.where((r) => r.status == 'completed').length}', AppColors.success),
+              _buildStatRow(
+                'إجمالي الطلبات',
+                '${_requests.length}',
+                AppColors.primary,
+              ),
+              _buildStatRow(
+                'الطلبات المعلقة',
+                '${_requests.where((r) => r.status == 'pending').length}',
+                AppColors.warning,
+              ),
+              _buildStatRow(
+                'قيد الدراسة',
+                '${_requests.where((r) => r.status == 'under_review').length}',
+                AppColors.info,
+              ),
+              _buildStatRow(
+                'موافق عليها',
+                '${_requests.where((r) => r.status == 'approved').length}',
+                AppColors.success,
+              ),
+              _buildStatRow(
+                'مرفوضة',
+                '${_requests.where((r) => r.status == 'rejected').length}',
+                AppColors.error,
+              ),
+              _buildStatRow(
+                'مكتملة',
+                '${_requests.where((r) => r.status == 'completed').length}',
+                AppColors.success,
+              ),
               const Divider(),
-              _buildStatRow('طلبات بها رسائل غير مقروءة', '${_requests.where((r) => r.hasUnreadMessages).length}', AppColors.warning),
-              _buildStatRow('إجمالي الكمية المطلوبة', '${_requests.fold(0, (sum, r) => sum + r.quantity)} قطعة', AppColors.info),
+              _buildStatRow(
+                'طلبات بها رسائل غير مقروءة',
+                '${_requests.where((r) => r.hasUnreadMessages).length}',
+                AppColors.warning,
+              ),
+              _buildStatRow(
+                'إجمالي الكمية المطلوبة',
+                '${_requests.fold(0, (sum, r) => sum + r.quantity)} قطعة',
+                AppColors.info,
+              ),
             ],
           ),
         ),
@@ -823,10 +855,7 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
             ),
             child: Text(
               value,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, color: color),
             ),
           ),
         ],
@@ -916,11 +945,11 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
         'total_requests': _requests.length,
         'requests': _requests.map((r) => r.toJson()).toList(),
       };
-      
+
       // طباعة البيانات في Console (يمكن استبدالها بحفظ ملف)
       print('JSON Export Data:');
       print(jsonData);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('تم تصدير البيانات كـ JSON - راجع Console'),
@@ -934,97 +963,6 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
           backgroundColor: AppColors.error,
         ),
       );
-    }
-  }
-
-  // إصلاح المحادثات المفقودة
-  void _fixConversations() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.build, color: AppColors.warning),
-            const SizedBox(width: 8),
-            const Text('إصلاح المحادثات المفقودة'),
-          ],
-        ),
-        content: const Text(
-          'سيتم إنشاء المحادثات المفقودة لجميع طلبات الجملة. '
-          'هذا سيحل مشكلة عدم ظهور الرسائل وعدم القدرة على إرسال رسائل جديدة.\n\n'
-          'هل تريد المتابعة؟',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await _performConversationFix();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.warning,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('إصلاح'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _performConversationFix() async {
-    try {
-      // عرض شاشة الانتظار
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const AlertDialog(
-          content: Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 20),
-              Text('جاري إصلاح المحادثات...'),
-            ],
-          ),
-        ),
-      );
-
-      // تشغيل إصلاح المحادثات
-      await _wholesaleService.createMissingConversations();
-
-      // إغلاق شاشة الانتظار
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-
-      // إعادة تحميل الطلبات
-      await _loadRequests();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم إصلاح المحادثات بنجاح - يمكنك الآن إرسال الرسائل'),
-            backgroundColor: AppColors.success,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
-    } catch (e) {
-      // إغلاق شاشة الانتظار في حالة الخطأ
-      if (mounted) {
-        Navigator.of(context).pop();
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ في إصلاح المحادثات: $e'),
-            backgroundColor: AppColors.error,
-            duration: Duration(seconds: 5),
-          ),
-        );
-      }
     }
   }
 }

@@ -242,6 +242,38 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
     }
   }
 
+  Future<void> _updateRequestStatus(String status) async {
+    if (_currentRequest == null) return;
+
+    try {
+      await _wholesaleService.updateWholesaleRequestStatus(
+        _currentRequest!.id,
+        status,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تم تحديث حالة الطلب إلى: $status'),
+            backgroundColor: AppColors.success,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ خطأ في تحديث حالة الطلب: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في تحديث حالة الطلب: $e'),
+            backgroundColor: AppColors.error,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -304,7 +336,7 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
           ),
         ),
 
-        // قائمة خيارات المحادثة
+        // قائمة خيارات الحالة
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert),
           onSelected: (value) {
@@ -315,6 +347,21 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
                 break;
               case 'mark_read':
                 _markMessagesAsRead(showMessage: true);
+                break;
+              case 'status_under_review':
+                _updateRequestStatus('under_review');
+                break;
+              case 'status_approved':
+                _updateRequestStatus('approved');
+                break;
+              case 'status_rejected':
+                _updateRequestStatus('rejected');
+                break;
+              case 'status_completed':
+                _updateRequestStatus('completed');
+                break;
+              case 'status_cancelled':
+                _updateRequestStatus('cancelled');
                 break;
             }
           },
@@ -336,6 +383,57 @@ class _WholesaleChatScreenState extends State<WholesaleChatScreen> {
                   Icon(Icons.mark_email_read),
                   SizedBox(width: 8),
                   Text('تعيين كمقروء'),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(),
+            const PopupMenuItem(
+              value: 'status_under_review',
+              child: Row(
+                children: [
+                  Icon(Icons.search, color: AppColors.info),
+                  SizedBox(width: 8),
+                  Text('قيد الدراسة'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'status_approved',
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: AppColors.success),
+                  SizedBox(width: 8),
+                  Text('موافق عليه'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'status_rejected',
+              child: Row(
+                children: [
+                  Icon(Icons.cancel, color: AppColors.error),
+                  SizedBox(width: 8),
+                  Text('مرفوض'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'status_completed',
+              child: Row(
+                children: [
+                  Icon(Icons.done_all, color: AppColors.success),
+                  SizedBox(width: 8),
+                  Text('مكتمل'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'status_cancelled',
+              child: Row(
+                children: [
+                  Icon(Icons.close, color: AppColors.warning),
+                  SizedBox(width: 8),
+                  Text('ملغي'),
                 ],
               ),
             ),

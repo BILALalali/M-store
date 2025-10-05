@@ -92,7 +92,7 @@ class WholesaleService {
       print('🔄 جلب طلبات الجملة من قاعدة البيانات...');
       final client = _supabaseService.client!;
 
-      // جلب جميع طلبات الجملة الحقيقية
+      // جلب جميع طلبات الجملة
       final response = await client
           .from('wholesale_requests')
           .select('*')
@@ -108,7 +108,7 @@ class WholesaleService {
       final requests = <WholesaleRequest>[];
 
       for (var item in response) {
-        // جلب اسم المستخدم من profiles
+        // جلب اسم المستخدم
         String userName = 'عميل الجملة';
         try {
           final userId = item['user_id'];
@@ -118,12 +118,11 @@ class WholesaleService {
                 .select('name')
                 .eq('id', userId)
                 .maybeSingle();
-            userName =
-                profileResponse?['name'] ??
-                'عميل ${userId.toString().substring(0, 8)}';
+            userName = profileResponse?['name'] ?? 'عميل الجملة';
           }
         } catch (e) {
-          print('تحذير: لا يمكن جلب اسم المستخدم: $e');
+          print('⚠️ خطأ في جلب اسم المستخدم: $e');
+          userName = 'عميل الجملة';
         }
 
         // معالجة البيانات الحقيقية
@@ -191,11 +190,9 @@ class WholesaleService {
             hasUnreadMessages: unreadCount > 0,
           ),
         );
-
-        print('📋 تم إضافة طلب: $displayProductName (الكمية: $quantity)');
       }
 
-      print('🎉 تم جلب ${requests.length} طلب جملة حقيقي من قاعدة البيانات');
+      print('🎉 تم جلب ${requests.length} طلب جملة من قاعدة البيانات');
 
       // إرسال البيانات للـ stream
       _requestsController.add(requests);
@@ -509,12 +506,16 @@ class WholesaleService {
   ) async {
     try {
       if (!_supabaseService.isReady) {
+        print('❌ Supabase غير مهيأ');
         return false;
       }
 
-      print('تحديث حالة طلب الجملة $requestId إلى $status');
+      print('🔄 تحديث حالة طلب الجملة $requestId إلى $status');
 
-      await _supabaseService.client!
+      final client = _supabaseService.client!;
+
+      // تحديث حالة الطلب
+      await client
           .from('wholesale_requests')
           .update({
             'status': status,
@@ -523,12 +524,15 @@ class WholesaleService {
           .eq('id', requestId);
 
       print('✅ تم تحديث حالة طلب الجملة بنجاح');
+
       return true;
     } catch (e) {
       print('❌ خطأ في تحديث حالة طلب الجملة: $e');
       return false;
     }
   }
+
+
 
   // تحديث حالة الرسائل كمقروءة عند فتح المحادثة
   Future<void> markWholesaleMessagesAsRead(String requestId) async {

@@ -7,11 +7,11 @@ class WholesaleRequest {
   final String status;
   final DateTime createdAt;
   final DateTime updatedAt;
-  
+
   // معلومات إضافية للمستخدم
   final String? userName;
   final String? userEmail;
-  
+
   // معلومات المحادثة
   final String? lastMessage;
   final DateTime? lastMessageAt;
@@ -49,7 +49,7 @@ class WholesaleRequest {
       userName: json['user_name'] as String?,
       userEmail: json['user_email'] as String?,
       lastMessage: json['last_message'] as String?,
-      lastMessageAt: json['last_message_at'] != null 
+      lastMessageAt: json['last_message_at'] != null
           ? DateTime.parse(json['last_message_at'] as String)
           : null,
       unreadCount: json['unread_count'] as int? ?? 0,
@@ -114,7 +114,9 @@ class WholesaleRequest {
 
   // دوال مساعدة للواجهة
   String get displayTitle {
-    return productName.isNotEmpty ? productName : 'طلب جملة ${id.substring(0, 8)}';
+    return productName.isNotEmpty
+        ? productName
+        : 'طلب جملة ${id.substring(0, 8)}';
   }
 
   String get displayUserName {

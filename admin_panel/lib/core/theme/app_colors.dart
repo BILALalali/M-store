@@ -19,7 +19,7 @@ class AppColors {
   ); // فيروزي خفيف عند التمرير
   static const Color cardBackground = Colors.white; // أبيض للبطاقات
   static const Color success = Color(0xFF4CAF50); // أخضر للنجاح
-  static const Color warning = Color(0xFFFF9800); // برتقالي للتحذير
+  static const Color warning = Color(0xFF2196F3); // أزرق للرسائل غير المقروءة
   static const Color error = Color(0xFFF44336); // أحمر للأخطاء
   static const Color info = Color(0xFF2196F3); // أزرق للمعلومات
 }
