@@ -197,26 +197,19 @@ class _AdvertisementsScreenState extends State<AdvertisementsScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.campaign, size: 32, color: Colors.white),
+              Icon(Icons.campaign, size: 32, color: AppColors.primary),
               const SizedBox(width: 16),
               Text(
                 'إدارة الإعلانات',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: AppColors.text,
                 ),
               ),
             ],
@@ -226,7 +219,7 @@ class _AdvertisementsScreenState extends State<AdvertisementsScreen> {
             'إدارة الإعلانات والعروض الترويجية',
             style: TextStyle(
               fontSize: 16,
-              color: Colors.white.withValues(alpha: 0.9),
+              color: AppColors.text.withValues(alpha: 0.7),
             ),
           ),
         ],

@@ -51,9 +51,11 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
         _applyFilters();
         _isLoading = false;
       });
-      
+
       print('✅ تم تحميل ${requests.length} طلب جملة بنجاح');
-      print('📊 عدد المحادثات الجديدة: ${requests.where((r) => r.hasUnreadMessages).length}');
+      print(
+        '📊 عدد المحادثات الجديدة: ${requests.where((r) => r.hasUnreadMessages).length}',
+      );
     } catch (e) {
       print('❌ خطأ في تحميل طلبات الجملة: $e');
       setState(() {
@@ -191,18 +193,6 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
                 ),
               ),
               const Spacer(),
-              // زر الإحصائيات التفصيلية
-              IconButton(
-                icon: Icon(Icons.analytics, color: AppColors.info),
-                onPressed: _showDetailedStats,
-                tooltip: 'إحصائيات مفصلة',
-              ),
-              // زر تصدير البيانات
-              IconButton(
-                icon: Icon(Icons.download, color: AppColors.success),
-                onPressed: _exportData,
-                tooltip: 'تصدير البيانات',
-              ),
             ],
           ),
 
@@ -710,179 +700,6 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
       print('🔄 إعادة تحميل طلبات الجملة بعد العودة من المحادثة...');
       await _loadRequests();
       print('✅ تم تحديث قائمة طلبات الجملة');
-    }
-  }
-
-  // عرض الإحصائيات التفصيلية
-  void _showDetailedStats() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.analytics, color: AppColors.primary),
-            const SizedBox(width: 8),
-            const Text('إحصائيات طلبات الجملة'),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildStatRow(
-                'إجمالي المحادثات',
-                '${_requests.length}',
-                AppColors.primary,
-              ),
-              _buildStatRow(
-                'المحادثات الجديدة',
-                '${_requests.where((r) => r.hasUnreadMessages).length}',
-                AppColors.warning,
-              ),
-              const Divider(),
-              _buildStatRow(
-                'إجمالي الكمية المطلوبة',
-                '${_requests.fold(0, (sum, r) => sum + r.quantity)} قطعة',
-                AppColors.info,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('إغلاق'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatRow(String label, String value, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: color.withValues(alpha: 0.3)),
-            ),
-            child: Text(
-              value,
-              style: TextStyle(fontWeight: FontWeight.bold, color: color),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // تصدير البيانات
-  void _exportData() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.download, color: AppColors.success),
-            const SizedBox(width: 8),
-            const Text('تصدير بيانات طلبات الجملة'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('اختر نوع التصدير:'),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: Icon(Icons.table_chart, color: AppColors.primary),
-              title: const Text('تصدير كـ Excel'),
-              subtitle: const Text('ملف جدولي للتحليل'),
-              onTap: () {
-                Navigator.of(context).pop();
-                _exportToExcel();
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.description, color: AppColors.info),
-              title: const Text('تصدير كـ PDF'),
-              subtitle: const Text('تقرير مطبوع'),
-              onTap: () {
-                Navigator.of(context).pop();
-                _exportToPDF();
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.code, color: AppColors.warning),
-              title: const Text('تصدير كـ JSON'),
-              subtitle: const Text('للاستخدام البرمجي'),
-              onTap: () {
-                Navigator.of(context).pop();
-                _exportToJSON();
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('إلغاء'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _exportToExcel() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('سيتم إضافة ميزة تصدير Excel في التحديث القادم'),
-        backgroundColor: AppColors.info,
-      ),
-    );
-  }
-
-  void _exportToPDF() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('سيتم إضافة ميزة تصدير PDF في التحديث القادم'),
-        backgroundColor: AppColors.info,
-      ),
-    );
-  }
-
-  void _exportToJSON() {
-    try {
-      final jsonData = {
-        'export_date': DateTime.now().toIso8601String(),
-        'total_requests': _requests.length,
-        'requests': _requests.map((r) => r.toJson()).toList(),
-      };
-
-      // طباعة البيانات في Console (يمكن استبدالها بحفظ ملف)
-      print('JSON Export Data:');
-      print(jsonData);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم تصدير البيانات كـ JSON - راجع Console'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('خطأ في تصدير البيانات: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
     }
   }
 }

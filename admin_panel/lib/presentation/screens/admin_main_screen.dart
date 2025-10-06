@@ -30,10 +30,14 @@ class _AdminMainScreenState extends State<AdminMainScreen>
   bool _isSidebarCollapsed = false;
   late NotificationService _notificationService;
 
-
   // قائمة الشاشات
-  final List<Widget> _screens = [
-    const DashboardScreen(),
+  List<Widget> get _screens => [
+    DashboardScreen(
+      fullTitle: _dynamicTitles[0]?['fullTitle'] ?? 'لوحة الإدارة',
+      description:
+          _dynamicTitles[0]?['description'] ??
+          'نظرة عامة على النظام والإحصائيات',
+    ),
     const OrdersScreen(), // شاشة إدارة الطلبات
     const WholesaleRequestsScreen(), // شاشة إدارة طلبات الجملة
     const ProductsScreen(), // شاشة إدارة المنتجات
@@ -46,20 +50,75 @@ class _AdminMainScreenState extends State<AdminMainScreen>
     const AdminInviteScreen(), // شاشة دعوة مشرف جديد
   ];
 
-  // عناوين الشاشات
-  final List<String> _screenTitles = [
-    'لوحة الإدارة',
-    'إدارة الطلبات',
-    'طلبات الجملة',
-    'إدارة المنتجات',
-    'بطاقات الجوال',
-    'بطاقات الألعاب',
-    'إدارة الإعلانات',
-    'الملف الشخصي',
-    'الإعدادات',
-    'دردشات فريق الدعم',
-    'دعوة مشرف جديد',
-  ];
+  // خريطة العناوين الديناميكية - تربط بين الفهرس واسم القائمة الرئيسية والقسم الفرعي
+  final Map<int, Map<String, String>> _dynamicTitles = {
+    0: {
+      'mainSection': 'لوحة التحكم',
+      'subSection': 'عام',
+      'fullTitle': 'لوحة الإدارة',
+      'description': 'نظرة عامة على النظام والإحصائيات',
+    },
+    1: {
+      'mainSection': 'الدعم والطلبات',
+      'subSection': 'الطلبات',
+      'fullTitle': 'إدارة الطلبات',
+      'description': 'إدارة ومتابعة طلبات المستخدمين',
+    },
+    2: {
+      'mainSection': 'الدعم والطلبات',
+      'subSection': 'طلبات الجملة',
+      'fullTitle': 'إدارة طلبات الجملة',
+      'description': 'إدارة ومتابعة طلبات الجملة',
+    },
+    3: {
+      'mainSection': 'إدارة المحتوى',
+      'subSection': 'المنتجات',
+      'fullTitle': 'إدارة المنتجات',
+      'description': 'إدارة وإضافة المنتجات',
+    },
+    4: {
+      'mainSection': 'إدارة المحتوى',
+      'subSection': 'بطاقات الجوال',
+      'fullTitle': 'إدارة بطاقات الجوال',
+      'description': 'إدارة وإضافة وتعديل باقات ومشغلي الجوال',
+    },
+    5: {
+      'mainSection': 'إدارة المحتوى',
+      'subSection': 'بطاقات الألعاب',
+      'fullTitle': 'إدارة بطاقات الألعاب',
+      'description': 'إدارة بطاقات ومقدمي خدمة الألعاب',
+    },
+    6: {
+      'mainSection': 'إدارة المحتوى',
+      'subSection': 'الإعلانات',
+      'fullTitle': 'إدارة الإعلانات',
+      'description': 'إدارة الإعلانات والعروض',
+    },
+    7: {
+      'mainSection': 'لوحة التحكم',
+      'subSection': 'الملف الشخصي',
+      'fullTitle': 'الملف الشخصي',
+      'description': 'إدارة الملف الشخصي',
+    },
+    8: {
+      'mainSection': 'لوحة التحكم',
+      'subSection': 'الإعدادات',
+      'fullTitle': 'الإعدادات',
+      'description': 'إعدادات النظام والحساب',
+    },
+    9: {
+      'mainSection': 'الدعم والطلبات',
+      'subSection': 'فريق الدعم',
+      'fullTitle': 'دردشات فريق الدعم',
+      'description': 'إدارة دردشات الدعم',
+    },
+    10: {
+      'mainSection': 'لوحة التحكم',
+      'subSection': 'دعوة مشرف',
+      'fullTitle': 'دعوة مشرف جديد',
+      'description': 'إضافة مدير جديد للنظام',
+    },
+  };
 
   @override
   void initState() {
@@ -76,7 +135,6 @@ class _AdminMainScreenState extends State<AdminMainScreen>
     _notificationService.dispose();
     super.dispose();
   }
-
 
   // إعادة تحميل البيانات عند العودة للشاشة
   @override
@@ -222,133 +280,9 @@ class _AdminMainScreenState extends State<AdminMainScreen>
             ),
 
             // المحتوى الرئيسي
-            Expanded(
-              child: Column(
-                children: [
-                  // شريط العنوان
-                  _buildTopBar(),
-
-                  // المحتوى
-                  Expanded(child: _screens[_selectedIndex]),
-                ],
-              ),
-            ),
+            Expanded(child: _screens[_selectedIndex]),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTopBar() {
-    return Container(
-      height: 70,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        border: Border(bottom: BorderSide(color: AppColors.secondary)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // زر إخفاء/إظهار القائمة الجانبية
-          IconButton(
-            icon: Icon(
-              _isSidebarCollapsed ? Icons.menu_open : Icons.menu,
-              color: AppColors.text,
-              size: 24,
-            ),
-            onPressed: () {
-              setState(() {
-                _isSidebarCollapsed = !_isSidebarCollapsed;
-              });
-            },
-          ),
-
-          const SizedBox(width: 20),
-
-          // عنوان الشاشة الحالية
-          Expanded(
-            child: Text(
-              _screenTitles[_selectedIndex],
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-                color: AppColors.text,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-
-          const Spacer(),
-
-          // الإشعارات
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            child: ListenableBuilder(
-              listenable: _notificationService,
-              builder: (context, child) {
-                final hasNotifications = _notificationService.hasNewMessages;
-                final notificationCount =
-                    _notificationService.totalUnreadMessages;
-
-                return Stack(
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        hasNotifications
-                            ? Icons.notifications
-                            : Icons.notifications_outlined,
-                        color: hasNotifications
-                            ? AppColors.warning
-                            : AppColors.text,
-                        size: 24,
-                      ),
-                      onPressed: () {
-                        // الانتقال إلى شاشة المحادثات
-                        setState(() {
-                          _selectedIndex = 9; // شاشة دردشات فريق الدعم
-                        });
-                      },
-                    ),
-                    if (hasNotifications)
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: AppColors.error,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 18,
-                            minHeight: 18,
-                          ),
-                          child: Text(
-                            notificationCount > 99
-                                ? '99+'
-                                : '$notificationCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -356,7 +290,14 @@ class _AdminMainScreenState extends State<AdminMainScreen>
 
 // شاشة لوحة الإدارة مع الإحصائيات
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final String fullTitle;
+  final String description;
+
+  const DashboardScreen({
+    super.key,
+    required this.fullTitle,
+    required this.description,
+  });
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -402,32 +343,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // رأس الصفحة
+          // رأس الصفحة - ديناميكي
           Row(
             children: [
               Icon(Icons.dashboard, size: 32, color: AppColors.primary),
               const SizedBox(width: 16),
               Expanded(
-                child: Text(
-                  'لوحة الإدارة',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.text,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // العنوان الكامل
+                    Text(
+                      widget.fullTitle,
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // الوصف
+                    Text(
+                      widget.description,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppColors.text.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
-          ),
-
-          const SizedBox(height: 8),
-
-          Text(
-            'نظرة عامة على النظام والإحصائيات',
-            style: TextStyle(
-              fontSize: 16,
-              color: AppColors.text.withValues(alpha: 0.7),
-            ),
           ),
 
           const SizedBox(height: 32),

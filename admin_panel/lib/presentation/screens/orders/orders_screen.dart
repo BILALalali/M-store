@@ -122,7 +122,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
       if (_selectedStatus == 'pending') {
         // دمج حالتي pending و processing في تصنيف واحد
         filtered = filtered
-            .where((order) => order.status == 'pending' || order.status == 'processing')
+            .where(
+              (order) =>
+                  order.status == 'pending' || order.status == 'processing',
+            )
             .toList();
       } else {
         filtered = filtered
@@ -196,6 +199,25 @@ class _OrdersScreenState extends State<OrdersScreen> {
       ),
       child: Column(
         children: [
+          // عنوان القسم
+          Row(
+            children: [
+              Icon(Icons.shopping_cart, color: AppColors.primary, size: 24),
+              const SizedBox(width: 12),
+              Text(
+                'الطلبات',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text,
+                ),
+              ),
+              const Spacer(),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
           // شريط البحث
           TextField(
             decoration: InputDecoration(
@@ -430,7 +452,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     ),
                     _buildQuickStat(
                       'قيد المراجعة',
-                      _orders.where((o) => o.status == 'pending' || o.status == 'processing').length,
+                      _orders
+                          .where(
+                            (o) =>
+                                o.status == 'pending' ||
+                                o.status == 'processing',
+                          )
+                          .length,
                       AppColors.info,
                     ),
                     _buildQuickStat(

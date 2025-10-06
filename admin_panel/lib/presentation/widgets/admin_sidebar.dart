@@ -108,10 +108,39 @@ class _AdminSidebarState extends State<AdminSidebar> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    // أيقونة عدد الرسائل غير المقروءة
+                    _buildNotificationBadge(),
                   ],
                 ),
         );
       },
+    );
+  }
+
+  Widget _buildNotificationBadge() {
+    final totalUnreadMessages =
+        (widget.notificationService?.ordersUnreadMessages ?? 0) +
+        (widget.notificationService?.wholesaleUnreadMessages ?? 0) +
+        (widget.notificationService?.supportUnreadMessages ?? 0);
+
+    if (totalUnreadMessages == 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        totalUnreadMessages > 99 ? '99+' : '$totalUnreadMessages',
+        style: TextStyle(
+          color: AppColors.primary,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 
@@ -130,21 +159,24 @@ class _AdminSidebarState extends State<AdminSidebar> {
               title: 'الطلبات',
               subtitle: 'إدارة ومتابعة طلبات المستخدمين',
               index: 1,
-              notificationCount: widget.notificationService?.ordersUnreadMessages ?? 0,
+              notificationCount:
+                  widget.notificationService?.ordersUnreadMessages ?? 0,
             ),
             _buildNavItemWithNotification(
               icon: Icons.business_center,
               title: 'طلبات الجملة',
               subtitle: 'إدارة ومتابعة طلبات الجملة',
               index: 2,
-              notificationCount: widget.notificationService?.wholesaleUnreadMessages ?? 0,
+              notificationCount:
+                  widget.notificationService?.wholesaleUnreadMessages ?? 0,
             ),
             _buildNavItemWithNotification(
               icon: Icons.support_agent,
               title: 'فريق الدعم',
               subtitle: 'إدارة دردشات الدعم',
               index: 9,
-              notificationCount: widget.notificationService?.supportUnreadMessages ?? 0,
+              notificationCount:
+                  widget.notificationService?.supportUnreadMessages ?? 0,
             ),
           ],
         ),
@@ -187,16 +219,16 @@ class _AdminSidebarState extends State<AdminSidebar> {
 
         const SizedBox(height: 8),
 
-        // قسم عام
+        // قسم لوحة التحكم
         _buildCollapsibleSection(
-          title: 'عام',
+          title: 'لوحة التحكم',
           isExpanded: _isGeneralExpanded,
           onToggle: () =>
               setState(() => _isGeneralExpanded = !_isGeneralExpanded),
           children: [
             _buildNavItem(
               icon: Icons.dashboard,
-              title: 'الرئيسية',
+              title: 'عام',
               subtitle: 'لوحة التحكم الرئيسية',
               index: 0,
             ),

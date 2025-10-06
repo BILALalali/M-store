@@ -146,6 +146,25 @@ class _SupportConversationsScreenState
       ),
       child: Column(
         children: [
+          // عنوان القسم
+          Row(
+            children: [
+              Icon(Icons.support_agent, color: AppColors.primary, size: 24),
+              const SizedBox(width: 12),
+              Text(
+                'فريق الدعم',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text,
+                ),
+              ),
+              const Spacer(),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
           // شريط البحث
           TextField(
             decoration: InputDecoration(
