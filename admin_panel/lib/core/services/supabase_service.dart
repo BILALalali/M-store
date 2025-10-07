@@ -900,13 +900,54 @@ class SupabaseService {
 
       Map<String, dynamic> stats = _getDefaultStats();
 
-      // محاولة جلب عدد الطلبات
+      // حساب إجمالي الطلبات من جدولي order_threads و wholesale_requests
       try {
-        final ordersResponse = await _client!.from('orders').select('id');
-        stats['orders_count'] = ordersResponse.length;
+        // جلب الطلبات العادية من order_threads
+        final orderThreadsResponse = await _client!
+            .from('order_threads')
+            .select('id, status');
+        final orderThreadsCount = orderThreadsResponse.length;
+
+        // جلب طلبات الجملة من wholesale_requests
+        final wholesaleRequestsResponse = await _client!
+            .from('wholesale_requests')
+            .select('id, status');
+        final wholesaleRequestsCount = wholesaleRequestsResponse.length;
+
+        // إجمالي الطلبات
+        stats['orders_count'] = orderThreadsCount + wholesaleRequestsCount;
+
+        // حساب الطلبات المعلقة
+        final pendingOrderThreads = orderThreadsResponse
+            .where((order) => order['status'] == 'pending')
+            .length;
+        final pendingWholesaleRequests = wholesaleRequestsResponse
+            .where((order) => order['status'] == 'pending')
+            .length;
+        stats['pending_orders'] =
+            pendingOrderThreads + pendingWholesaleRequests;
+
+        // حساب الطلبات المكتملة
+        final completedOrderThreads = orderThreadsResponse
+            .where((order) => order['status'] == 'completed')
+            .length;
+        final completedWholesaleRequests = wholesaleRequestsResponse
+            .where((order) => order['status'] == 'completed')
+            .length;
+        stats['completed_orders'] =
+            completedOrderThreads + completedWholesaleRequests;
+
+        print('📊 إحصائيات الطلبات:');
+        print('  - طلبات عادية: $orderThreadsCount');
+        print('  - طلبات جملة: $wholesaleRequestsCount');
+        print('  - إجمالي الطلبات: ${stats['orders_count']}');
+        print('  - طلبات معلقة: ${stats['pending_orders']}');
+        print('  - طلبات مكتملة: ${stats['completed_orders']}');
       } catch (e) {
-        print('جدول orders غير موجود أو غير قابل للوصول: $e');
+        print('خطأ في جلب إحصائيات الطلبات: $e');
         stats['orders_count'] = 0;
+        stats['pending_orders'] = 0;
+        stats['completed_orders'] = 0;
       }
 
       // محاولة جلب عدد المنتجات
@@ -926,46 +967,9 @@ class SupabaseService {
         stats['users_count'] = 0;
       }
 
-      // محاولة جلب الطلبات المعلقة
-      try {
-        final pendingOrdersResponse = await _client!
-            .from('orders')
-            .select('id')
-            .eq('status', 'pending');
-        stats['pending_orders'] = pendingOrdersResponse.length;
-      } catch (e) {
-        print('لا يمكن جلب الطلبات المعلقة: $e');
-        stats['pending_orders'] = 0;
-      }
-
-      // محاولة جلب الطلبات المكتملة
-      try {
-        final completedOrdersResponse = await _client!
-            .from('orders')
-            .select('id')
-            .eq('status', 'completed');
-        stats['completed_orders'] = completedOrdersResponse.length;
-      } catch (e) {
-        print('لا يمكن جلب الطلبات المكتملة: $e');
-        stats['completed_orders'] = 0;
-      }
-
-      // محاولة حساب الإيرادات
-      try {
-        final revenueResponse = await _client!
-            .from('orders')
-            .select('total_amount')
-            .eq('status', 'completed');
-
-        double totalRevenue = 0.0;
-        for (var order in revenueResponse) {
-          totalRevenue += (order['total_amount'] ?? 0.0);
-        }
-        stats['total_revenue'] = totalRevenue;
-      } catch (e) {
-        print('لا يمكن حساب الإيرادات: $e');
-        stats['total_revenue'] = 0.0;
-      }
+      // ملاحظة: تم إزالة حساب الإيرادات لأن الجداول الجديدة لا تحتوي على total_amount
+      // يمكن إضافة حساب الإيرادات لاحقاً إذا تم إضافة هذا الحقل للجداول
+      stats['total_revenue'] = 0.0;
 
       return stats;
     } catch (e) {

@@ -195,8 +195,17 @@ class WholesaleService {
 
         // حساب الرسائل غير المقروءة لهذا الطلب
         int unreadCount = 0;
+        bool hasAdminMessage = false;
+        DateTime? firstAdminMessageAt;
         try {
           unreadCount = await _getUnreadCount(item['id']?.toString() ?? '');
+          
+          // فحص ما إذا كان المشرف قد أرسل أي رسالة
+          final adminMessages = await _getAdminWholesaleMessages(item['id']?.toString() ?? '');
+          hasAdminMessage = adminMessages.isNotEmpty;
+          if (hasAdminMessage) {
+            firstAdminMessageAt = adminMessages.first.createdAt;
+          }
         } catch (e) {
           print(
             'تحذير: لا يمكن حساب الرسائل غير المقروءة لطلب ${item['id']}: $e',
@@ -220,6 +229,8 @@ class WholesaleService {
             lastMessageAt: null,
             unreadCount: unreadCount,
             hasUnreadMessages: unreadCount > 0,
+            hasAdminMessage: hasAdminMessage,
+            firstAdminMessageAt: firstAdminMessageAt,
           ),
         );
       }
@@ -270,10 +281,20 @@ class WholesaleService {
       // جلب آخر رسالة وعدد الرسائل غير المقروءة
       WholesaleMessage? lastMessage;
       int unreadCount = 0;
+      bool hasAdminMessage = false;
+      DateTime? firstAdminMessageAt;
       try {
         lastMessage = await _getLastWholesaleMessage(requestId);
         unreadCount = await _getUnreadCount(requestId);
-        print('📊 طلب الجملة $requestId: $unreadCount رسالة غير مقروءة');
+        
+        // فحص ما إذا كان المشرف قد أرسل أي رسالة
+        final adminMessages = await _getAdminWholesaleMessages(requestId);
+        hasAdminMessage = adminMessages.isNotEmpty;
+        if (hasAdminMessage) {
+          firstAdminMessageAt = adminMessages.first.createdAt;
+        }
+        
+        print('📊 طلب الجملة $requestId: $unreadCount رسالة غير مقروءة, hasAdminMessage: $hasAdminMessage');
       } catch (e) {
         print('تحذير: لا يمكن جلب رسائل طلب الجملة: $e');
       }
@@ -292,6 +313,8 @@ class WholesaleService {
         lastMessageAt: lastMessage?.createdAt,
         unreadCount: unreadCount,
         hasUnreadMessages: unreadCount > 0,
+        hasAdminMessage: hasAdminMessage,
+        firstAdminMessageAt: firstAdminMessageAt,
       );
     } catch (e) {
       print('خطأ في جلب طلب الجملة: $e');
@@ -868,6 +891,24 @@ class WholesaleService {
     } catch (e) {
       print('خطأ في جلب آخر رسالة لطلب الجملة: $e');
       return null;
+    }
+  }
+
+  // الحصول على رسائل المشرف في طلب الجملة
+  Future<List<WholesaleMessage>> _getAdminWholesaleMessages(String requestId) async {
+    try {
+      final response = await _supabaseService.client!
+          .from('wholesale_messages')
+          .select('*')
+          .eq('conversation_id', requestId)
+          .eq('sender_type', 'admin')
+          .order('created_at', ascending: true);
+
+      final processedMessages = _processWholesaleMessages(response);
+      return processedMessages;
+    } catch (e) {
+      print('خطأ في جلب رسائل المشرف لطلب الجملة: $e');
+      return [];
     }
   }
 

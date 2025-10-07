@@ -22,6 +22,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   String _selectedStatus = 'all';
   String _selectedType = 'all';
   String _selectedUnreadFilter = 'all'; // إضافة فلتر للرسائل غير المقروءة
+  String _selectedNewFilter = 'all'; // فلتر للطلبات الجديدة
 
   // Stream subscription للتحديثات في الوقت الفعلي
   StreamSubscription<List<OrderThread>>? _ordersSubscription;
@@ -148,9 +149,23 @@ class _OrdersScreenState extends State<OrdersScreen> {
       filtered = filtered.where((order) => !order.hasUnreadMessages).toList();
     }
 
-    // ترتيب المحادثات: الرسائل غير المقروءة أولاً، ثم حسب التحديث الأخير
+    // فلتر الطلبات الجديدة
+    if (_selectedNewFilter == 'new_only') {
+      filtered = filtered.where((order) => order.isNewOrder).toList();
+    } else if (_selectedNewFilter == 'responded_only') {
+      filtered = filtered.where((order) => !order.isNewOrder).toList();
+    }
+
+    // ترتيب المحادثات: الطلبات الجديدة أولاً، ثم الرسائل غير المقروءة، ثم حسب التحديث الأخير
     filtered.sort((a, b) {
-      // إذا كان لدى إحداها رسائل غير مقروءة والأخرى لا
+      // إذا كان أحد الطلبات جديد (لم يرسل له المشرف رسالة) والآخر لا
+      if (a.isNewOrder && !b.isNewOrder) {
+        return -1; // a أولاً
+      } else if (!a.isNewOrder && b.isNewOrder) {
+        return 1; // b أولاً
+      }
+
+      // إذا كان كلاهما جديد أو كلاهما ليس جديد، رتب حسب الرسائل غير المقروءة
       if (a.hasUnreadMessages && !b.hasUnreadMessages) {
         return -1; // a أولاً
       } else if (!a.hasUnreadMessages && b.hasUnreadMessages) {
@@ -353,7 +368,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
               const SizedBox(height: 12),
 
-              // الصف الثاني: فلتر الرسائل غير المقروءة
+              // الصف الثاني: فلتر الرسائل غير المقروءة والطلبات الجديدة
               Row(
                 children: [
                   // تصفية حسب حالة القراءة
@@ -418,6 +433,72 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       onChanged: (value) {
                         setState(() {
                           _selectedUnreadFilter = value ?? 'all';
+                          _applyFilters();
+                        });
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  // فلتر الطلبات الجديدة
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedNewFilter,
+                      decoration: InputDecoration(
+                        labelText: 'الطلبات الجديدة',
+                        prefixIcon: Icon(
+                          Icons.new_releases,
+                          color: AppColors.warning,
+                          size: 20,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'all',
+                          child: Row(
+                            children: [
+                              Icon(Icons.all_inbox, size: 16),
+                              SizedBox(width: 8),
+                              Text('جميع الطلبات'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'new_only',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.new_releases,
+                                size: 16,
+                                color: AppColors.warning,
+                              ),
+                              SizedBox(width: 8),
+                              Text('جديدة فقط'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'responded_only',
+                          child: Row(
+                            children: [
+                              Icon(Icons.reply, size: 16, color: Colors.green),
+                              SizedBox(width: 8),
+                              Text('تم الرد عليها'),
+                            ],
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedNewFilter = value ?? 'all';
                           _applyFilters();
                         });
                       },
@@ -667,20 +748,28 @@ class _OrdersScreenState extends State<OrdersScreen> {
   Widget _buildOrderCard(OrderThread order) {
     final hasUnreadMessages = order.hasUnreadMessages;
     final isNewConversation = hasUnreadMessages && order.unreadCount > 0;
+    final isNewOrder = order.isNewOrder; // طلب جديد لم يرسل له المشرف رسالة
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: hasUnreadMessages ? 8 : 2,
+      elevation: (hasUnreadMessages || isNewOrder) ? 8 : 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: hasUnreadMessages
+          color: isNewOrder
+              ? AppColors
+                    .warning // لون برتقالي للطلبات الجديدة
+              : hasUnreadMessages
               ? AppColors.info
               : _getStatusColor(order.status).withValues(alpha: 0.3),
-          width: hasUnreadMessages ? 2 : 1,
+          width: (hasUnreadMessages || isNewOrder) ? 2 : 1,
         ),
       ),
-      color: hasUnreadMessages
+      color: isNewOrder
+          ? AppColors.warning.withValues(
+              alpha: 0.1,
+            ) // خلفية برتقالية فاتحة للطلبات الجديدة
+          : hasUnreadMessages
           ? AppColors.info.withValues(alpha: 0.08)
           : AppColors.cardBackground,
       child: InkWell(
@@ -781,8 +870,20 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         children: [
                           Row(
                             children: [
+                              // مؤشر الطلب الجديد
+                              if (isNewOrder) ...[
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.warning,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
                               // مؤشر الرسائل غير المقروءة
-                              if (hasUnreadMessages) ...[
+                              if (hasUnreadMessages && !isNewOrder) ...[
                                 Container(
                                   width: 10,
                                   height: 10,
@@ -798,16 +899,39 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                   order.displayTitle,
                                   style: TextStyle(
                                     fontSize: 16,
-                                    fontWeight: hasUnreadMessages
+                                    fontWeight:
+                                        (hasUnreadMessages || isNewOrder)
                                         ? FontWeight.w900
                                         : FontWeight.bold,
-                                    color: hasUnreadMessages
+                                    color: isNewOrder
+                                        ? AppColors.warning
+                                        : hasUnreadMessages
                                         ? AppColors.info
                                         : AppColors.text,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              // شارة "جديد" للطلبات الجديدة
+                              if (isNewOrder)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.warning,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    'جديد',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                           const SizedBox(height: 4),

@@ -19,6 +19,10 @@ class OrderThread {
   final DateTime? lastMessageAt;
   final int unreadCount;
   final bool hasUnreadMessages;
+  
+  // معلومات تفاعل المشرف
+  final bool hasAdminMessage; // هل أرسل المشرف أي رسالة؟
+  final DateTime? firstAdminMessageAt; // تاريخ أول رسالة من المشرف
 
   const OrderThread({
     required this.id,
@@ -37,6 +41,8 @@ class OrderThread {
     this.lastMessageAt,
     this.unreadCount = 0,
     this.hasUnreadMessages = false,
+    this.hasAdminMessage = false,
+    this.firstAdminMessageAt,
   });
 
   // تحويل من JSON
@@ -60,6 +66,10 @@ class OrderThread {
           : null,
       unreadCount: json['unread_count'] as int? ?? 0,
       hasUnreadMessages: json['has_unread_messages'] as bool? ?? false,
+      hasAdminMessage: json['has_admin_message'] as bool? ?? false,
+      firstAdminMessageAt: json['first_admin_message_at'] != null
+          ? DateTime.parse(json['first_admin_message_at'] as String)
+          : null,
     );
   }
 
@@ -82,6 +92,8 @@ class OrderThread {
       'last_message_at': lastMessageAt?.toIso8601String(),
       'unread_count': unreadCount,
       'has_unread_messages': hasUnreadMessages,
+      'has_admin_message': hasAdminMessage,
+      'first_admin_message_at': firstAdminMessageAt?.toIso8601String(),
     };
   }
 
@@ -103,6 +115,8 @@ class OrderThread {
     DateTime? lastMessageAt,
     int? unreadCount,
     bool? hasUnreadMessages,
+    bool? hasAdminMessage,
+    DateTime? firstAdminMessageAt,
   }) {
     return OrderThread(
       id: id ?? this.id,
@@ -121,6 +135,8 @@ class OrderThread {
       lastMessageAt: lastMessageAt ?? this.lastMessageAt,
       unreadCount: unreadCount ?? this.unreadCount,
       hasUnreadMessages: hasUnreadMessages ?? this.hasUnreadMessages,
+      hasAdminMessage: hasAdminMessage ?? this.hasAdminMessage,
+      firstAdminMessageAt: firstAdminMessageAt ?? this.firstAdminMessageAt,
     );
   }
 
@@ -189,5 +205,15 @@ class OrderThread {
       default:
         return 'shopping_bag';
     }
+  }
+
+  // تحديد ما إذا كان الطلب جديد (لم يرسل له المشرف رسالة)
+  bool get isNewOrder {
+    return !hasAdminMessage;
+  }
+
+  // تحديد ما إذا كان الطلب يحتاج إلى رد من المشرف
+  bool get needsAdminResponse {
+    return !hasAdminMessage && hasUnreadMessages;
   }
 }

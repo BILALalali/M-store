@@ -122,9 +122,13 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
       }).toList();
     }
 
-    // ترتيب حسب الأولوية والتاريخ
+    // ترتيب حسب الطلبات الجديدة، ثم الأولوية، ثم الرسائل غير المقروءة، ثم التاريخ
     filtered.sort((a, b) {
-      // أولاً حسب الأولوية
+      // أولاً الطلبات الجديدة (لم يرسل لها المشرف رسالة)
+      if (a.isNewOrder && !b.isNewOrder) return -1;
+      if (!a.isNewOrder && b.isNewOrder) return 1;
+      
+      // ثم حسب الأولوية
       int priorityComparison = a.priority.compareTo(b.priority);
       if (priorityComparison != 0) return priorityComparison;
 
@@ -351,22 +355,27 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
 
   Widget _buildRequestCard(WholesaleRequest request) {
     final hasUnreadMessages = request.hasUnreadMessages;
+    final isNewOrder = request.isNewOrder; // طلب جديد لم يرسل له المشرف رسالة
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: hasUnreadMessages ? 6 : 2,
+      elevation: (hasUnreadMessages || isNewOrder) ? 6 : 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: hasUnreadMessages
-              ? AppColors.warning
-              : _getStatusColor(request.status),
-          width: hasUnreadMessages ? 3 : 1,
+          color: isNewOrder
+              ? AppColors.warning // لون برتقالي للطلبات الجديدة
+              : hasUnreadMessages
+                  ? AppColors.warning
+                  : _getStatusColor(request.status),
+          width: (hasUnreadMessages || isNewOrder) ? 3 : 1,
         ),
       ),
-      color: hasUnreadMessages
-          ? AppColors.warning.withValues(alpha: 0.05)
-          : AppColors.cardBackground,
+      color: isNewOrder
+          ? AppColors.warning.withValues(alpha: 0.1) // خلفية برتقالية فاتحة للطلبات الجديدة
+          : hasUnreadMessages
+              ? AppColors.warning.withValues(alpha: 0.05)
+              : AppColors.cardBackground,
       child: InkWell(
         onTap: () => _openWholesaleChat(request),
         borderRadius: BorderRadius.circular(12),
@@ -401,8 +410,20 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
                       children: [
                         Row(
                           children: [
+                            // مؤشر الطلب الجديد
+                            if (isNewOrder) ...[
+                              Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color: AppColors.warning,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
                             // مؤشر الرسائل غير المقروءة
-                            if (hasUnreadMessages) ...[
+                            if (hasUnreadMessages && !isNewOrder) ...[
                               Container(
                                 width: 10,
                                 height: 10,
@@ -418,16 +439,38 @@ class _WholesaleRequestsScreenState extends State<WholesaleRequestsScreen> {
                                 request.displayTitle,
                                 style: TextStyle(
                                   fontSize: 16,
-                                  fontWeight: hasUnreadMessages
+                                  fontWeight: (hasUnreadMessages || isNewOrder)
                                       ? FontWeight.w900
                                       : FontWeight.bold,
-                                  color: hasUnreadMessages
+                                  color: isNewOrder
                                       ? AppColors.warning
-                                      : AppColors.text,
+                                      : hasUnreadMessages
+                                          ? AppColors.warning
+                                          : AppColors.text,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            // شارة "جديد" للطلبات الجديدة
+                            if (isNewOrder)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.warning,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'جديد',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                         const SizedBox(height: 4),

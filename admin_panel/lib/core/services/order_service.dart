@@ -175,16 +175,25 @@ class OrderService {
         // جلب آخر رسالة (إذا كان هناك نظام رسائل للطلبات)
         OrderMessage? lastMessage;
         int unreadCount = 0;
+        bool hasAdminMessage = false;
+        DateTime? firstAdminMessageAt;
         try {
           lastMessage = await _getLastOrderMessage(item['id']);
           unreadCount = await _getUnreadCount(item['id']);
+          
+          // فحص ما إذا كان المشرف قد أرسل أي رسالة
+          final adminMessages = await _getAdminMessages(item['id']);
+          hasAdminMessage = adminMessages.isNotEmpty;
+          if (hasAdminMessage) {
+            firstAdminMessageAt = adminMessages.first.createdAt;
+          }
         } catch (e) {
           print(
             'تحذير: لا يمكن جلب رسائل الطلب (قد لا يكون النظام مُعَد بعد): $e',
           );
         }
 
-        print('📊 الطلب ${item['id']}: unreadCount = $unreadCount');
+        print('📊 الطلب ${item['id']}: unreadCount = $unreadCount, hasAdminMessage = $hasAdminMessage');
 
         final hasUnreadMessages = unreadCount > 0;
 
@@ -235,6 +244,8 @@ class OrderService {
             lastMessageAt: lastMessage?.createdAt,
             unreadCount: unreadCount,
             hasUnreadMessages: hasUnreadMessages,
+            hasAdminMessage: hasAdminMessage,
+            firstAdminMessageAt: firstAdminMessageAt,
           ),
         );
 
@@ -293,15 +304,24 @@ class OrderService {
         print('❌ خطأ في جلب اسم المستخدم: $e');
       }
 
-      // جلب آخر رسالة وعدد الرسائل غير المقروءة
-      OrderMessage? lastMessage;
-      int unreadCount = 0;
-      try {
-        lastMessage = await _getLastOrderMessage(orderId);
-        unreadCount = await _getUnreadCount(orderId);
-      } catch (e) {
-        print('تحذير: لا يمكن جلب رسائل الطلب: $e');
-      }
+        // جلب آخر رسالة وعدد الرسائل غير المقروءة
+        OrderMessage? lastMessage;
+        int unreadCount = 0;
+        bool hasAdminMessage = false;
+        DateTime? firstAdminMessageAt;
+        try {
+          lastMessage = await _getLastOrderMessage(orderId);
+          unreadCount = await _getUnreadCount(orderId);
+          
+          // فحص ما إذا كان المشرف قد أرسل أي رسالة
+          final adminMessages = await _getAdminMessages(orderId);
+          hasAdminMessage = adminMessages.isNotEmpty;
+          if (hasAdminMessage) {
+            firstAdminMessageAt = adminMessages.first.createdAt;
+          }
+        } catch (e) {
+          print('تحذير: لا يمكن جلب رسائل الطلب: $e');
+        }
 
       return OrderThread(
         id: response['id'],
@@ -319,6 +339,8 @@ class OrderService {
         lastMessageAt: lastMessage?.createdAt,
         unreadCount: unreadCount,
         hasUnreadMessages: unreadCount > 0,
+        hasAdminMessage: hasAdminMessage,
+        firstAdminMessageAt: firstAdminMessageAt,
       );
     } catch (e) {
       print('خطأ في جلب الطلب: $e');
@@ -816,6 +838,24 @@ class OrderService {
     } catch (e) {
       print('خطأ في جلب آخر رسالة للطلب: $e');
       return null;
+    }
+  }
+
+  // الحصول على رسائل المشرف في الطلب
+  Future<List<OrderMessage>> _getAdminMessages(String orderId) async {
+    try {
+      final response = await _supabaseService.client!
+          .from('order_messages')
+          .select('*')
+          .eq('conversation_id', orderId)
+          .eq('sender_type', 'admin')
+          .order('created_at', ascending: true);
+
+      final processedMessages = _processOrderMessages(response);
+      return processedMessages;
+    } catch (e) {
+      print('خطأ في جلب رسائل المشرف للطلب: $e');
+      return [];
     }
   }
 
