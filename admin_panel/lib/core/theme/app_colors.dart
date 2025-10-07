@@ -22,4 +22,5 @@ class AppColors {
   static const Color warning = Color(0xFF2196F3); // أزرق للرسائل غير المقروءة
   static const Color error = Color(0xFFF44336); // أحمر للأخطاء
   static const Color info = Color(0xFF2196F3); // أزرق للمعلومات
+  static const Color border = Color(0xFFE0E0E0); // رمادي فاتح للحدود
 }

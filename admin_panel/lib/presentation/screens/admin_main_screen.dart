@@ -13,6 +13,7 @@ import 'support_chat/index.dart';
 import 'orders/index.dart';
 import 'wholesale/index.dart';
 import 'admin_invite/index.dart';
+import 'users/index.dart';
 import '../../core/services/auth_service.dart'; // Added import for AuthService
 import 'dart:async';
 
@@ -46,6 +47,7 @@ class _AdminMainScreenState extends State<AdminMainScreen>
     const ProfileScreen(), // شاشة الملف الشخصي
     const SupportConversationsScreen(), // شاشة دردشات فريق الدعم
     const AdminInviteScreen(), // شاشة دعوة مشرف جديد
+    const UsersScreen(), // شاشة إدارة المستخدمين
   ];
 
   // خريطة العناوين الديناميكية - تربط بين الفهرس واسم القائمة الرئيسية والقسم الفرعي
@@ -109,6 +111,12 @@ class _AdminMainScreenState extends State<AdminMainScreen>
       'subSection': 'دعوة مشرف',
       'fullTitle': 'دعوة مشرف جديد',
       'description': 'إضافة مدير جديد للنظام',
+    },
+    10: {
+      'mainSection': 'لوحة التحكم',
+      'subSection': 'إدارة المستخدمين',
+      'fullTitle': 'إدارة المستخدمين',
+      'description': 'إدارة المستخدمين المسجلين في النظام',
     },
   };
 

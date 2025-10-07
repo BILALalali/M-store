@@ -237,6 +237,12 @@ class _AdminSidebarState extends State<AdminSidebar> {
               index: 7,
             ),
             _buildNavItem(
+              icon: Icons.people,
+              title: 'إدارة المستخدمين',
+              subtitle: 'إدارة المستخدمين المسجلين',
+              index: 10,
+            ),
+            _buildNavItem(
               icon: Icons.person_add,
               title: 'دعوة مشرف',
               subtitle: 'إضافة مدير جديد للنظام',
