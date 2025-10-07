@@ -44,12 +44,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isLoading = true;
       });
 
+      print('🔄 بدء تحميل بيانات الملف الشخصي...');
+
       // تحميل بيانات الملف الشخصي
       final adminProfile = await _supabaseService.getAdminProfile();
+      print('📋 بيانات الملف الشخصي: $adminProfile');
 
       // تحميل بيانات الأمان والنشاط
       final securityInfo = await _supabaseService.getAdminSecurityInfo();
       final activityStats = await _supabaseService.getAdminActivityStats();
+      print('🔒 بيانات الأمان: $securityInfo');
+      print('📊 إحصائيات النشاط: $activityStats');
 
       if (adminProfile != null) {
         setState(() {
@@ -73,14 +78,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _isLoading = false;
         });
 
-        print('تم تحميل بيانات الملف الشخصي من قاعدة البيانات: $adminProfile');
-        print('بيانات الأمان: $securityInfo');
-        print('إحصائيات النشاط: $activityStats');
+        print('✅ تم تحميل بيانات الملف الشخصي بنجاح');
       } else {
-        print('لم يتم العثور على بيانات الملف الشخصي في قاعدة البيانات');
+        print('⚠️ لم يتم العثور على بيانات الملف الشخصي في قاعدة البيانات');
         // استخدام بيانات المستخدم الحالي من Supabase
         final currentUser = _supabaseService.currentUser;
         if (currentUser != null) {
+          print('👤 استخدام بيانات المستخدم الحالي: ${currentUser.email}');
           setState(() {
             _nameController.text =
                 currentUser.userMetadata?['full_name'] ??
@@ -98,17 +102,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _isLoading = false;
           });
         } else {
+          print('❌ لا يوجد مستخدم مسجل الدخول');
           setState(() {
             _isLoading = false;
           });
         }
       }
     } catch (e) {
-      print('خطأ في تحميل بيانات الملف الشخصي: $e');
+      print('❌ خطأ في تحميل بيانات الملف الشخصي: $e');
       // استخدام بيانات المستخدم الحالي من Supabase في حالة الخطأ
       try {
         final currentUser = _supabaseService.currentUser;
         if (currentUser != null) {
+          print('🔄 استخدام الحل البديل مع بيانات المستخدم الحالي');
           setState(() {
             _nameController.text =
                 currentUser.userMetadata?['full_name'] ??
@@ -121,25 +127,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             // استخدام البيانات الافتراضية للأمان والنشاط
             _securityInfo = {
-              'last_password_update': 'منذ 30 يوماً',
+              'last_password_update': 'غير محدد',
               'two_factor_enabled': false,
               'active_sessions': 1,
             };
-            _activityStats = {
-              'updated_products': 0,
-              'added_users': 0,
-              'processed_orders': 0,
-            };
+            _activityStats = {'updated_products': 0};
 
             _isLoading = false;
           });
         } else {
+          print('❌ لا يوجد مستخدم مسجل الدخول في الحل البديل');
           setState(() {
             _isLoading = false;
           });
         }
       } catch (fallbackError) {
-        print('خطأ في الحل البديل: $fallbackError');
+        print('❌ خطأ في الحل البديل: $fallbackError');
         setState(() {
           _isLoading = false;
         });
@@ -215,6 +218,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) {
+      print('❌ فشل في التحقق من صحة البيانات');
       return;
     }
 
@@ -223,9 +227,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isLoading = true;
       });
 
-      print('حفظ البيانات:');
-      print('الاسم: ${_nameController.text}');
-      print('الهاتف: ${_phoneController.text}');
+      print('💾 بدء حفظ البيانات...');
+      print('📝 الاسم: ${_nameController.text}');
+      print('📞 الهاتف: ${_phoneController.text}');
 
       final updatedProfile = await _supabaseService.updateAdminProfile(
         fullName: _nameController.text,
@@ -233,7 +237,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
       if (updatedProfile != null) {
-        print('تم تحديث البيانات بنجاح: $updatedProfile');
+        print('✅ تم تحديث البيانات بنجاح: $updatedProfile');
 
         // تحديث البيانات مباشرة من الاستجابة
         setState(() {
@@ -259,14 +263,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             SnackBar(
               content: const Text('تم حفظ التغييرات بنجاح'),
               backgroundColor: AppColors.success,
+              duration: const Duration(seconds: 3),
             ),
           );
         }
       } else {
+        print('❌ فشل في تحديث البيانات - الاستجابة فارغة');
         throw Exception('فشل في تحديث البيانات');
       }
     } catch (e) {
-      print('خطأ في حفظ التغييرات: $e');
+      print('❌ خطأ في حفظ التغييرات: $e');
       setState(() {
         _isLoading = false;
       });
@@ -276,6 +282,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SnackBar(
             content: Text('خطأ في حفظ التغييرات: $e'),
             backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -598,15 +605,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }),
           const SizedBox(height: 16),
           _buildSecurityOption(
-            'المصادقة الثنائية',
-            _securityInfo['two_factor_enabled'] == true ? 'مفعلة' : 'غير مفعلة',
-            Icons.verified_user,
-            () {
-              _showTwoFactorDialog();
-            },
-          ),
-          const SizedBox(height: 16),
-          _buildSecurityOption(
             'جلسات تسجيل الدخول',
             '${_securityInfo['active_sessions'] ?? 1} جلسة نشطة',
             Icons.devices,
@@ -655,35 +653,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 24),
 
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  'الطلبات المعالجة',
-                  '${_activityStats['processed_orders'] ?? 0}',
-                  Icons.check_circle,
-                  AppColors.success,
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: _buildStatCard(
-                  'المستخدمين المضافين',
-                  '${_activityStats['added_users'] ?? 0}',
-                  Icons.person_add,
-                  AppColors.primary,
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: _buildStatCard(
-                  'المنتجات المحدثة',
-                  '${_activityStats['updated_products'] ?? 0}',
-                  Icons.update,
-                  AppColors.warning,
-                ),
-              ),
-            ],
+          _buildSimpleStatCard(
+            'المنتجات المحدثة',
+            '${_activityStats['updated_products'] ?? 0}',
+            Icons.update,
+            AppColors.warning,
           ),
         ],
       ),
@@ -830,40 +804,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatCard(
+  Widget _buildSimpleStatCard(
     String title,
     String count,
     IconData icon,
     Color color,
   ) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        color: color.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
       ),
-      child: Column(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 32, color: color),
-          const SizedBox(height: 12),
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
           Text(
             count,
             style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
               color: color,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(width: 4),
           Text(
             title,
             style: TextStyle(
               fontSize: 12,
-              color: color,
-              fontWeight: FontWeight.w500,
+              color: AppColors.text.withValues(alpha: 0.7),
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -941,10 +914,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
 
                 try {
+                  print('🔐 بدء تغيير كلمة المرور...');
                   await _supabaseService.changePassword(
                     newPasswordController.text,
                   );
                   await _supabaseService.updatePasswordLastUpdate();
+
+                  print('✅ تم تغيير كلمة المرور بنجاح');
 
                   // إعادة تحميل البيانات
                   await _loadProfileData();
@@ -955,57 +931,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SnackBar(
                       content: Text('تم تغيير كلمة المرور بنجاح'),
                       backgroundColor: AppColors.success,
+                      duration: Duration(seconds: 3),
                     ),
                   );
                 } catch (e) {
+                  print('❌ خطأ في تغيير كلمة المرور: $e');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('خطأ في تغيير كلمة المرور: $e'),
                       backgroundColor: AppColors.error,
+                      duration: const Duration(seconds: 4),
                     ),
                   );
                 }
               },
               child: const Text('تغيير'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // عرض نافذة المصادقة الثنائية
-  void _showTwoFactorDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('المصادقة الثنائية'),
-          content: Text(
-            _securityInfo['two_factor_enabled'] == true
-                ? 'المصادقة الثنائية مفعلة حالياً. هل تريد إلغاء تفعيلها؟'
-                : 'المصادقة الثنائية غير مفعلة. هل تريد تفعيلها؟',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('هذه الميزة قيد التطوير'),
-                    backgroundColor: AppColors.warning,
-                  ),
-                );
-              },
-              child: Text(
-                _securityInfo['two_factor_enabled'] == true
-                    ? 'إلغاء التفعيل'
-                    : 'تفعيل',
-              ),
             ),
           ],
         );
@@ -1019,35 +959,143 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('جلسات تسجيل الدخول'),
-          content: const Text(
-            'جلسة واحدة نشطة حالياً (هذه الجلسة).\n\n'
-            'يمكنك تسجيل الخروج من جميع الأجهزة الأخرى من هنا.',
+          title: Row(
+            children: [
+              Icon(Icons.devices, color: AppColors.primary),
+              const SizedBox(width: 8),
+              const Text('جلسات تسجيل الدخول'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.success.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      color: AppColors.success,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'هذه الجلسة (نشطة)',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            '${_securityInfo['active_sessions'] ?? 1} جلسة نشطة',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.text.withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'معلومات الجلسة:',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              _buildSessionInfo('آخر تسجيل دخول', _lastLogin),
+              _buildSessionInfo('تاريخ الانضمام', _joinDate),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info, color: AppColors.warning, size: 16),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'لحماية حسابك، يُنصح بتسجيل الخروج من الأجهزة غير المستخدمة',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('إغلاق'),
             ),
-            ElevatedButton(
-              onPressed: () {
+            ElevatedButton.icon(
+              onPressed: () async {
                 Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('هذه الميزة قيد التطوير'),
-                    backgroundColor: AppColors.warning,
-                  ),
-                );
+                try {
+                  await _supabaseService.signOut();
+                  if (mounted) {
+                    Navigator.of(context).pushReplacementNamed('/login');
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('خطأ في تسجيل الخروج: $e'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
+                }
               },
+              icon: const Icon(Icons.logout, size: 16),
+              label: const Text('تسجيل الخروج'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.error,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('تسجيل الخروج من جميع الأجهزة'),
             ),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildSessionInfo(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.text.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
     );
   }
 }

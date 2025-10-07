@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'order_model.dart';
 import 'order_chat_screen.dart';
 import 'product_model.dart';
 import '../../core/services/order_chat_service.dart';
+import '../../core/services/message_listener_service.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -24,6 +26,12 @@ class _OrdersScreenState extends State<OrdersScreen>
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  
+  // خدمة الاستماع للرسائل
+  final MessageListenerService _messageListener = MessageListenerService();
+  
+  // Timer للتحديث الدوري
+  Timer? _refreshTimer;
 
   @override
   void initState() {
@@ -38,16 +46,72 @@ class _OrdersScreenState extends State<OrdersScreen>
 
     // تحميل طلبات الجملة وطلبات التجزئة من Supabase
     _loadOrdersFromSupabase();
+    
     // بدء التحريك إذا كانت هناك رسائل غير مقروءة
     if (_hasUnreadMessages()) {
       _pulseController.repeat(reverse: true);
     }
+    
+    // إعداد callback لتحديث الواجهة عند وصول رسائل جديدة
+    _messageListener.onNewMessagesReceived = () {
+      _refreshOrders();
+    };
+    
+    // بدء التحديث الدوري كل دقيقة
+    _startPeriodicRefresh();
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _refreshTimer?.cancel();
+    // لا نوقف الاستماع هنا لأنه يجب أن يستمر في الخلفية
     super.dispose();
+  }
+  
+  /// بدء التحديث الدوري للطلبات
+  void _startPeriodicRefresh() {
+    _refreshTimer?.cancel();
+    // تحديث كل 5 ثوان للتحقق من الرسائل الجديدة
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _refreshOrders();
+    });
+  }
+  
+  /// تحديث قائمة الطلبات
+  Future<void> _refreshOrders() async {
+    try {
+      print('🔄 تحديث قائمة الطلبات (كل 5 ثوان)...');
+      final results = await Future.wait<List<Order>>([
+        OrderChatService.fetchWholesaleOrdersForCurrentUser(),
+        OrderChatService.fetchRetailOrdersForCurrentUser(),
+      ]);
+      
+      final fetched = [...results[0], ...results[1]];
+      
+      if (mounted) {
+        setState(() {
+          // تحديث قائمة الطلبات بالكامل
+          OrdersScreen.confirmedOrders.clear();
+          OrdersScreen.confirmedOrders.addAll(fetched);
+          
+          // تحديث التحريك للأيقونة
+          if (_hasUnreadMessages()) {
+            if (!_pulseController.isAnimating) {
+              _pulseController.repeat(reverse: true);
+            }
+          } else {
+            _pulseController.stop();
+            _pulseController.reset();
+          }
+        });
+        
+        // بدء الاستماع للمحادثات الجديدة
+        _messageListener.startListening(OrdersScreen.confirmedOrders);
+      }
+    } catch (e) {
+      print('❌ خطأ في تحديث الطلبات: $e');
+    }
   }
 
   Future<void> _loadOrdersFromSupabase() async {
@@ -69,6 +133,9 @@ class _OrdersScreenState extends State<OrdersScreen>
             }
           }
         });
+        
+        // بدء الاستماع للرسائل الجديدة
+        _messageListener.startListening(OrdersScreen.confirmedOrders);
       }
     } catch (_) {}
   }
@@ -557,8 +624,9 @@ class _OrdersScreenState extends State<OrdersScreen>
   }
 
   bool _hasUnreadMessages() {
-    // محاكاة وجود رسائل غير مقروءة
-    return OrdersScreen.confirmedOrders.isNotEmpty;
+    // التحقق من وجود رسائل غير مقروءة فعلياً
+    return OrdersScreen.confirmedOrders
+        .any((order) => order.hasUnreadMessages && order.unreadCount > 0);
   }
 }
 
@@ -691,8 +759,91 @@ String _formatProductPrice(Product p) {
   }
 }
 
-class ConfirmedOrdersScreen extends StatelessWidget {
+class ConfirmedOrdersScreen extends StatefulWidget {
   const ConfirmedOrdersScreen({super.key});
+
+  @override
+  State<ConfirmedOrdersScreen> createState() => _ConfirmedOrdersScreenState();
+}
+
+class _ConfirmedOrdersScreenState extends State<ConfirmedOrdersScreen> {
+  // متغير لتتبع الطلبات المحدثة
+  Set<String> _readConversationIds = {};
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // تحديث دوري كل 5 ثوان للتحقق من الرسائل الجديدة
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _refreshConversations();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  /// تحديث قائمة المحادثات
+  Future<void> _refreshConversations() async {
+    try {
+      print('🔄 تحديث المحادثات (كل 5 ثوان)...');
+      final results = await Future.wait<List<Order>>([
+        OrderChatService.fetchWholesaleOrdersForCurrentUser(),
+        OrderChatService.fetchRetailOrdersForCurrentUser(),
+      ]);
+      
+      final fetched = [...results[0], ...results[1]];
+      
+      if (mounted) {
+        setState(() {
+          // تحديث قائمة الطلبات بالكامل
+          OrdersScreen.confirmedOrders.clear();
+          OrdersScreen.confirmedOrders.addAll(fetched);
+        });
+        print('✅ تم تحديث ${fetched.length} محادثة');
+      }
+    } catch (e) {
+      print('❌ خطأ في تحديث المحادثات: $e');
+    }
+  }
+
+  /// تحديث حالة المحادثة عند قراءة الرسائل
+  void _onMessagesRead(String conversationId) {
+    setState(() {
+      _readConversationIds.add(conversationId);
+      
+      // تحديث الطلب ليعكس قراءة الرسائل
+      final index = OrdersScreen.confirmedOrders
+          .indexWhere((o) => o.conversationId == conversationId);
+      if (index != -1) {
+        final order = OrdersScreen.confirmedOrders[index];
+        OrdersScreen.confirmedOrders[index] = Order(
+          orderId: order.orderId,
+          conversationId: order.conversationId,
+          productName: order.productName,
+          productImage: order.productImage,
+          productId: order.productId,
+          productUrl: order.productUrl,
+          date: order.date,
+          status: order.status,
+          userName: order.userName,
+          hasUnreadMessages: false,
+          unreadCount: 0,
+          orderType: order.orderType,
+          description: order.description,
+          quantity: order.quantity,
+        );
+      }
+    });
+  }
+
+  /// التحقق من أن المحادثة تم قراءتها
+  bool _isConversationRead(String conversationId) {
+    return _readConversationIds.contains(conversationId);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -730,6 +881,14 @@ class ConfirmedOrdersScreen extends StatelessWidget {
             ),
           ],
         ),
+        actions: [
+          // زر تحديث يدوي
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _refreshConversations,
+            tooltip: 'تحديث',
+          ),
+        ],
       ),
       body: OrdersScreen.confirmedOrders.isEmpty
           ? const Center(
@@ -763,10 +922,15 @@ class ConfirmedOrdersScreen extends StatelessWidget {
               itemCount: OrdersScreen.confirmedOrders.length,
               itemBuilder: (context, index) {
                 final order = OrdersScreen.confirmedOrders[index];
+                final conversationId = order.conversationId ?? '';
+                final isRead = _isConversationRead(conversationId);
+                
                 return ChatCard(
                   order: order,
                   cardHeight: cardHeight,
                   imageSize: imageSize,
+                  isRead: isRead,
+                  onMessagesRead: () => _onMessagesRead(conversationId),
                 );
               },
             ),
@@ -778,12 +942,16 @@ class ChatCard extends StatelessWidget {
   final Order order;
   final double cardHeight;
   final double imageSize;
+  final bool isRead;
+  final VoidCallback? onMessagesRead;
 
   const ChatCard({
     super.key,
     required this.order,
     required this.cardHeight,
     required this.imageSize,
+    this.isRead = false,
+    this.onMessagesRead,
   });
 
   Color getStatusColor(OrderStatus status) {
@@ -821,28 +989,42 @@ class ChatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // تحديد ما إذا كانت المحادثة تحتوي على رسائل غير مقروءة
+    final hasUnreadMessages = order.hasUnreadMessages && !isRead && order.unreadCount > 0;
+    
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => OrderChatScreen(order: order)),
+          MaterialPageRoute(
+            builder: (_) => OrderChatScreen(
+              order: order,
+              onMessagesRead: onMessagesRead,
+            ),
+          ),
         );
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: hasUnreadMessages 
+              ? const Color(0xFF2196F3).withOpacity(0.05) // خلفية زرقاء خفيفة للرسائل غير المقروءة
+              : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withValues(alpha: 0.08),
-              blurRadius: 8,
+              color: hasUnreadMessages
+                  ? const Color(0xFF2196F3).withOpacity(0.15) // ظل أزرق للرسائل غير المقروءة
+                  : Colors.grey.withValues(alpha: 0.08),
+              blurRadius: hasUnreadMessages ? 12 : 8,
               offset: const Offset(0, 2),
             ),
           ],
           // إضافة حدود مميزة لطلبات الجملة والتوصيل والطلبات العادية
-          border: order.orderType == OrderType.wholesale
+          border: hasUnreadMessages
+              ? Border.all(color: const Color(0xFF2196F3), width: 2) // حدود زرقاء للرسائل غير المقروءة
+              : order.orderType == OrderType.wholesale
               ? Border.all(color: const Color(0xFF1EC6D9), width: 2)
               : order.orderType == OrderType.delivery
               ? Border.all(color: const Color(0xFF2E3A59), width: 2)
@@ -903,16 +1085,36 @@ class ChatCard extends StatelessWidget {
                         size: 24,
                       ),
                     ),
-                    if (order.hasUnreadMessages)
+                    if (hasUnreadMessages)
                       Positioned(
                         right: -2,
                         top: -2,
                         child: Container(
-                          width: 12,
-                          height: 12,
+                          constraints: const BoxConstraints(minWidth: 20),
+                          height: 20,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
                           decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(6),
+                            color: const Color(0xFF2196F3), // أزرق بدلاً من أحمر
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.white, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF2196F3).withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Text(
+                              order.unreadCount > 99 ? '99+' : '${order.unreadCount}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Cairo',
+                              ),
+                            ),
                           ),
                         ),
                       ),

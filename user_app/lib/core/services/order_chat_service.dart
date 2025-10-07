@@ -35,7 +35,9 @@ class OrderChatService {
           e.toString().contains('row-level security policy') ||
           e.toString().contains('403') ||
           e.toString().contains('Unauthorized')) {
-        print('الحاوية موجودة بالفعل أو لا توجد صلاحيات لإنشائها: $_attachmentsBucket');
+        print(
+          'الحاوية موجودة بالفعل أو لا توجد صلاحيات لإنشائها: $_attachmentsBucket',
+        );
         // لا نعيد رمي الخطأ، نستمر لأن الحاوية قد تكون موجودة بالفعل
       } else {
         print('فشل في إنشاء الحاوية: $e');
@@ -183,16 +185,16 @@ class OrderChatService {
         final ext = imageFile.path.split('.').last;
         final storagePath =
             'orders/${user.id}/${DateTime.now().millisecondsSinceEpoch}.$ext';
-        
+
         print('محاولة رفع صورة الجملة إلى: $storagePath');
-        
+
         await _client.storage
             .from(_attachmentsBucket)
             .upload(storagePath, imageFile);
         imageUrl = _client.storage
             .from(_attachmentsBucket)
             .getPublicUrl(storagePath);
-            
+
         print('تم رفع صورة الجملة بنجاح: $imageUrl');
       } catch (e) {
         // لا نفشل إذا فشل رفع الصورة
@@ -265,6 +267,9 @@ class OrderChatService {
 
     final requestIds = requestRows.map((r) => r['id'] as String).toList();
     Map<String, String> requestIdToConversationId = {};
+    Map<String, bool> conversationIdToHasUnread = {};
+    Map<String, int> conversationIdToUnreadCount = {};
+
     if (requestIds.isNotEmpty) {
       final convRows = await _client
           .from(_conversationsTable)
@@ -276,6 +281,29 @@ class OrderChatService {
           final cid = row['id'] as String?;
           if (rid != null && cid != null) {
             requestIdToConversationId[rid] = cid;
+          }
+        }
+      }
+
+      // جلب معلومات الرسائل غير المقروءة من الإدارة
+      final conversationIds = requestIdToConversationId.values.toList();
+      if (conversationIds.isNotEmpty) {
+        final unreadRows = await _client
+            .from(_messagesTable)
+            .select('conversation_id')
+            .in_('conversation_id', conversationIds)
+            .eq('sender_type', 'admin')
+            .eq('is_read', false);
+
+        if (unreadRows is List) {
+          // حساب عدد الرسائل غير المقروءة لكل محادثة
+          for (final row in unreadRows) {
+            final convId = row['conversation_id'] as String?;
+            if (convId != null) {
+              conversationIdToHasUnread[convId] = true;
+              conversationIdToUnreadCount[convId] =
+                  (conversationIdToUnreadCount[convId] ?? 0) + 1;
+            }
           }
         }
       }
@@ -295,10 +323,18 @@ class OrderChatService {
     final List<Order> orders = [];
     for (final r in requestRows) {
       final id = r['id'] as String;
+      final conversationId = requestIdToConversationId[id];
+      final hasUnreadMessages =
+          conversationId != null &&
+          conversationIdToHasUnread[conversationId] == true;
+      final unreadCount = conversationId != null
+          ? (conversationIdToUnreadCount[conversationId] ?? 0)
+          : 0;
+
       orders.add(
         Order(
           orderId: id,
-          conversationId: requestIdToConversationId[id],
+          conversationId: conversationId,
           productName: (r['product_name'] ?? '') as String,
           productImage: (r['image_url'] ?? '') as String,
           productId: id,
@@ -306,6 +342,8 @@ class OrderChatService {
           date: DateTime.parse((r['created_at'] as String)),
           status: _mapStatus(r['status'] as String?),
           userName: user.email ?? user.id,
+          hasUnreadMessages: hasUnreadMessages,
+          unreadCount: unreadCount,
           orderType: OrderType.wholesale,
           description: r['description'] as String?,
           quantity: (r['quantity'] as int?) ?? 0,
@@ -329,31 +367,36 @@ class OrderChatService {
     return (rows as List).cast<Map<String, dynamic>>();
   }
 
-  /// الاشتراك في الرسائل بصيغة stream
-  static Future<StreamSubscription<List<Map<String, dynamic>>>>
-  subscribeToMessages(
+  /// الاشتراك في الرسائل بصيغة Realtime
+  static Future<RealtimeChannel> subscribeToMessages(
     String conversationId,
     void Function(Map<String, dynamic> row) onInsert,
   ) async {
     // تحديد جدول الرسائل أولاً
     final table = await _resolveMessagesTable(conversationId);
 
-    // إنشاء stream للجدول المحدد فقط - نستمع فقط للرسائل الجديدة
-    // نستخدم timestamp الحالي لتجنب تكرار الرسائل الموجودة مسبقاً
-    final now = DateTime.now().toIso8601String();
+    // إنشاء قناة Realtime للاستماع للإدراجات الجديدة فقط
+    final channel = _client.channel('messages_$conversationId');
 
-    return _client
-        .from(table)
-        .stream(primaryKey: ['id'])
-        .eq('conversation_id', conversationId)
-        .gt('created_at', now) // فقط الرسائل الجديدة بعد الآن
-        .order('created_at', ascending: true)
-        .listen((rows) {
-          // معالجة كل صف جديد
-          for (final row in rows) {
-            onInsert(row);
-          }
-        });
+    channel.on(
+      RealtimeListenTypes.postgresChanges,
+      ChannelFilter(
+        event: 'INSERT',
+        schema: 'public',
+        table: table,
+        filter: 'conversation_id=eq.$conversationId',
+      ),
+      (payload, [ref]) {
+        print('🔔 رسالة جديدة مستلمة في المحادثة $conversationId');
+        // استدعاء callback مع الرسالة الجديدة
+        final newRecord = payload['new'] as Map<String, dynamic>?;
+        if (newRecord != null) {
+          onInsert(newRecord);
+        }
+      },
+    ).subscribe();
+
+    return channel;
   }
 
   /// إرسال رسالة نصية
@@ -454,6 +497,32 @@ class OrderChatService {
 
     if (rows is! List) return [];
 
+    // جلب معلومات الرسائل غير المقروءة من الإدارة
+    final threadIds = rows.map((r) => r['id'] as String).toList();
+    Map<String, bool> threadIdToHasUnread = {};
+    Map<String, int> threadIdToUnreadCount = {};
+
+    if (threadIds.isNotEmpty) {
+      final unreadRows = await _client
+          .from(_retailMessagesTable)
+          .select('conversation_id')
+          .in_('conversation_id', threadIds)
+          .eq('sender_type', 'admin')
+          .eq('is_read', false);
+
+      if (unreadRows is List) {
+        // حساب عدد الرسائل غير المقروءة لكل محادثة
+        for (final row in unreadRows) {
+          final convId = row['conversation_id'] as String?;
+          if (convId != null) {
+            threadIdToHasUnread[convId] = true;
+            threadIdToUnreadCount[convId] =
+                (threadIdToUnreadCount[convId] ?? 0) + 1;
+          }
+        }
+      }
+    }
+
     OrderStatus _mapStatus(String? s) {
       switch ((s ?? 'pending').toLowerCase()) {
         case 'confirmed':
@@ -479,20 +548,47 @@ class OrderChatService {
     }
 
     return rows.map((r) {
+      final threadId = r['id'] as String;
+      final hasUnreadMessages = threadIdToHasUnread[threadId] == true;
+      final unreadCount = threadIdToUnreadCount[threadId] ?? 0;
+
       return Order(
-        orderId: r['id'] as String,
-        conversationId: r['id'] as String,
+        orderId: threadId,
+        conversationId: threadId,
         productName: (r['title'] ?? '') as String,
         productImage: (r['image_url'] ?? '') as String,
-        productId: r['id'] as String,
+        productId: threadId,
         productUrl: '',
         date: DateTime.parse(r['created_at'] as String),
         status: _mapStatus(r['status'] as String?),
         userName: user.email ?? user.id,
+        hasUnreadMessages: hasUnreadMessages,
+        unreadCount: unreadCount,
         orderType: _mapType(r['order_type'] as String?),
         description: r['summary'] as String?,
         quantity: null,
       );
     }).toList();
+  }
+
+  /// تحديث حالة القراءة للرسائل من الإدارة في محادثة معينة
+  static Future<void> markAdminMessagesAsRead(String conversationId) async {
+    try {
+      // تحديد جدول الرسائل أولاً
+      final table = await _resolveMessagesTable(conversationId);
+
+      // تحديث جميع الرسائل من الإدارة غير المقروءة
+      await _client
+          .from(table)
+          .update({'is_read': true})
+          .eq('conversation_id', conversationId)
+          .eq('sender_type', 'admin')
+          .eq('is_read', false);
+
+      print('تم تحديث حالة القراءة للمحادثة: $conversationId');
+    } catch (e) {
+      print('خطأ في تحديث حالة القراءة: $e');
+      // لا نعيد رمي الخطأ، نستمر في العمل
+    }
   }
 }

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'order_model.dart';
 import '../../core/services/order_chat_service.dart';
 
@@ -28,8 +29,13 @@ class OrderChatMessage {
 /// شاشة محادثة الطلب
 class OrderChatScreen extends StatefulWidget {
   final Order order;
+  final VoidCallback? onMessagesRead;
 
-  const OrderChatScreen({super.key, required this.order});
+  const OrderChatScreen({
+    super.key, 
+    required this.order,
+    this.onMessagesRead,
+  });
 
   @override
   State<OrderChatScreen> createState() => _OrderChatScreenState();
@@ -43,7 +49,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
   // قائمة الرسائل
   final List<OrderChatMessage> _messages = [];
-  StreamSubscription? _sub;
+  RealtimeChannel? _channel;
 
   // ألوان التطبيق
   static const Color primaryColor = Color(0xFF1EC6D9);
@@ -54,14 +60,27 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     super.initState();
     _initializeWelcomeMessage();
     _bootstrapRealtime();
+    _markMessagesAsRead();
   }
 
   @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
-    _sub?.cancel();
+    _channel?.unsubscribe();
     super.dispose();
+  }
+
+  /// تحديث حالة القراءة للرسائل من الإدارة
+  void _markMessagesAsRead() async {
+    final conversationId = widget.order.conversationId;
+    if (conversationId != null) {
+      await OrderChatService.markAdminMessagesAsRead(conversationId);
+      // استدعاء callback لتحديث حالة البطاقة
+      if (widget.onMessagesRead != null) {
+        widget.onMessagesRead!();
+      }
+    }
   }
 
   /// إضافة رسالة الترحيب الأولية
@@ -210,6 +229,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     if (conversationId == null) return;
 
     try {
+      // تحميل الرسائل الموجودة
       final rows = await OrderChatService.fetchMessages(conversationId);
       for (final r in rows) {
         _messages.add(_mapRowToMessage(r));
@@ -217,7 +237,9 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
       setState(() {});
       _scrollToBottom();
 
-      _sub = await OrderChatService.subscribeToMessages(conversationId, (row) {
+      // الاشتراك في الرسائل الجديدة
+      _channel = await OrderChatService.subscribeToMessages(conversationId, (row) {
+        print('✅ رسالة جديدة وصلت في الشاشة!');
         final msg = _mapRowToMessage(row);
         setState(() {
           _messages.add(msg);
@@ -225,6 +247,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         _scrollToBottom();
       });
     } catch (e) {
+      print('❌ خطأ في الاشتراك بالرسائل: $e');
       // تجاهل الخطأ، المحادثة تعمل محلياً
     }
   }

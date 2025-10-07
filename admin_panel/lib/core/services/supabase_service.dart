@@ -1636,43 +1636,22 @@ class SupabaseService {
             .select('id')
             .eq('admin_id', user.id);
         stats['updated_products'] = updatedProductsResponse.length;
+        print('📊 المنتجات المحدثة: ${updatedProductsResponse.length}');
       } catch (e) {
-        print('لا يمكن جلب المنتجات المحدثة: $e');
-      }
-
-      // جلب عدد المستخدمين المضافين من قبل هذا المدير
-      try {
-        final addedUsersResponse = await _client!
-            .from('users')
-            .select('id')
-            .eq('created_by', user.id);
-        stats['added_users'] = addedUsersResponse.length;
-      } catch (e) {
-        print('لا يمكن جلب المستخدمين المضافين: $e');
-      }
-
-      // جلب عدد الطلبات المعالجة من قبل هذا المدير
-      try {
-        final processedOrdersResponse = await _client!
-            .from('orders')
-            .select('id')
-            .eq('processed_by', user.id)
-            .eq('status', 'completed');
-        stats['processed_orders'] = processedOrdersResponse.length;
-      } catch (e) {
-        print('لا يمكن جلب الطلبات المعالجة: $e');
+        print('❌ لا يمكن جلب المنتجات المحدثة: $e');
+        stats['updated_products'] = 0;
       }
 
       return stats;
     } catch (e) {
-      print('خطأ في جلب إحصائيات النشاط: $e');
+      print('❌ خطأ في جلب إحصائيات النشاط: $e');
       return _getDefaultActivityStats();
     }
   }
 
   // إحصائيات النشاط الافتراضية
   Map<String, dynamic> _getDefaultActivityStats() {
-    return {'updated_products': 0, 'added_users': 0, 'processed_orders': 0};
+    return {'updated_products': 0};
   }
 
   // الحصول على معلومات الأمان للمدير

@@ -6,7 +6,6 @@ class AdminSidebar extends StatefulWidget {
   final int selectedIndex;
   final Function(int) onItemSelected;
   final VoidCallback? onProfileTap;
-  final VoidCallback? onSettingsTap;
   final VoidCallback? onLogoutTap;
   final NotificationService? notificationService;
 
@@ -15,7 +14,6 @@ class AdminSidebar extends StatefulWidget {
     required this.selectedIndex,
     required this.onItemSelected,
     this.onProfileTap,
-    this.onSettingsTap,
     this.onLogoutTap,
     this.notificationService,
   });
@@ -239,16 +237,10 @@ class _AdminSidebarState extends State<AdminSidebar> {
               index: 7,
             ),
             _buildNavItem(
-              icon: Icons.settings,
-              title: 'الإعدادات',
-              subtitle: 'إعدادات النظام والحساب',
-              index: 8,
-            ),
-            _buildNavItem(
               icon: Icons.person_add,
               title: 'دعوة مشرف',
               subtitle: 'إضافة مدير جديد للنظام',
-              index: 10,
+              index: 9,
             ),
           ],
         ),
@@ -283,39 +275,20 @@ class _AdminSidebarState extends State<AdminSidebar> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // أزرار الإعدادات وتسجيل الخروج
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            Icons.settings,
-                            color: AppColors.text,
-                            size: 16,
-                          ),
-                          onPressed: widget.onSettingsTap,
-                          tooltip: 'الإعدادات',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.logout,
-                            color: AppColors.error,
-                            size: 16,
-                          ),
-                          onPressed: widget.onLogoutTap,
-                          tooltip: 'تسجيل الخروج',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
-                          ),
-                        ),
-                      ],
+                    // زر تسجيل الخروج
+                    IconButton(
+                      icon: Icon(
+                        Icons.logout,
+                        color: AppColors.error,
+                        size: 16,
+                      ),
+                      onPressed: widget.onLogoutTap,
+                      tooltip: 'تسجيل الخروج',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
                     ),
                   ],
                 )
@@ -375,32 +348,26 @@ class _AdminSidebarState extends State<AdminSidebar> {
 
                     const SizedBox(height: 12),
 
-                    // أزرار الإعدادات وتسجيل الخروج
-                    Row(
-                      children: [
-                        Expanded(
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.settings,
-                              color: AppColors.text,
-                              size: 20,
-                            ),
-                            onPressed: widget.onSettingsTap,
-                            tooltip: 'الإعدادات',
-                          ),
+                    // زر تسجيل الخروج
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: widget.onLogoutTap,
+                        icon: Icon(
+                          Icons.logout,
+                          color: AppColors.error,
+                          size: 20,
                         ),
-                        Expanded(
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.logout,
-                              color: AppColors.error,
-                              size: 20,
-                            ),
-                            onPressed: widget.onLogoutTap,
-                            tooltip: 'تسجيل الخروج',
+                        label: const Text('تسجيل الخروج'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error.withValues(
+                            alpha: 0.1,
                           ),
+                          foregroundColor: AppColors.error,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),

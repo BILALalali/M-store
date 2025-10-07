@@ -14,6 +14,7 @@ class Order {
   final OrderStatus status;
   final String userName;
   final bool hasUnreadMessages;
+  final int unreadCount;
   final OrderType orderType;
   final String? description; // للطلبات الجملة
   final int? quantity; // للطلبات الجملة
@@ -29,6 +30,7 @@ class Order {
     required this.status,
     required this.userName,
     this.hasUnreadMessages = false,
+    this.unreadCount = 0,
     this.orderType = OrderType.retail,
     this.description,
     this.quantity,

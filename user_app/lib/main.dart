@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/supabase_service.dart';
+import 'core/services/notification_service.dart';
 import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/register_screen.dart';
 import 'presentation/screens/home_screen.dart';
@@ -22,10 +23,19 @@ void main() async {
     print('سيتم استخدام البيانات المحلية');
   }
 
+  // تهيئة خدمة الإشعارات
+  try {
+    await NotificationService().initialize();
+    print('تم تهيئة خدمة الإشعارات بنجاح');
+  } catch (e) {
+    print('فشل في تهيئة خدمة الإشعارات: $e');
+  }
+
   runApp(const MyApp());
-} 
+}
 
 class MyApp extends StatelessWidget {
+  
   const MyApp({super.key});
 
   // Routes configuration

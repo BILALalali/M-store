@@ -5,7 +5,6 @@ import '../../core/services/supabase_service.dart';
 import '../../core/services/support_chat_service.dart';
 import '../../core/services/notification_service.dart';
 import 'profile/profile_screen.dart';
-import 'settings/settings_screen.dart';
 import 'products/index.dart';
 import 'advertisements/index.dart';
 import 'mobile_packages/index.dart';
@@ -45,7 +44,6 @@ class _AdminMainScreenState extends State<AdminMainScreen>
     const GameCardsScreen(), // شاشة إدارة بطاقات الألعاب
     const AdvertisementsScreen(), // شاشة إدارة الإعلانات
     const ProfileScreen(), // شاشة الملف الشخصي
-    const SettingsScreen(), // شاشة الإعدادات
     const SupportConversationsScreen(), // شاشة دردشات فريق الدعم
     const AdminInviteScreen(), // شاشة دعوة مشرف جديد
   ];
@@ -101,18 +99,12 @@ class _AdminMainScreenState extends State<AdminMainScreen>
       'description': 'إدارة الملف الشخصي',
     },
     8: {
-      'mainSection': 'لوحة التحكم',
-      'subSection': 'الإعدادات',
-      'fullTitle': 'الإعدادات',
-      'description': 'إعدادات النظام والحساب',
-    },
-    9: {
       'mainSection': 'الدعم والطلبات',
       'subSection': 'فريق الدعم',
       'fullTitle': 'دردشات فريق الدعم',
       'description': 'إدارة دردشات الدعم',
     },
-    10: {
+    9: {
       'mainSection': 'لوحة التحكم',
       'subSection': 'دعوة مشرف',
       'fullTitle': 'دعوة مشرف جديد',
@@ -267,11 +259,6 @@ class _AdminMainScreenState extends State<AdminMainScreen>
                 onProfileTap: () {
                   setState(() {
                     _selectedIndex = 7; // الانتقال لصفحة الملف الشخصي
-                  });
-                },
-                onSettingsTap: () {
-                  setState(() {
-                    _selectedIndex = 8; // الانتقال لصفحة الإعدادات
                   });
                 },
                 onLogoutTap: _handleLogout,

@@ -5,6 +5,9 @@ import 'orders_screen.dart';
 import 'store_screen.dart';
 import 'other_services_screen.dart';
 import '../../core/services/support_chat_service.dart';
+import '../../core/services/message_listener_service.dart';
+import '../../core/services/order_chat_service.dart';
+import 'order_model.dart';
 import 'dart:async';
 
 class MainScreen extends StatefulWidget {
@@ -18,6 +21,9 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 2; // الرئيسية في المنتصف
   int _unreadSupportMessages = 0;
   StreamSubscription? _unreadSubscription;
+  
+  // خدمة الاستماع للرسائل
+  final MessageListenerService _messageListener = MessageListenerService();
 
   final List<Widget> _screens = [
     AccountScreen(),
@@ -31,12 +37,39 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _initializeUnreadCount();
+    _initializeMessageListener();
   }
 
   @override
   void dispose() {
     _unreadSubscription?.cancel();
+    _messageListener.dispose();
     super.dispose();
+  }
+  
+  /// تهيئة خدمة الاستماع للرسائل الجديدة
+  Future<void> _initializeMessageListener() async {
+    try {
+      print('🔔 تهيئة خدمة الاستماع للرسائل...');
+      
+      // تحميل جميع المحادثات
+      final results = await Future.wait<List<Order>>([
+        OrderChatService.fetchWholesaleOrdersForCurrentUser(),
+        OrderChatService.fetchRetailOrdersForCurrentUser(),
+      ]);
+      
+      final List<Order> allOrders = [...results[0], ...results[1]];
+      
+      if (allOrders.isNotEmpty) {
+        // بدء الاستماع لجميع المحادثات
+        await _messageListener.startListening(allOrders);
+        print('✅ تم بدء الاستماع لـ ${allOrders.length} محادثة');
+      } else {
+        print('⚠️ لا توجد محادثات للاستماع لها');
+      }
+    } catch (e) {
+      print('❌ خطأ في تهيئة خدمة الاستماع: $e');
+    }
   }
 
   Future<void> _initializeUnreadCount() async {
