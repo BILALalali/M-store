@@ -308,6 +308,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final SupportChatService _chatService = SupportChatService();
   Map<String, dynamic> _stats = {};
   Map<String, dynamic> _chatStats = {};
+  int _allConversationsCount = 0;
   bool _isLoading = true;
 
   @override
@@ -320,10 +321,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final stats = await _supabaseService.getDashboardStats();
       final chatStats = await _chatService.getChatStats();
+      final allConversationsCount = await _supabaseService
+          .getAllConversationsCount();
       if (mounted) {
         setState(() {
           _stats = stats;
           _chatStats = chatStats;
+          _allConversationsCount = allConversationsCount;
           _isLoading = false;
         });
       }
@@ -394,28 +398,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 if (availableWidth < 600) {
                   // شاشات صغيرة جداً
                   crossAxisCount = 1;
-                  childAspectRatio = 2.2;
-                  spacing = 12;
+                  childAspectRatio = 3.5;
+                  spacing = 8;
                 } else if (availableWidth < 900) {
                   // شاشات صغيرة (موبايل)
-                  crossAxisCount = 1;
-                  childAspectRatio = 2.0;
-                  spacing = 16;
+                  crossAxisCount = 2;
+                  childAspectRatio = 2.8;
+                  spacing = 10;
                 } else if (availableWidth < 1200) {
                   // شاشات متوسطة (تابلت)
-                  crossAxisCount = 2;
-                  childAspectRatio = 1.8;
-                  spacing = 20;
+                  crossAxisCount = 3;
+                  childAspectRatio = 2.2;
+                  spacing = 12;
                 } else if (availableWidth < 1600) {
                   // شاشات كبيرة (ديسكتوب)
-                  crossAxisCount = 3;
-                  childAspectRatio = 1.6;
-                  spacing = 24;
+                  crossAxisCount = 4;
+                  childAspectRatio = 1.8;
+                  spacing = 14;
                 } else {
                   // شاشات كبيرة جداً
-                  crossAxisCount = 4;
-                  childAspectRatio = 1.4;
-                  spacing = 28;
+                  crossAxisCount = 5;
+                  childAspectRatio = 1.6;
+                  spacing = 16;
                 }
 
                 return GridView.count(
@@ -445,21 +449,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       AppColors.info,
                     ),
                     _buildStatCard(
-                      'إجمالي الإيرادات',
-                      '${_stats['total_revenue']?.toStringAsFixed(2) ?? '0.00'} ريال',
-                      Icons.attach_money,
+                      'الإعلانات',
+                      '${_stats['advertisements_count'] ?? 0}',
+                      Icons.campaign,
                       AppColors.warning,
                     ),
                     _buildStatCard(
-                      'الطلبات المعلقة',
-                      '${_stats['pending_orders'] ?? 0}',
-                      Icons.pending,
-                      AppColors.error,
+                      'طلبات الجملة',
+                      '${_stats['wholesale_requests_count'] ?? 0}',
+                      Icons.business_center,
+                      AppColors.primary,
                     ),
                     _buildStatCard(
-                      'الطلبات المكتملة',
-                      '${_stats['completed_orders'] ?? 0}',
-                      Icons.check_circle,
+                      'طلبات الشحن',
+                      '${_stats['delivery_orders_count'] ?? 0}',
+                      Icons.local_shipping,
                       AppColors.success,
                     ),
                     _buildStatCard(
@@ -469,8 +473,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       AppColors.info,
                     ),
                     _buildStatCard(
-                      'المحادثات المفتوحة',
-                      '${_chatStats['open_conversations'] ?? 0}',
+                      'جميع المحادثات',
+                      '$_allConversationsCount',
                       Icons.chat,
                       AppColors.warning,
                     ),
@@ -498,27 +502,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final isSmallScreen = availableWidth < 600;
         final isMediumScreen = availableWidth >= 600 && availableWidth < 900;
 
-        // تعديل الأحجام بناءً على العرض المتاح
-        final iconSize = isSmallScreen ? 28.0 : (isMediumScreen ? 32.0 : 40.0);
+        // تعديل الأحجام بناءً على العرض المتاح - تصميم مبسط وأصغر
+        final iconSize = isSmallScreen ? 20.0 : (isMediumScreen ? 24.0 : 28.0);
         final valueFontSize = isSmallScreen
-            ? 20.0
-            : (isMediumScreen ? 24.0 : 28.0);
+            ? 16.0
+            : (isMediumScreen ? 18.0 : 20.0);
         final titleFontSize = isSmallScreen
-            ? 10.0
-            : (isMediumScreen ? 12.0 : 14.0);
-        final padding = isSmallScreen ? 12.0 : (isMediumScreen ? 16.0 : 24.0);
-        final spacing = isSmallScreen ? 8.0 : (isMediumScreen ? 12.0 : 16.0);
+            ? 9.0
+            : (isMediumScreen ? 10.0 : 11.0);
+        final padding = isSmallScreen ? 8.0 : (isMediumScreen ? 10.0 : 12.0);
+        final spacing = isSmallScreen ? 4.0 : (isMediumScreen ? 6.0 : 8.0);
 
         return Container(
           decoration: BoxDecoration(
             color: AppColors.cardBackground,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withValues(alpha: 0.2)),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: color.withValues(alpha: 0.15), width: 1),
             boxShadow: [
               BoxShadow(
-                color: color.withValues(alpha: 0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
+                color: color.withValues(alpha: 0.08),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
               ),
             ],
           ),

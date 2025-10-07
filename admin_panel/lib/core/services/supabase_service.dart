@@ -958,12 +958,50 @@ class SupabaseService {
         print('جدول products غير موجود أو غير قابل للوصول: $e');
       }
 
-      // محاولة جلب عدد المستخدمين
+      // محاولة جلب عدد الإعلانات
       try {
-        final usersResponse = await _client!.from('users').select('id');
-        stats['users_count'] = usersResponse.length;
+        final advertisementsResponse = await _client!
+            .from('advertisements')
+            .select('id');
+        stats['advertisements_count'] = advertisementsResponse.length;
+        print('📊 عدد الإعلانات: ${advertisementsResponse.length}');
       } catch (e) {
-        print('جدول users غير موجود أو غير قابل للوصول: $e');
+        print('جدول advertisements غير موجود أو غير قابل للوصول: $e');
+        stats['advertisements_count'] = 0;
+      }
+
+      // محاولة جلب عدد طلبات الجملة
+      try {
+        final wholesaleRequestsResponse = await _client!
+            .from('wholesale_requests')
+            .select('id');
+        stats['wholesale_requests_count'] = wholesaleRequestsResponse.length;
+        print('📊 عدد طلبات الجملة: ${wholesaleRequestsResponse.length}');
+      } catch (e) {
+        print('جدول wholesale_requests غير موجود أو غير قابل للوصول: $e');
+        stats['wholesale_requests_count'] = 0;
+      }
+
+      // محاولة جلب عدد طلبات الشحن (delivery)
+      try {
+        final deliveryOrdersResponse = await _client!
+            .from('order_threads')
+            .select('id')
+            .eq('order_type', 'delivery');
+        stats['delivery_orders_count'] = deliveryOrdersResponse.length;
+        print('📊 عدد طلبات الشحن: ${deliveryOrdersResponse.length}');
+      } catch (e) {
+        print('خطأ في جلب طلبات الشحن: $e');
+        stats['delivery_orders_count'] = 0;
+      }
+
+      // محاولة جلب عدد المستخدمين من جدول profiles
+      try {
+        final profilesResponse = await _client!.from('profiles').select('id');
+        stats['users_count'] = profilesResponse.length;
+        print('📊 عدد المستخدمين المسجلين: ${profilesResponse.length}');
+      } catch (e) {
+        print('جدول profiles غير موجود أو غير قابل للوصول: $e');
         stats['users_count'] = 0;
       }
 
@@ -978,12 +1016,63 @@ class SupabaseService {
     }
   }
 
+  // حساب جميع المحادثات المفتوحة والجديدة
+  Future<int> getAllConversationsCount() async {
+    try {
+      if (!isReady) {
+        return 0;
+      }
+
+      int totalConversations = 0;
+
+      // 1. محادثات فريق الدعم
+      try {
+        final supportConversations = await _client!
+            .from('support_conversations')
+            .select('id');
+        totalConversations += supportConversations.length;
+        print('📞 محادثات فريق الدعم: ${supportConversations.length}');
+      } catch (e) {
+        print('خطأ في جلب محادثات فريق الدعم: $e');
+      }
+
+      // 2. محادثات الطلبات العادية (order_threads)
+      try {
+        final orderThreads = await _client!.from('order_threads').select('id');
+        totalConversations += orderThreads.length;
+        print('📦 محادثات الطلبات العادية: ${orderThreads.length}');
+      } catch (e) {
+        print('خطأ في جلب محادثات الطلبات العادية: $e');
+      }
+
+      // 3. محادثات طلبات الجملة (wholesale_requests)
+      try {
+        final wholesaleRequests = await _client!
+            .from('wholesale_requests')
+            .select('id');
+        totalConversations += wholesaleRequests.length;
+        print('🏢 محادثات طلبات الجملة: ${wholesaleRequests.length}');
+      } catch (e) {
+        print('خطأ في جلب محادثات طلبات الجملة: $e');
+      }
+
+      print('📊 إجمالي جميع المحادثات: $totalConversations');
+      return totalConversations;
+    } catch (e) {
+      print('خطأ في حساب جميع المحادثات: $e');
+      return 0;
+    }
+  }
+
   // إحصائيات افتراضية
   Map<String, dynamic> _getDefaultStats() {
     return {
       'orders_count': 0,
       'products_count': 0,
       'users_count': 0,
+      'advertisements_count': 0,
+      'wholesale_requests_count': 0,
+      'delivery_orders_count': 0,
       'total_revenue': 0.0,
       'pending_orders': 0,
       'completed_orders': 0,
