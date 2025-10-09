@@ -26,11 +26,8 @@ class SupabaseService {
         final url = dotenv.env['SUPABASE_URL'];
         final serviceRoleKey = dotenv.env['SUPABASE_SERVICE_ROLE_KEY'];
 
-        print('🔑 فحص مفاتيح API:');
-        print('🔑 SUPABASE_URL: $url');
-        print(
-          '🔑 SUPABASE_SERVICE_ROLE_KEY: ${serviceRoleKey?.substring(0, 20)}...',
-        );
+        print('🔑 فحص مفاتيح API...');
+        print('🔑 تم تحميل مفاتيح API بنجاح');
 
         if (url != null && serviceRoleKey != null) {
           _serviceRoleClient = SupabaseClient(url, serviceRoleKey);
@@ -41,7 +38,7 @@ class SupabaseService {
           print('❌ Service Role Key: $serviceRoleKey');
         }
       } catch (e) {
-        print('❌ خطأ في إنشاء عميل service_role: $e');
+        print('❌ خطأ في إنشاء عميل service_role');
       }
     }
     return _serviceRoleClient;
@@ -65,10 +62,10 @@ class SupabaseService {
           .select()
           .single();
 
-      print('تم إضافة الإعلان بنجاح: $response');
+      print('تم إضافة الإعلان بنجاح');
       return response;
     } catch (e) {
-      print('خطأ في إضافة الإعلان: $e');
+      print('خطأ في إضافة الإعلان');
       rethrow;
     }
   }
@@ -80,10 +77,7 @@ class SupabaseService {
     try {
       await dotenv.load(fileName: "assets/env");
 
-      // طباعة جميع المتغيرات المحملة للتشخيص
-      print('المتغيرات المحملة: ${dotenv.env}');
-      print('SUPABASE_URL: ${dotenv.env['SUPABASE_URL']}');
-      print('SUPABASE_ANON_KEY: ${dotenv.env['SUPABASE_ANON_KEY']}');
+      // تم تحميل متغيرات البيئة بنجاح
 
       final url = dotenv.env['SUPABASE_URL'];
       final anonKey = dotenv.env['SUPABASE_ANON_KEY'];
@@ -92,8 +86,7 @@ class SupabaseService {
         throw Exception('بيانات Supabase غير موجودة في ملف env');
       }
 
-      print('تهيئة Supabase مع URL: $url');
-      print('مفتاح Anon: ${anonKey.substring(0, 20)}...');
+      print('تهيئة Supabase...');
 
       await Supabase.initialize(url: url, anonKey: anonKey);
 
@@ -103,7 +96,7 @@ class SupabaseService {
 
       print('تم تهيئة Supabase بنجاح');
     } catch (e) {
-      print('خطأ في تهيئة Supabase: $e');
+      print('خطأ في تهيئة Supabase');
       rethrow;
     }
   }
@@ -123,7 +116,7 @@ class SupabaseService {
       if (!isReady) return false;
       return _auth?.currentUser != null;
     } catch (e) {
-      print('خطأ في التحقق من حالة تسجيل الدخول: $e');
+      print('خطأ في التحقق من حالة تسجيل الدخول');
       return false;
     }
   }
@@ -154,7 +147,7 @@ class SupabaseService {
 
       print('تم إرسال رمز OTP بنجاح');
     } catch (e) {
-      print('خطأ في إرسال OTP: $e');
+      print('خطأ في إرسال OTP');
       rethrow;
     }
   }
@@ -184,7 +177,7 @@ class SupabaseService {
 
       return response;
     } catch (e) {
-      print('خطأ في التحقق من OTP: $e');
+      print('خطأ في التحقق من OTP');
       rethrow;
     }
   }
@@ -252,7 +245,7 @@ class SupabaseService {
 
       return response;
     } catch (e) {
-      print('خطأ في تسجيل الدخول: $e');
+      print('خطأ في تسجيل الدخول');
 
       // رسائل خطأ واضحة
       if (e.toString().contains('Invalid login credentials')) {
@@ -290,7 +283,7 @@ class SupabaseService {
       // التحقق من وجود مستخدم مسجل دخول
       final currentUser = _auth!.currentUser;
       if (currentUser != null) {
-        print('المستخدم الحالي: ${currentUser.email}');
+        print('المستخدم الحالي موجود');
       }
 
       // تنفيذ تسجيل الخروج
@@ -308,7 +301,7 @@ class SupabaseService {
         print('تحذير: المستخدم لا يزال موجوداً بعد تسجيل الخروج');
       }
     } catch (e) {
-      print('خطأ في تسجيل الخروج: $e');
+      print('خطأ في تسجيل الخروج');
       rethrow;
     } finally {
       _isSigningOut = false; // إعادة تعيين الحالة
@@ -321,7 +314,7 @@ class SupabaseService {
     try {
       if (!isReady) return false;
 
-      print('التحقق من وجود المستخدم في جدول admin_users: $email');
+      print('التحقق من وجود المستخدم في جدول admin_users...');
 
       final response = await _client!
           .from('admin_users')
@@ -331,14 +324,14 @@ class SupabaseService {
           .maybeSingle();
 
       if (response != null) {
-        print('تم العثور على المستخدم في جدول admin_users: $response');
+        print('تم العثور على المستخدم في جدول admin_users');
         return true;
       } else {
         print('المستخدم غير موجود في جدول admin_users أو غير نشط');
         return false;
       }
     } catch (e) {
-      print('خطأ في التحقق من وجود المستخدم: $e');
+      print('خطأ في التحقق من وجود المستخدم');
       return false;
     }
   }
@@ -371,7 +364,7 @@ class SupabaseService {
       // التأكد من وجود user_id في جدول admin_users
       await _ensureAdminUserIdExists(email, user.id);
     } catch (e) {
-      print('خطأ في تأكيد البريد الإلكتروني: $e');
+      print('خطأ في تأكيد البريد الإلكتروني');
       rethrow;
     }
   }
@@ -384,7 +377,7 @@ class SupabaseService {
         throw Exception('عميل service_role غير متاح');
       }
 
-      print('فحص وجود user_id للمدير: $email');
+      print('فحص وجود user_id للمدير...');
 
       // البحث عن المدير في جدول admin_users
       final adminRecord = await serviceClient
@@ -397,7 +390,7 @@ class SupabaseService {
         // إذا كان المدير موجود ولكن بدون user_id، قم بتحديثه
         if (adminRecord['user_id'] == null ||
             adminRecord['user_id'].toString().isEmpty) {
-          print('تحديث user_id للمدير الموجود: $email');
+          print('تحديث user_id للمدير الموجود...');
 
           await serviceClient
               .from('admin_users')
@@ -409,13 +402,13 @@ class SupabaseService {
 
           print('تم تحديث user_id بنجاح');
         } else {
-          print('user_id موجود بالفعل للمدير: ${adminRecord['user_id']}');
+          print('user_id موجود بالفعل للمدير');
         }
       } else {
         print('المدير غير موجود في جدول admin_users');
       }
     } catch (e) {
-      print('خطأ في فحص/تحديث user_id: $e');
+      print('خطأ في فحص/تحديث user_id');
       // لا نرمي الخطأ هنا لأنه ليس خطأ حرج
     }
   }
@@ -428,7 +421,7 @@ class SupabaseService {
       final user = _auth!.currentUser;
       if (user == null) return false;
 
-      print('التحقق من صلاحيات المدير للمستخدم: ${user.email}');
+      print('التحقق من صلاحيات المدير...');
 
       // البحث باستخدام البريد الإلكتروني مباشرة (أكثر موثوقية)
       if (user.email != null) {
@@ -445,30 +438,30 @@ class SupabaseService {
           );
           return true;
         } catch (emailError) {
-          print('خطأ في البحث بـ البريد الإلكتروني: $emailError');
+          print('خطأ في البحث بـ البريد الإلكتروني');
 
           // محاولة قراءة جميع البيانات في الجدول
           try {
             final allData = await _client!.from('admin_users').select('*');
-            print('جميع البيانات في جدول admin_users: $allData');
+            print('جلب بيانات جدول admin_users...');
 
             // البحث في البيانات المحملة
             for (var row in allData) {
               if ((row['email'] == user.email || row['user_id'] == user.id) &&
                   (row['is_active'] == true || row['is_active'] == null)) {
-                print('تم العثور على المستخدم في البيانات المحملة: $row');
+                print('تم العثور على المستخدم في البيانات المحملة');
                 return true;
               }
             }
           } catch (readError) {
-            print('خطأ في قراءة جميع البيانات: $readError');
+            print('خطأ في قراءة جميع البيانات');
           }
         }
       }
 
       return false;
     } catch (e) {
-      print('خطأ في التحقق من صلاحيات المدير: $e');
+      print('خطأ في التحقق من صلاحيات المدير');
       return false;
     }
   }
@@ -481,7 +474,7 @@ class SupabaseService {
       final user = _auth!.currentUser;
       if (user == null) return null;
 
-      print('محاولة جلب معلومات المدير للمستخدم: ${user.email}');
+      print('محاولة جلب معلومات المدير...');
 
       // البحث باستخدام البريد الإلكتروني مباشرة (أكثر موثوقية)
       if (user.email != null) {
@@ -492,31 +485,31 @@ class SupabaseService {
               .eq('email', user.email!)
               .single();
 
-          print('تم العثور على معلومات المدير بـ البريد الإلكتروني: $response');
+          print('تم العثور على معلومات المدير');
           return response;
         } catch (emailError) {
-          print('خطأ في البحث بـ البريد الإلكتروني: $emailError');
+          print('خطأ في البحث بـ البريد الإلكتروني');
 
           // محاولة قراءة جميع البيانات والبحث
           try {
             final allData = await _client!.from('admin_users').select('*');
-            print('جميع البيانات في جدول admin_users: $allData');
+            print('جلب بيانات جدول admin_users...');
 
             for (var row in allData) {
               if ((row['email'] == user.email || row['user_id'] == user.id)) {
-                print('تم العثور على معلومات المدير في البيانات المحملة: $row');
+                print('تم العثور على معلومات المدير في البيانات المحملة');
                 return row;
               }
             }
           } catch (readError) {
-            print('خطأ في قراءة جميع البيانات: $readError');
+            print('خطأ في قراءة جميع البيانات');
           }
         }
       }
 
       return null;
     } catch (e) {
-      print('خطأ في جلب معلومات المدير: $e');
+      print('خطأ في جلب معلومات المدير');
       return null;
     }
   }
@@ -544,8 +537,8 @@ class SupabaseService {
       // إضافة timestamp التحديث
       updates['updated_at'] = DateTime.now().toIso8601String();
 
-      print('محاولة تحديث معلومات المدير للمستخدم: ${user.email}');
-      print('البيانات المراد تحديثها: $updates');
+      print('محاولة تحديث معلومات المدير...');
+      print('تحديث البيانات...');
 
       // محاولة التحديث بـ user_id أولاً
       try {
@@ -557,10 +550,10 @@ class SupabaseService {
             .single();
 
         print('تم تحديث الملف الشخصي بـ user_id بنجاح');
-        print('البيانات المحدثة: $response');
+        print('تم تحديث البيانات بنجاح');
         return response;
       } catch (userIdError) {
-        print('خطأ في التحديث بـ user_id: $userIdError');
+        print('خطأ في التحديث بـ user_id');
 
         // محاولة التحديث بـ البريد الإلكتروني
         try {
@@ -573,18 +566,18 @@ class SupabaseService {
                 .single();
 
             print('تم تحديث الملف الشخصي بـ البريد الإلكتروني بنجاح');
-            print('البيانات المحدثة: $response');
+            print('تم تحديث البيانات بنجاح');
             return response;
           }
         } catch (emailError) {
-          print('خطأ في التحديث بـ البريد الإلكتروني: $emailError');
+          print('خطأ في التحديث بـ البريد الإلكتروني');
           rethrow;
         }
       }
 
       return null;
     } catch (e) {
-      print('خطأ في تحديث الملف الشخصي: $e');
+      print('خطأ في تحديث الملف الشخصي');
       rethrow;
     }
   }
@@ -603,7 +596,7 @@ class SupabaseService {
 
       print('تم تغيير كلمة المرور بنجاح');
     } catch (e) {
-      print('خطأ في تغيير كلمة المرور: $e');
+      print('خطأ في تغيير كلمة المرور');
       rethrow;
     }
   }
@@ -622,7 +615,7 @@ class SupabaseService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('خطأ في جلب الطلبات: $e');
+      print('خطأ في جلب الطلبات');
       return [];
     }
   }
@@ -671,7 +664,7 @@ class SupabaseService {
       print('تم رفع الصورة بنجاح: $publicUrl');
       return publicUrl;
     } catch (e) {
-      print('خطأ في رفع الصورة: $e');
+      print('خطأ في رفع الصورة');
       rethrow;
     }
   }
@@ -713,7 +706,7 @@ class SupabaseService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('خطأ في جلب المنتجات: $e');
+      print('خطأ في جلب المنتجات');
       return [];
     }
   }
@@ -735,10 +728,10 @@ class SupabaseService {
           .select()
           .single();
 
-      print('تم إضافة المنتج بنجاح: $response');
+      print('تم إضافة المنتج بنجاح');
       return response;
     } catch (e) {
-      print('خطأ في إضافة المنتج: $e');
+      print('خطأ في إضافة المنتج');
       rethrow;
     }
   }
@@ -769,10 +762,10 @@ class SupabaseService {
           .select()
           .single();
 
-      print('تم تحديث المنتج بنجاح: $response');
+      print('تم تحديث المنتج بنجاح');
       return response;
     } catch (e) {
-      print('خطأ في تحديث المنتج: $e');
+      print('خطأ في تحديث المنتج');
       rethrow;
     }
   }
@@ -791,7 +784,7 @@ class SupabaseService {
       print('تم حذف المنتج بنجاح');
       return true;
     } catch (e) {
-      print('خطأ في حذف المنتج: $e');
+      print('خطأ في حذف المنتج');
       rethrow;
     }
   }
@@ -815,7 +808,7 @@ class SupabaseService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('خطأ في البحث في المنتجات: $e');
+      print('خطأ في البحث في المنتجات');
       return [];
     }
   }
@@ -839,7 +832,7 @@ class SupabaseService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('خطأ في جلب المنتجات حسب الفئة: $e');
+      print('خطأ في جلب المنتجات حسب الفئة');
       return [];
     }
   }
@@ -867,7 +860,7 @@ class SupabaseService {
       print('فئات المنتجات: $categories');
       return categories;
     } catch (e) {
-      print('خطأ في جلب فئات المنتجات: $e');
+      print('خطأ في جلب فئات المنتجات');
       return [];
     }
   }
@@ -886,7 +879,7 @@ class SupabaseService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('خطأ في جلب المستخدمين: $e');
+      print('خطأ في جلب المستخدمين');
       return [];
     }
   }
@@ -944,7 +937,7 @@ class SupabaseService {
         print('  - طلبات معلقة: ${stats['pending_orders']}');
         print('  - طلبات مكتملة: ${stats['completed_orders']}');
       } catch (e) {
-        print('خطأ في جلب إحصائيات الطلبات: $e');
+        print('خطأ في جلب إحصائيات الطلبات');
         stats['orders_count'] = 0;
         stats['pending_orders'] = 0;
         stats['completed_orders'] = 0;
@@ -991,7 +984,7 @@ class SupabaseService {
         stats['delivery_orders_count'] = deliveryOrdersResponse.length;
         print('📊 عدد طلبات الشحن: ${deliveryOrdersResponse.length}');
       } catch (e) {
-        print('خطأ في جلب طلبات الشحن: $e');
+        print('خطأ في جلب طلبات الشحن');
         stats['delivery_orders_count'] = 0;
       }
 
@@ -1011,7 +1004,7 @@ class SupabaseService {
 
       return stats;
     } catch (e) {
-      print('خطأ في جلب الإحصائيات: $e');
+      print('خطأ في جلب الإحصائيات');
       return _getDefaultStats();
     }
   }
@@ -1033,7 +1026,7 @@ class SupabaseService {
         totalConversations += supportConversations.length;
         print('📞 محادثات فريق الدعم: ${supportConversations.length}');
       } catch (e) {
-        print('خطأ في جلب محادثات فريق الدعم: $e');
+        print('خطأ في جلب محادثات فريق الدعم');
       }
 
       // 2. محادثات الطلبات العادية (order_threads)
@@ -1042,7 +1035,7 @@ class SupabaseService {
         totalConversations += orderThreads.length;
         print('📦 محادثات الطلبات العادية: ${orderThreads.length}');
       } catch (e) {
-        print('خطأ في جلب محادثات الطلبات العادية: $e');
+        print('خطأ في جلب محادثات الطلبات العادية');
       }
 
       // 3. محادثات طلبات الجملة (wholesale_requests)
@@ -1053,13 +1046,13 @@ class SupabaseService {
         totalConversations += wholesaleRequests.length;
         print('🏢 محادثات طلبات الجملة: ${wholesaleRequests.length}');
       } catch (e) {
-        print('خطأ في جلب محادثات طلبات الجملة: $e');
+        print('خطأ في جلب محادثات طلبات الجملة');
       }
 
       print('📊 إجمالي جميع المحادثات: $totalConversations');
       return totalConversations;
     } catch (e) {
-      print('خطأ في حساب جميع المحادثات: $e');
+      print('خطأ في حساب جميع المحادثات');
       return 0;
     }
   }
@@ -1117,7 +1110,7 @@ class SupabaseService {
         throw Exception('فشل في إنشاء المستخدم');
       }
     } catch (e) {
-      print('خطأ في إنشاء حساب المدير: $e');
+      print('خطأ في إنشاء حساب المدير');
       rethrow;
     }
   }
@@ -1130,10 +1123,6 @@ class SupabaseService {
       }
 
       print('فحص هيكل جدول admin_users...');
-
-      // محاولة قراءة جميع البيانات
-      final allData = await _client!.from('admin_users').select('*');
-      print('جميع البيانات في الجدول: $allData');
 
       // محاولة قراءة الأعمدة فقط
       try {
@@ -1157,90 +1146,7 @@ class SupabaseService {
         print('لا يمكن قراءة معلومات الجدول: $e');
       }
     } catch (e) {
-      print('خطأ في فحص هيكل الجدول: $e');
-    }
-  }
-
-  // إنشاء حساب مؤقت للتجربة
-  Future<void> createTemporaryAccount() async {
-    try {
-      if (!isReady) {
-        throw Exception('Supabase غير مهيأ');
-      }
-
-      print('إنشاء حساب مؤقت للتجربة...');
-
-      // إنشاء المستخدم
-      final authResponse = await _auth!.signUp(
-        email: 'almostafa.0a1@gmail.com',
-        password: '123456',
-        data: {
-          'full_name': 'عبد العزيز المصطفيي',
-          'phone': '+90 531 746 89 50',
-        },
-      );
-
-      if (authResponse.user != null) {
-        print('تم إنشاء الحساب في Authentication بنجاح');
-        print('User ID: ${authResponse.user!.id}');
-
-        // فحص هيكل الجدول أولاً
-        await inspectTableStructure();
-
-        // محاولة تحديث جدول admin_users
-        try {
-          print('محاولة تحديث جدول admin_users...');
-
-          // محاولة تحديث الصف الموجود
-          await _client!
-              .from('admin_users')
-              .update({'updated_at': DateTime.now().toIso8601String()})
-              .eq('email', 'almostafa.0a1@gmail.com');
-
-          print('تم تحديث جدول admin_users بنجاح');
-        } catch (e) {
-          print('خطأ في تحديث جدول admin_users: $e');
-          print('محاولة إنشاء صف جديد...');
-
-          // محاولة إنشاء صف جديد
-          try {
-            await _client!.from('admin_users').insert({
-              'email': 'almostafa.0a1@gmail.com',
-              'full_name': 'عبد العزيز المصطفيي',
-              'phone': '+90 531 746 89 50',
-              'role': 'super_admin',
-              'is_active': true,
-              'created_at': DateTime.now().toIso8601String(),
-              'updated_at': DateTime.now().toIso8601String(),
-            });
-            print('تم إنشاء صف جديد في admin_users');
-          } catch (insertError) {
-            print('خطأ في إنشاء صف جديد: $insertError');
-            print('يبدو أن هيكل الجدول مختلف عما هو متوقع');
-
-            // محاولة إدراج بيانات بسيطة
-            try {
-              print('محاولة إدراج بيانات بسيطة...');
-              await _client!.from('admin_users').insert({
-                'full_name': 'عبد العزيز المصطفيي',
-                'role': 'super_admin',
-                'is_active': true,
-              });
-              print('تم إدراج بيانات بسيطة بنجاح');
-            } catch (simpleInsertError) {
-              print('خطأ في إدراج البيانات البسيطة: $simpleInsertError');
-            }
-          }
-        }
-
-        print('تم إنشاء الحساب المؤقت بنجاح!');
-        print('يمكنك الآن تسجيل الدخول بـ:');
-        print('Email: almostafa.0a1@gmail.com');
-        print('Password: 123456');
-      }
-    } catch (e) {
-      print('خطأ في إنشاء الحساب المؤقت: $e');
-      rethrow;
+      print('خطأ في فحص هيكل الجدول');
     }
   }
 
@@ -1264,20 +1170,20 @@ class SupabaseService {
           .select()
           .single();
 
-      print('تم إضافة الإعلان بنجاح: $response');
+      print('تم إضافة الإعلان بنجاح');
 
       // إعادة تفعيل RLS
       await enableRLSForAdvertisements();
 
       return response;
     } catch (e) {
-      print('خطأ في إضافة الإعلان: $e');
+      print('خطأ في إضافة الإعلان');
 
       // محاولة إعادة تفعيل RLS في حالة الخطأ
       try {
         await enableRLSForAdvertisements();
       } catch (re) {
-        print('خطأ في إعادة تفعيل RLS: $re');
+        print('خطأ في إعادة تفعيل RLS');
       }
 
       rethrow;
@@ -1299,10 +1205,10 @@ class SupabaseService {
           .order('priority', ascending: false)
           .order('created_at', ascending: false);
 
-      print('تم جلب ${response.length} إعلان');
+      print('تم جلب الإعلانات بنجاح');
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('خطأ في جلب الإعلانات: $e');
+      print('خطأ في جلب الإعلانات');
       return [];
     }
   }
@@ -1326,10 +1232,10 @@ class SupabaseService {
           .order('priority', ascending: false)
           .order('created_at', ascending: false);
 
-      print('تم جلب ${response.length} إعلان نشط');
+      print('تم جلب الإعلانات النشطة بنجاح');
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('خطأ في جلب الإعلانات النشطة: $e');
+      print('خطأ في جلب الإعلانات النشطة');
       return [];
     }
   }
@@ -1353,10 +1259,10 @@ class SupabaseService {
           .select()
           .single();
 
-      print('تم تحديث الإعلان بنجاح: $response');
+      print('تم تحديث الإعلان بنجاح');
       return response;
     } catch (e) {
-      print('خطأ في تحديث الإعلان: $e');
+      print('خطأ في تحديث الإعلان');
       rethrow;
     }
   }
@@ -1382,13 +1288,13 @@ class SupabaseService {
 
       return true;
     } catch (e) {
-      print('خطأ في حذف الإعلان: $e');
+      print('خطأ في حذف الإعلان');
 
       // محاولة إعادة تفعيل RLS في حالة الخطأ
       try {
         await enableRLSForAdvertisements();
       } catch (re) {
-        print('خطأ في إعادة تفعيل RLS: $re');
+        print('خطأ في إعادة تفعيل RLS');
       }
 
       rethrow;
@@ -1415,7 +1321,7 @@ class SupabaseService {
       print('تم حذف الإعلان بنجاح');
       return true;
     } catch (e) {
-      print('خطأ في حذف الإعلان: $e');
+      print('خطأ في حذف الإعلان');
       rethrow;
     }
   }
@@ -1440,7 +1346,7 @@ class SupabaseService {
       print('تم تغيير حالة الإعلان بنجاح');
       return true;
     } catch (e) {
-      print('خطأ في تغيير حالة الإعلان: $e');
+      print('خطأ في تغيير حالة الإعلان');
       rethrow;
     }
   }
@@ -1466,7 +1372,7 @@ class SupabaseService {
       // محاولة إنشاء السياسات باستخدام SQL مباشر
       await createAdvertisementsRLSPoliciesWithSQL();
     } catch (e) {
-      print('خطأ في التحقق من جدول الإعلانات: $e');
+      print('خطأ في التحقق من جدول الإعلانات');
       // لا نريد إعادة رمي الخطأ هنا لأن الجدول قد يكون موجوداً بالفعل
     }
   }
@@ -1544,7 +1450,7 @@ class SupabaseService {
 
       print('تم إنشاء سياسات RLS بنجاح');
     } catch (e) {
-      print('خطأ في إنشاء السياسات باستخدام SQL: $e');
+      print('خطأ في إنشاء السياسات باستخدام SQL');
       // إذا فشل، سنحاول العمل بدون RLS
     }
   }
@@ -1566,7 +1472,7 @@ class SupabaseService {
 
       print('تم تعطيل RLS لجدول الإعلانات بنجاح');
     } catch (e) {
-      print('خطأ في تعطيل RLS: $e');
+      print('خطأ في تعطيل RLS');
       // إذا فشل، سنحاول العمل مع RLS مفعل
     }
   }
@@ -1587,7 +1493,7 @@ class SupabaseService {
 
       print('تم إعادة تفعيل RLS لجدول الإعلانات');
     } catch (e) {
-      print('خطأ في إعادة تفعيل RLS: $e');
+      print('خطأ في إعادة تفعيل RLS');
     }
   }
 
@@ -1610,7 +1516,7 @@ class SupabaseService {
 
       print('تم تعطيل RLS نهائياً للإعلانات');
     } catch (e) {
-      print('خطأ في تعطيل RLS: $e');
+      print('خطأ في تعطيل RLS');
       // سنحاول العمل مع RLS مفعل
     }
   }
@@ -1644,7 +1550,7 @@ class SupabaseService {
 
       return stats;
     } catch (e) {
-      print('❌ خطأ في جلب إحصائيات النشاط: $e');
+      print('❌ خطأ في جلب إحصائيات النشاط');
       return _getDefaultActivityStats();
     }
   }
@@ -1718,7 +1624,7 @@ class SupabaseService {
 
       return securityInfo;
     } catch (e) {
-      print('خطأ في جلب معلومات الأمان: $e');
+      print('خطأ في جلب معلومات الأمان');
       return _getDefaultSecurityInfo();
     }
   }
@@ -1749,7 +1655,7 @@ class SupabaseService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('خطأ في جلب الباقات: $e');
+      print('خطأ في جلب الباقات');
       return [];
     }
   }
@@ -1770,7 +1676,7 @@ class SupabaseService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('خطأ في جلب الباقات النشطة: $e');
+      print('خطأ في جلب الباقات النشطة');
       return [];
     }
   }
@@ -1793,7 +1699,7 @@ class SupabaseService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('خطأ في جلب الباقات حسب المشغل: $e');
+      print('خطأ في جلب الباقات حسب المشغل');
       return [];
     }
   }
@@ -1816,10 +1722,10 @@ class SupabaseService {
           .select()
           .single();
 
-      print('تم إضافة الباقة بنجاح: $response');
+      print('تم إضافة الباقة بنجاح');
       return response;
     } catch (e) {
-      print('خطأ في إضافة الباقة: $e');
+      print('خطأ في إضافة الباقة');
       rethrow;
     }
   }
@@ -1844,10 +1750,10 @@ class SupabaseService {
           .select()
           .single();
 
-      print('تم تحديث الباقة بنجاح: $response');
+      print('تم تحديث الباقة بنجاح');
       return response;
     } catch (e) {
-      print('خطأ في تحديث الباقة: $e');
+      print('خطأ في تحديث الباقة');
       rethrow;
     }
   }
@@ -1867,7 +1773,7 @@ class SupabaseService {
       print('تم حذف الباقة بنجاح');
       return true;
     } catch (e) {
-      print('خطأ في حذف الباقة: $e');
+      print('خطأ في حذف الباقة');
       rethrow;
     }
   }
@@ -1892,7 +1798,7 @@ class SupabaseService {
       print('تم تغيير حالة الباقة بنجاح');
       return true;
     } catch (e) {
-      print('خطأ في تغيير حالة الباقة: $e');
+      print('خطأ في تغيير حالة الباقة');
       rethrow;
     }
   }
@@ -1917,7 +1823,7 @@ class SupabaseService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('خطأ في البحث في الباقات: $e');
+      print('خطأ في البحث في الباقات');
       return [];
     }
   }
@@ -1936,7 +1842,7 @@ class SupabaseService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('خطأ في جلب المشغلين: $e');
+      print('خطأ في جلب المشغلين');
       return [];
     }
   }
@@ -1956,7 +1862,7 @@ class SupabaseService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('خطأ في جلب المشغلين النشطين: $e');
+      print('خطأ في جلب المشغلين النشطين');
       return [];
     }
   }
@@ -1979,10 +1885,10 @@ class SupabaseService {
           .select()
           .single();
 
-      print('تم إضافة المشغل بنجاح: $response');
+      print('تم إضافة المشغل بنجاح');
       return response;
     } catch (e) {
-      print('خطأ في إضافة المشغل: $e');
+      print('خطأ في إضافة المشغل');
       rethrow;
     }
   }
@@ -2006,10 +1912,10 @@ class SupabaseService {
           .select()
           .single();
 
-      print('تم تحديث المشغل بنجاح: $response');
+      print('تم تحديث المشغل بنجاح');
       return response;
     } catch (e) {
-      print('خطأ في تحديث المشغل: $e');
+      print('خطأ في تحديث المشغل');
       rethrow;
     }
   }
@@ -2034,7 +1940,7 @@ class SupabaseService {
       print('تم حذف المشغل بنجاح');
       return true;
     } catch (e) {
-      print('خطأ في حذف المشغل: $e');
+      print('خطأ في حذف المشغل');
       rethrow;
     }
   }
@@ -2059,7 +1965,7 @@ class SupabaseService {
       print('تم تغيير حالة المشغل بنجاح');
       return true;
     } catch (e) {
-      print('خطأ في تغيير حالة المشغل: $e');
+      print('خطأ في تغيير حالة المشغل');
       rethrow;
     }
   }
@@ -2098,7 +2004,7 @@ class SupabaseService {
         'active_operators': activeOperators.length,
       };
     } catch (e) {
-      print('خطأ في جلب إحصائيات الباقات: $e');
+      print('خطأ في جلب إحصائيات الباقات');
       return _getDefaultMobilePackagesStats();
     }
   }
@@ -2144,9 +2050,9 @@ class SupabaseService {
             .select()
             .single();
 
-        print('تم إضافة المستخدم كمدير في جدول admin_users بنجاح: $result');
+        print('تم إضافة المستخدم كمدير في جدول admin_users بنجاح');
       } catch (tableError) {
-        print('خطأ في إضافة المستخدم لجدول admin_users: $tableError');
+        print('خطأ في إضافة المستخدم لجدول admin_users');
 
         // إذا كان المستخدم موجود، حدث بياناته
         if (tableError.toString().contains('duplicate key value') ||
@@ -2172,7 +2078,7 @@ class SupabaseService {
         }
       }
     } catch (e) {
-      print('خطأ في إضافة المدير إلى قاعدة البيانات: $e');
+      print('خطأ في إضافة المدير إلى قاعدة البيانات');
       rethrow;
     }
   }
@@ -2222,9 +2128,7 @@ class SupabaseService {
         if (currentUserId == null ||
             currentUserId.isEmpty ||
             currentUserId != matchingAuthUser.id) {
-          print('إصلاح user_id للمدير: $email');
-          print('user_id القديم: $currentUserId');
-          print('user_id الجديد: ${matchingAuthUser.id}');
+          print('إصلاح user_id للمدير...');
 
           try {
             await serviceClient
@@ -2236,13 +2140,13 @@ class SupabaseService {
                 .eq('id', admin['id']);
 
             fixedCount++;
-            print('تم إصلاح user_id للمدير: $email');
+            print('تم إصلاح user_id للمدير');
           } catch (updateError) {
-            print('خطأ في إصلاح user_id للمدير $email: $updateError');
+            print('خطأ في إصلاح user_id للمدير');
           }
         } else {
           alreadyCorrectCount++;
-          print('user_id صحيح للمدير: $email');
+          print('user_id صحيح للمدير');
         }
       }
 
@@ -2250,7 +2154,7 @@ class SupabaseService {
       print('تم إصلاح: $fixedCount مدير');
       print('كان صحيحاً مسبقاً: $alreadyCorrectCount مدير');
     } catch (e) {
-      print('خطأ في إصلاح user_id للمدراء: $e');
+      print('خطأ في إصلاح user_id للمدراء');
       rethrow;
     }
   }
@@ -2270,8 +2174,8 @@ class SupabaseService {
         'updated_at': DateTime.now().toIso8601String(),
       };
 
-      print('محاولة تحديث آخر تحديث لكلمة المرور للمستخدم: ${user.email}');
-      print('البيانات المراد تحديثها: $updates');
+      print('محاولة تحديث آخر تحديث لكلمة المرور...');
+      print('تحديث البيانات...');
 
       // محاولة التحديث بـ user_id أولاً
       try {
@@ -2280,9 +2184,9 @@ class SupabaseService {
             .update(updates)
             .eq('user_id', user.id)
             .select();
-        print('تم تحديث آخر تحديث لكلمة المرور بـ user_id: $result');
+        print('تم تحديث آخر تحديث لكلمة المرور');
       } catch (userIdError) {
-        print('خطأ في التحديث بـ user_id: $userIdError');
+        print('خطأ في التحديث بـ user_id');
 
         // محاولة التحديث بـ البريد الإلكتروني
         if (user.email != null) {
@@ -2296,7 +2200,7 @@ class SupabaseService {
               'تم تحديث آخر تحديث لكلمة المرور بـ البريد الإلكتروني: $result',
             );
           } catch (emailError) {
-            print('خطأ في التحديث بـ البريد الإلكتروني: $emailError');
+            print('خطأ في التحديث بـ البريد الإلكتروني');
 
             // محاولة إنشاء سجل جديد إذا لم يكن موجوداً
             try {
@@ -2318,15 +2222,15 @@ class SupabaseService {
                   .from('admin_users')
                   .insert(newRecord)
                   .select();
-              print('تم إنشاء سجل جديد للمدير: $insertResult');
+              print('تم إنشاء سجل جديد للمدير');
             } catch (insertError) {
-              print('خطأ في إنشاء سجل جديد: $insertError');
+              print('خطأ في إنشاء سجل جديد');
             }
           }
         }
       }
     } catch (e) {
-      print('خطأ في تحديث آخر تحديث لكلمة المرور: $e');
+      print('خطأ في تحديث آخر تحديث لكلمة المرور');
     }
   }
 
@@ -2345,8 +2249,8 @@ class SupabaseService {
         'updated_at': DateTime.now().toIso8601String(),
       };
 
-      print('محاولة تحديث آخر تسجيل دخول للمستخدم: ${user.email}');
-      print('البيانات المراد تحديثها: $updates');
+      print('محاولة تحديث آخر تسجيل دخول...');
+      print('تحديث البيانات...');
 
       // محاولة التحديث بـ user_id أولاً
       try {
@@ -2355,9 +2259,9 @@ class SupabaseService {
             .update(updates)
             .eq('user_id', user.id)
             .select();
-        print('تم تحديث آخر تسجيل دخول بـ user_id: $result');
+        print('تم تحديث آخر تسجيل دخول');
       } catch (userIdError) {
-        print('خطأ في التحديث بـ user_id: $userIdError');
+        print('خطأ في التحديث بـ user_id');
 
         // محاولة التحديث بـ البريد الإلكتروني
         if (user.email != null) {
@@ -2367,9 +2271,9 @@ class SupabaseService {
                 .update(updates)
                 .eq('email', user.email!)
                 .select();
-            print('تم تحديث آخر تسجيل دخول بـ البريد الإلكتروني: $result');
+            print('تم تحديث آخر تسجيل دخول');
           } catch (emailError) {
-            print('خطأ في التحديث بـ البريد الإلكتروني: $emailError');
+            print('خطأ في التحديث بـ البريد الإلكتروني');
 
             // محاولة إنشاء سجل جديد إذا لم يكن موجوداً
             try {
@@ -2391,15 +2295,15 @@ class SupabaseService {
                   .from('admin_users')
                   .insert(newRecord)
                   .select();
-              print('تم إنشاء سجل جديد للمدير: $insertResult');
+              print('تم إنشاء سجل جديد للمدير');
             } catch (insertError) {
-              print('خطأ في إنشاء سجل جديد: $insertError');
+              print('خطأ في إنشاء سجل جديد');
             }
           }
         }
       }
     } catch (e) {
-      print('خطأ في تحديث آخر تسجيل دخول: $e');
+      print('خطأ في تحديث آخر تسجيل دخول');
     }
   }
 
@@ -2413,7 +2317,7 @@ class SupabaseService {
       final user = _auth!.currentUser;
       if (user == null) return;
 
-      print('التأكد من وجود سجل المدير للمستخدم: ${user.email}');
+      print('التأكد من وجود سجل المدير...');
 
       // التحقق من وجود السجل بـ user_id أولاً
       try {
@@ -2428,7 +2332,7 @@ class SupabaseService {
           return;
         }
       } catch (e) {
-        print('خطأ في البحث بـ user_id: $e');
+        print('خطأ في البحث بـ user_id');
       }
 
       // التحقق من وجود السجل بـ البريد الإلكتروني
@@ -2446,7 +2350,7 @@ class SupabaseService {
           }
         }
       } catch (e) {
-        print('خطأ في البحث بـ البريد الإلكتروني: $e');
+        print('خطأ في البحث بـ البريد الإلكتروني');
       }
 
       // إنشاء سجل جديد
@@ -2471,9 +2375,9 @@ class SupabaseService {
             .from('admin_users')
             .insert(newRecord)
             .select();
-        print('تم إنشاء سجل المدير: $insertResult');
+        print('تم إنشاء سجل المدير');
       } catch (insertError) {
-        print('خطأ في إنشاء سجل المدير: $insertError');
+        print('خطأ في إنشاء سجل المدير');
 
         // محاولة إنشاء سجل بسيط بدون user_id
         try {
@@ -2492,7 +2396,7 @@ class SupabaseService {
               .select();
           print('تم إنشاء سجل مدير بسيط: $simpleInsertResult');
         } catch (simpleError) {
-          print('خطأ في إنشاء سجل بسيط: $simpleError');
+          print('خطأ في إنشاء سجل بسيط');
         }
       }
     } catch (e) {
