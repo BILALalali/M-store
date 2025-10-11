@@ -418,7 +418,7 @@ class MobilePackagesService {
       }
 
       print('اختبار الاتصال بقاعدة البيانات...');
-      print('URL: ${client.supabaseUrl}');
+      // print('URL: ${client.supabaseUrl}'); // supabaseUrl غير متاح في API الجديد
       print('Table: $_packagesTable');
 
       // اختبار جلب جميع الباقات (بدون فلتر)
@@ -476,32 +476,28 @@ class MobilePackagesService {
       }
 
       // إجمالي عدد الباقات
-      final totalPackages = await client
-          .from(_packagesTable)
-          .select('*', const FetchOptions(count: CountOption.exact));
+      final totalPackages = await client.from(_packagesTable).select('*');
 
       // الباقات النشطة
       final activePackages = await client
           .from(_packagesTable)
-          .select('*', const FetchOptions(count: CountOption.exact))
+          .select('*')
           .eq('is_active', true);
 
       // عدد المشغلين
-      final totalOperators = await client
-          .from(_operatorsTable)
-          .select('*', const FetchOptions(count: CountOption.exact));
+      final totalOperators = await client.from(_operatorsTable).select('*');
 
       // المشغلين النشطين
       final activeOperators = await client
           .from(_operatorsTable)
-          .select('*', const FetchOptions(count: CountOption.exact))
+          .select('*')
           .eq('is_active', true);
 
       return {
-        'total_packages': totalPackages.count ?? 0,
-        'active_packages': activePackages.count ?? 0,
-        'total_operators': totalOperators.count ?? 0,
-        'active_operators': activeOperators.count ?? 0,
+        'total_packages': totalPackages.length,
+        'active_packages': activePackages.length,
+        'total_operators': totalOperators.length,
+        'active_operators': activeOperators.length,
       };
     } catch (e) {
       print('خطأ في جلب إحصائيات الباقات: $e');

@@ -16,8 +16,9 @@ class MessageListenerService {
   final Map<String, RealtimeChannel> _channels = {};
   final NotificationService _notificationService = NotificationService();
   Timer? _pollingTimer;
-  final Set<String> _notifiedMessageIds = {}; // لتتبع الرسائل التي تم الإشعار عنها
-  
+  final Set<String> _notifiedMessageIds =
+      {}; // لتتبع الرسائل التي تم الإشعار عنها
+
   // Callbacks لتحديث الواجهة
   VoidCallback? onNewMessagesReceived;
 
@@ -49,7 +50,7 @@ class MessageListenerService {
 
     try {
       final client = SupabaseService.client!;
-      
+
       // تحديد جدول الرسائل - محاولة تحديد من نوع الطلب
       String table;
       if (order.orderType == OrderType.wholesale) {
@@ -60,28 +61,27 @@ class MessageListenerService {
 
       // إنشاء قناة Realtime للاستماع للرسائل من الإدارة فقط
       final channel = client.channel('notifications_$conversationId');
-      
-      channel
-          .on(
-            RealtimeListenTypes.postgresChanges,
-            ChannelFilter(
-              event: 'INSERT',
-              schema: 'public',
-              table: table,
-              filter: 'conversation_id=eq.$conversationId',
-            ),
-            (payload, [ref]) {
-              final newRecord = payload['new'] as Map<String, dynamic>?;
-              if (newRecord != null) {
-                // فقط رسائل الإدارة
-                if (newRecord['sender_type'] == 'admin') {
-                  print('🔔 رسالة جديدة من الإدارة في الخلفية!');
-                  _handleNewMessage(newRecord, order);
-                }
-              }
-            },
-          )
-          .subscribe();
+
+      channel.onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: table,
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'conversation_id',
+          value: conversationId,
+        ),
+        callback: (payload, [ref]) {
+          final newRecord = payload.newRecord;
+          if (newRecord != null) {
+            // فقط رسائل الإدارة
+            if (newRecord['sender_type'] == 'admin') {
+              print('🔔 رسالة جديدة من الإدارة في الخلفية!');
+              _handleNewMessage(newRecord, order);
+            }
+          }
+        },
+      ).subscribe();
 
       _channels[conversationId] = channel;
       print('✅ بدأ الاستماع للمحادثة: ${order.productName}');
@@ -105,7 +105,7 @@ class MessageListenerService {
       // إضافة إلى قائمة الرسائل المعلن عنها
       if (messageId != null) {
         _notifiedMessageIds.add(messageId);
-        
+
         // تنظيف القائمة إذا أصبحت كبيرة جداً
         if (_notifiedMessageIds.length > 1000) {
           final toRemove = _notifiedMessageIds.take(500).toList();
@@ -146,7 +146,7 @@ class MessageListenerService {
   /// بدء التحديث الدوري (كـ backup للـ realtime)
   void _startPolling() {
     _pollingTimer?.cancel();
-    
+
     // التحديث كل 30 ثانية
     _pollingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       print('🔄 تحديث دوري للمحادثات...');
@@ -157,7 +157,7 @@ class MessageListenerService {
   /// إيقاف الاستماع لجميع المحادثات
   Future<void> stopListening() async {
     print('⏹️ إيقاف الاستماع لجميع المحادثات');
-    
+
     // إلغاء جميع القنوات
     for (final channel in _channels.values) {
       await channel.unsubscribe();
@@ -185,4 +185,3 @@ class MessageListenerService {
     onNewMessagesReceived = null;
   }
 }
-

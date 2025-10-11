@@ -19,7 +19,6 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Product> _products = [];
   List<String> _categories = [];
   bool _isLoading = true;
-  bool _isSearching = false;
   String? _errorMessage;
 
   @override
@@ -42,18 +41,18 @@ class _HomeScreenState extends State<HomeScreen> {
         ProductService.getCategories(),
       ]);
 
-              setState(() {
-          _products = futures[0] as List<Product>;
-          // جلب الفئات من قاعدة البيانات (مع التأكد من عدم تكرار "الكل")
-          final dbCategories = futures[1] as List<String>;
-          // إضافة "الكل" فقط إذا لم تكن موجودة في قاعدة البيانات
-          if (!dbCategories.contains('الكل')) {
-            _categories = ['الكل', ...dbCategories];
-          } else {
-            _categories = dbCategories;
-          }
-          _isLoading = false;
-        });
+      setState(() {
+        _products = futures[0] as List<Product>;
+        // جلب الفئات من قاعدة البيانات (مع التأكد من عدم تكرار "الكل")
+        final dbCategories = futures[1] as List<String>;
+        // إضافة "الكل" فقط إذا لم تكن موجودة في قاعدة البيانات
+        if (!dbCategories.contains('الكل')) {
+          _categories = ['الكل', ...dbCategories];
+        } else {
+          _categories = dbCategories;
+        }
+        _isLoading = false;
+      });
     } catch (e) {
       print('خطأ في تحميل البيانات: $e');
       setState(() {
@@ -90,7 +89,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       setState(() {
-        _isSearching = true;
         _errorMessage = null;
       });
 
@@ -98,12 +96,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         _products = searchResults;
-        _isSearching = false;
       });
     } catch (e) {
       setState(() {
         _errorMessage = 'حدث خطأ في البحث: $e';
-        _isSearching = false;
       });
     }
   }

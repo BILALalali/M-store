@@ -1,20 +1,15 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../presentation/screens/advertisement_model.dart';
 import 'supabase_service.dart';
 
 class AdvertisementService {
   static const String _tableName = 'advertisements';
 
-  // جلب جميع الإعلانات النشطة والصالحة
   static Future<List<Advertisement>> getActiveAdvertisements() async {
     try {
-      // التحقق من أن Supabase متوفر
       if (!SupabaseService.isInitialized || SupabaseService.client == null) {
         print('Supabase غير متوفر');
         throw Exception('لا يمكن الاتصال بقاعدة البيانات');
       }
-
-      // جلب الإعلانات النشطة والصالحة من قاعدة البيانات
       final response = await SupabaseService.client!
           .from(_tableName)
           .select()
@@ -26,7 +21,7 @@ class AdvertisementService {
 
       final advertisements = (response as List)
           .map((ad) => Advertisement.fromMap(ad))
-          .where((ad) => ad.isValid) // فلترة الإعلانات الصالحة فقط
+          .where((ad) => ad.isValid)
           .toList();
 
       return advertisements;
@@ -36,10 +31,8 @@ class AdvertisementService {
     }
   }
 
-  // جلب إعلان واحد حسب المعرف
   static Future<Advertisement?> getAdvertisementById(String id) async {
     try {
-      // التحقق من أن Supabase متوفر
       if (!SupabaseService.isInitialized || SupabaseService.client == null) {
         print('Supabase غير متوفر');
         throw Exception('لا يمكن الاتصال بقاعدة البيانات');
@@ -62,19 +55,15 @@ class AdvertisementService {
     }
   }
 
-  // جلب الإعلانات حسب الفئة (إذا أردنا إضافة فئات للإعلانات لاحقاً)
   static Future<List<Advertisement>> getAdvertisementsByCategory(
     String category,
   ) async {
     try {
-      // التحقق من أن Supabase متوفر
       if (!SupabaseService.isInitialized || SupabaseService.client == null) {
         print('Supabase غير متوفر');
         throw Exception('لا يمكن الاتصال بقاعدة البيانات');
       }
 
-      // يمكن إضافة حقل category للإعلانات لاحقاً
-      // حالياً نرجع جميع الإعلانات النشطة
       return await getActiveAdvertisements();
     } catch (e) {
       print('خطأ في جلب الإعلانات حسب الفئة: $e');
@@ -82,10 +71,8 @@ class AdvertisementService {
     }
   }
 
-  // إضافة إعلان جديد (للأدمن فقط)
   static Future<bool> addAdvertisement(Advertisement advertisement) async {
     try {
-      // التحقق من أن Supabase متوفر
       if (!SupabaseService.isInitialized || SupabaseService.client == null) {
         print('Supabase غير متوفر');
         throw Exception('لا يمكن الاتصال بقاعدة البيانات');
@@ -102,10 +89,8 @@ class AdvertisementService {
     }
   }
 
-  // تحديث إعلان موجود (للأدمن فقط)
   static Future<bool> updateAdvertisement(Advertisement advertisement) async {
     try {
-      // التحقق من أن Supabase متوفر
       if (!SupabaseService.isInitialized || SupabaseService.client == null) {
         print('Supabase غير متوفر');
         throw Exception('لا يمكن الاتصال بقاعدة البيانات');
@@ -123,10 +108,8 @@ class AdvertisementService {
     }
   }
 
-  // حذف إعلان (للأدمن فقط)
   static Future<bool> deleteAdvertisement(String id) async {
     try {
-      // التحقق من أن Supabase متوفر
       if (!SupabaseService.isInitialized || SupabaseService.client == null) {
         print('Supabase غير متوفر');
         throw Exception('لا يمكن الاتصال بقاعدة البيانات');

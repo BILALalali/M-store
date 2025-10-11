@@ -36,7 +36,7 @@ dependencies:
   shared:
     path: ../shared
   flutter_dotenv: ^5.1.0
-  supabase_flutter: ^1.10.7
+  supabase_flutter: ^2.5.6
   image_picker: ^1.0.7
   flutter_local_notifications: ^18.0.1
 

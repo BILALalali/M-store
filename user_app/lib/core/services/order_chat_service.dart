@@ -274,7 +274,7 @@ class OrderChatService {
       final convRows = await _client
           .from(_conversationsTable)
           .select('id, request_id')
-          .in_('request_id', requestIds);
+          .inFilter('request_id', requestIds);
       if (convRows is List) {
         for (final row in convRows) {
           final rid = row['request_id'] as String?;
@@ -291,7 +291,7 @@ class OrderChatService {
         final unreadRows = await _client
             .from(_messagesTable)
             .select('conversation_id')
-            .in_('conversation_id', conversationIds)
+            .inFilter('conversation_id', conversationIds)
             .eq('sender_type', 'admin')
             .eq('is_read', false);
 
@@ -378,18 +378,19 @@ class OrderChatService {
     // إنشاء قناة Realtime للاستماع للإدراجات الجديدة فقط
     final channel = _client.channel('messages_$conversationId');
 
-    channel.on(
-      RealtimeListenTypes.postgresChanges,
-      ChannelFilter(
-        event: 'INSERT',
-        schema: 'public',
-        table: table,
-        filter: 'conversation_id=eq.$conversationId',
+    channel.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: table,
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'conversation_id',
+        value: conversationId,
       ),
-      (payload, [ref]) {
+      callback: (payload, [ref]) {
         print('🔔 رسالة جديدة مستلمة في المحادثة $conversationId');
         // استدعاء callback مع الرسالة الجديدة
-        final newRecord = payload['new'] as Map<String, dynamic>?;
+        final newRecord = payload.newRecord;
         if (newRecord != null) {
           onInsert(newRecord);
         }
@@ -506,7 +507,7 @@ class OrderChatService {
       final unreadRows = await _client
           .from(_retailMessagesTable)
           .select('conversation_id')
-          .in_('conversation_id', threadIds)
+          .inFilter('conversation_id', threadIds)
           .eq('sender_type', 'admin')
           .eq('is_read', false);
 
