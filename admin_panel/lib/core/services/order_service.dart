@@ -11,27 +11,22 @@ class OrderService {
 
   final SupabaseService _supabaseService = SupabaseService();
 
-  // Stream controllers للتحديثات في الوقت الفعلي
   final StreamController<List<OrderThread>> _ordersController =
       StreamController<List<OrderThread>>.broadcast();
   final StreamController<List<OrderMessage>> _messagesController =
       StreamController<List<OrderMessage>>.broadcast();
 
-  // Streams للاستماع للتحديثات
   Stream<List<OrderThread>> get ordersStream => _ordersController.stream;
   Stream<List<OrderMessage>> get messagesStream => _messagesController.stream;
 
-  // subscriptions
   RealtimeChannel? _ordersSubscription;
   RealtimeChannel? _messagesSubscription;
 
-  // بدء الاستماع للتحديثات في الوقت الفعلي
   void startRealtimeSubscriptions() {
     if (!_supabaseService.isReady) return;
 
     final client = _supabaseService.client!;
 
-    // الاستماع لتغييرات في جدول order_threads
     _ordersSubscription = client
         .channel('order_threads_changes')
         .onPostgresChanges(
@@ -48,7 +43,6 @@ class OrderService {
     print('✅ تم بدء الاستماع للتحديثات في الوقت الفعلي للطلبات');
   }
 
-  // إيقاف الاستماع
   void stopRealtimeSubscriptions() {
     _ordersSubscription?.unsubscribe();
     _messagesSubscription?.unsubscribe();
@@ -57,12 +51,10 @@ class OrderService {
     print('🛑 تم إيقاف الاستماع للتحديثات في الوقت الفعلي للطلبات');
   }
 
-  // معالجة التغييرات في الطلبات
   void _handleOrdersChange(PostgresChangePayload payload) async {
     print('📊 معالجة تغيير في الطلبات...');
 
     try {
-      // إعادة جلب البيانات عند أي تغيير
       final updatedOrders = await getOrders();
       _ordersController.add(updatedOrders);
 
@@ -72,14 +64,12 @@ class OrderService {
     }
   }
 
-  // إنهاء الموارد
   void dispose() {
     stopRealtimeSubscriptions();
     _ordersController.close();
     _messagesController.close();
   }
 
-  // اختبار الاتصال بقاعدة البيانات
   Future<bool> testDatabaseConnection() async {
     try {
       if (!_supabaseService.isReady) {
@@ -89,7 +79,6 @@ class OrderService {
 
       print('اختبار الاتصال بجدول الطلبات...');
 
-      // اختبار جدول الطلبات
       final ordersTest = await _supabaseService.client!
           .from('order_threads')
           .select('count')
@@ -97,7 +86,6 @@ class OrderService {
 
       print('اختبار جدول الطلبات: $ordersTest');
 
-      // جلب عينة من الطلبات
       final sampleOrders = await _supabaseService.client!
           .from('order_threads')
           .select('*')
@@ -112,7 +100,6 @@ class OrderService {
     }
   }
 
-  // الحصول على جميع الطلبات
   Future<List<OrderThread>> getOrders() async {
     try {
       if (!_supabaseService.isReady) {
@@ -180,7 +167,7 @@ class OrderService {
         try {
           lastMessage = await _getLastOrderMessage(item['id']);
           unreadCount = await _getUnreadCount(item['id']);
-          
+
           // فحص ما إذا كان المشرف قد أرسل أي رسالة
           final adminMessages = await _getAdminMessages(item['id']);
           hasAdminMessage = adminMessages.isNotEmpty;
@@ -193,7 +180,9 @@ class OrderService {
           );
         }
 
-        print('📊 الطلب ${item['id']}: unreadCount = $unreadCount, hasAdminMessage = $hasAdminMessage');
+        print(
+          '📊 الطلب ${item['id']}: unreadCount = $unreadCount, hasAdminMessage = $hasAdminMessage',
+        );
 
         final hasUnreadMessages = unreadCount > 0;
 
@@ -304,24 +293,24 @@ class OrderService {
         print('❌ خطأ في جلب اسم المستخدم: $e');
       }
 
-        // جلب آخر رسالة وعدد الرسائل غير المقروءة
-        OrderMessage? lastMessage;
-        int unreadCount = 0;
-        bool hasAdminMessage = false;
-        DateTime? firstAdminMessageAt;
-        try {
-          lastMessage = await _getLastOrderMessage(orderId);
-          unreadCount = await _getUnreadCount(orderId);
-          
-          // فحص ما إذا كان المشرف قد أرسل أي رسالة
-          final adminMessages = await _getAdminMessages(orderId);
-          hasAdminMessage = adminMessages.isNotEmpty;
-          if (hasAdminMessage) {
-            firstAdminMessageAt = adminMessages.first.createdAt;
-          }
-        } catch (e) {
-          print('تحذير: لا يمكن جلب رسائل الطلب: $e');
+      // جلب آخر رسالة وعدد الرسائل غير المقروءة
+      OrderMessage? lastMessage;
+      int unreadCount = 0;
+      bool hasAdminMessage = false;
+      DateTime? firstAdminMessageAt;
+      try {
+        lastMessage = await _getLastOrderMessage(orderId);
+        unreadCount = await _getUnreadCount(orderId);
+
+        // فحص ما إذا كان المشرف قد أرسل أي رسالة
+        final adminMessages = await _getAdminMessages(orderId);
+        hasAdminMessage = adminMessages.isNotEmpty;
+        if (hasAdminMessage) {
+          firstAdminMessageAt = adminMessages.first.createdAt;
         }
+      } catch (e) {
+        print('تحذير: لا يمكن جلب رسائل الطلب: $e');
+      }
 
       return OrderThread(
         id: response['id'],

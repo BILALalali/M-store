@@ -263,8 +263,6 @@ class OrderChatService {
         .eq('user_id', user.id)
         .order('created_at', ascending: false);
 
-    if (requestRows is! List) return [];
-
     final requestIds = requestRows.map((r) => r['id'] as String).toList();
     Map<String, String> requestIdToConversationId = {};
     Map<String, bool> conversationIdToHasUnread = {};
@@ -275,13 +273,11 @@ class OrderChatService {
           .from(_conversationsTable)
           .select('id, request_id')
           .inFilter('request_id', requestIds);
-      if (convRows is List) {
-        for (final row in convRows) {
-          final rid = row['request_id'] as String?;
-          final cid = row['id'] as String?;
-          if (rid != null && cid != null) {
-            requestIdToConversationId[rid] = cid;
-          }
+      for (final row in convRows) {
+        final rid = row['request_id'] as String?;
+        final cid = row['id'] as String?;
+        if (rid != null && cid != null) {
+          requestIdToConversationId[rid] = cid;
         }
       }
 
@@ -295,15 +291,13 @@ class OrderChatService {
             .eq('sender_type', 'admin')
             .eq('is_read', false);
 
-        if (unreadRows is List) {
-          // حساب عدد الرسائل غير المقروءة لكل محادثة
-          for (final row in unreadRows) {
-            final convId = row['conversation_id'] as String?;
-            if (convId != null) {
-              conversationIdToHasUnread[convId] = true;
-              conversationIdToUnreadCount[convId] =
-                  (conversationIdToUnreadCount[convId] ?? 0) + 1;
-            }
+        // حساب عدد الرسائل غير المقروءة لكل محادثة
+        for (final row in unreadRows) {
+          final convId = row['conversation_id'] as String?;
+          if (convId != null) {
+            conversationIdToHasUnread[convId] = true;
+            conversationIdToUnreadCount[convId] =
+                (conversationIdToUnreadCount[convId] ?? 0) + 1;
           }
         }
       }
@@ -378,24 +372,24 @@ class OrderChatService {
     // إنشاء قناة Realtime للاستماع للإدراجات الجديدة فقط
     final channel = _client.channel('messages_$conversationId');
 
-    channel.onPostgresChanges(
-      event: PostgresChangeEvent.insert,
-      schema: 'public',
-      table: table,
-      filter: PostgresChangeFilter(
-        type: PostgresChangeFilterType.eq,
-        column: 'conversation_id',
-        value: conversationId,
-      ),
-      callback: (payload, [ref]) {
-        print('🔔 رسالة جديدة مستلمة في المحادثة $conversationId');
-        // استدعاء callback مع الرسالة الجديدة
-        final newRecord = payload.newRecord;
-        if (newRecord != null) {
-          onInsert(newRecord);
-        }
-      },
-    ).subscribe();
+    channel
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: table,
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'conversation_id',
+            value: conversationId,
+          ),
+          callback: (payload, [ref]) {
+            print('🔔 رسالة جديدة مستلمة في المحادثة $conversationId');
+            // استدعاء callback مع الرسالة الجديدة
+            final newRecord = payload.newRecord;
+            onInsert(newRecord);
+          },
+        )
+        .subscribe();
 
     return channel;
   }
@@ -496,8 +490,6 @@ class OrderChatService {
         .eq('user_id', user.id)
         .order('created_at', ascending: false);
 
-    if (rows is! List) return [];
-
     // جلب معلومات الرسائل غير المقروءة من الإدارة
     final threadIds = rows.map((r) => r['id'] as String).toList();
     Map<String, bool> threadIdToHasUnread = {};
@@ -511,15 +503,13 @@ class OrderChatService {
           .eq('sender_type', 'admin')
           .eq('is_read', false);
 
-      if (unreadRows is List) {
-        // حساب عدد الرسائل غير المقروءة لكل محادثة
-        for (final row in unreadRows) {
-          final convId = row['conversation_id'] as String?;
-          if (convId != null) {
-            threadIdToHasUnread[convId] = true;
-            threadIdToUnreadCount[convId] =
-                (threadIdToUnreadCount[convId] ?? 0) + 1;
-          }
+      // حساب عدد الرسائل غير المقروءة لكل محادثة
+      for (final row in unreadRows) {
+        final convId = row['conversation_id'] as String?;
+        if (convId != null) {
+          threadIdToHasUnread[convId] = true;
+          threadIdToUnreadCount[convId] =
+              (threadIdToUnreadCount[convId] ?? 0) + 1;
         }
       }
     }

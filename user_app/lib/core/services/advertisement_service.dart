@@ -17,7 +17,7 @@ class AdvertisementService {
           .order('priority', ascending: true)
           .order('created_at', ascending: false);
 
-      if (response == null) return [];
+      if (response.isEmpty) return [];
 
       final advertisements = (response as List)
           .map((ad) => Advertisement.fromMap(ad))
@@ -44,8 +44,6 @@ class AdvertisementService {
           .eq('id', id)
           .eq('is_active', true)
           .single();
-
-      if (response == null) return null;
 
       final advertisement = Advertisement.fromMap(response);
       return advertisement.isValid ? advertisement : null;

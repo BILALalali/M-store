@@ -11,29 +11,24 @@ class WholesaleService {
 
   final SupabaseService _supabaseService = SupabaseService();
 
-  // Stream controllers للتحديثات في الوقت الفعلي
   final StreamController<List<WholesaleRequest>> _requestsController =
       StreamController<List<WholesaleRequest>>.broadcast();
   final StreamController<List<WholesaleMessage>> _messagesController =
       StreamController<List<WholesaleMessage>>.broadcast();
 
-  // Streams للاستماع للتحديثات
   Stream<List<WholesaleRequest>> get requestsStream =>
       _requestsController.stream;
   Stream<List<WholesaleMessage>> get messagesStream =>
       _messagesController.stream;
 
-  // subscriptions
   RealtimeChannel? _requestsSubscription;
   RealtimeChannel? _messagesSubscription;
 
-  // بدء الاستماع للتحديثات في الوقت الفعلي
   void startRealtimeSubscriptions() {
     if (!_supabaseService.isReady) return;
 
     final client = _supabaseService.client!;
 
-    // الاستماع لتغييرات في جدول wholesale_requests
     _requestsSubscription = client
         .channel('wholesale_requests_changes')
         .onPostgresChanges(
@@ -47,7 +42,6 @@ class WholesaleService {
         )
         .subscribe();
 
-    // الاستماع لتغييرات في جدول wholesale_messages
     _messagesSubscription = client
         .channel('wholesale_messages_changes')
         .onPostgresChanges(
@@ -64,7 +58,6 @@ class WholesaleService {
     print('✅ تم بدء الاستماع للتحديثات في الوقت الفعلي لطلبات ورسائل الجملة');
   }
 
-  // إيقاف الاستماع
   void stopRealtimeSubscriptions() {
     _requestsSubscription?.unsubscribe();
     _messagesSubscription?.unsubscribe();
@@ -73,12 +66,10 @@ class WholesaleService {
     print('🛑 تم إيقاف الاستماع للتحديثات في الوقت الفعلي');
   }
 
-  // معالجة التغييرات في طلبات الجملة
   void _handleRequestsChange(PostgresChangePayload payload) async {
     print('📊 معالجة تغيير في طلبات الجملة...');
 
     try {
-      // إعادة جلب البيانات عند أي تغيير
       final updatedRequests = await getWholesaleRequests();
       _requestsController.add(updatedRequests);
 
@@ -88,32 +79,28 @@ class WholesaleService {
     }
   }
 
-  // معالجة التغييرات في رسائل الجملة
   void _handleMessagesChange(PostgresChangePayload payload) async {
     print('📊 معالجة تغيير في رسائل الجملة...');
 
     try {
-      // إعادة جلب طلبات الجملة لتحديث عدد الرسائل غير المقروءة
       final updatedRequests = await getWholesaleRequests();
       _requestsController.add(updatedRequests);
+      _messagesController.add([]);
 
-      // إشعار المستمعين بتغيير الرسائل
-      _messagesController.add([]); // إرسال قائمة فارغة لإشعار التغيير
-
-      print('✅ تم تحديث قائمة طلبات الجملة بسبب تغيير الرسائل: ${updatedRequests.length} طلب');
+      print(
+        '✅ تم تحديث قائمة طلبات الجملة بسبب تغيير الرسائل: ${updatedRequests.length} طلب',
+      );
     } catch (e) {
       print('❌ خطأ في معالجة تغيير رسائل الجملة: $e');
     }
   }
 
-  // إنهاء الموارد
   void dispose() {
     stopRealtimeSubscriptions();
     _requestsController.close();
     _messagesController.close();
   }
 
-  // الحصول على جميع طلبات الجملة
   Future<List<WholesaleRequest>> getWholesaleRequests() async {
     try {
       if (!_supabaseService.isReady) {
@@ -199,9 +186,11 @@ class WholesaleService {
         DateTime? firstAdminMessageAt;
         try {
           unreadCount = await _getUnreadCount(item['id']?.toString() ?? '');
-          
+
           // فحص ما إذا كان المشرف قد أرسل أي رسالة
-          final adminMessages = await _getAdminWholesaleMessages(item['id']?.toString() ?? '');
+          final adminMessages = await _getAdminWholesaleMessages(
+            item['id']?.toString() ?? '',
+          );
           hasAdminMessage = adminMessages.isNotEmpty;
           if (hasAdminMessage) {
             firstAdminMessageAt = adminMessages.first.createdAt;
@@ -286,15 +275,17 @@ class WholesaleService {
       try {
         lastMessage = await _getLastWholesaleMessage(requestId);
         unreadCount = await _getUnreadCount(requestId);
-        
+
         // فحص ما إذا كان المشرف قد أرسل أي رسالة
         final adminMessages = await _getAdminWholesaleMessages(requestId);
         hasAdminMessage = adminMessages.isNotEmpty;
         if (hasAdminMessage) {
           firstAdminMessageAt = adminMessages.first.createdAt;
         }
-        
-        print('📊 طلب الجملة $requestId: $unreadCount رسالة غير مقروءة, hasAdminMessage: $hasAdminMessage');
+
+        print(
+          '📊 طلب الجملة $requestId: $unreadCount رسالة غير مقروءة, hasAdminMessage: $hasAdminMessage',
+        );
       } catch (e) {
         print('تحذير: لا يمكن جلب رسائل طلب الجملة: $e');
       }
@@ -586,8 +577,6 @@ class WholesaleService {
       return false;
     }
   }
-
-
 
   // تحديث حالة الرسائل كمقروءة عند فتح المحادثة
   Future<void> markWholesaleMessagesAsRead(String requestId) async {
@@ -895,7 +884,9 @@ class WholesaleService {
   }
 
   // الحصول على رسائل المشرف في طلب الجملة
-  Future<List<WholesaleMessage>> _getAdminWholesaleMessages(String requestId) async {
+  Future<List<WholesaleMessage>> _getAdminWholesaleMessages(
+    String requestId,
+  ) async {
     try {
       final response = await _supabaseService.client!
           .from('wholesale_messages')

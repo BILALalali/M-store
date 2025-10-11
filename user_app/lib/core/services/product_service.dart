@@ -16,7 +16,7 @@ class ProductService {
           .eq('is_active', true)
           .order('created_at', ascending: false);
 
-      if (response == null) return [];
+      if (response.isEmpty) return [];
 
       return (response as List)
           .map((product) => Product.fromMap(product))
@@ -41,7 +41,7 @@ class ProductService {
           .eq('is_active', true)
           .order('created_at', ascending: false);
 
-      if (response == null) return [];
+      if (response.isEmpty) return [];
 
       return (response as List)
           .map((product) => Product.fromMap(product))
@@ -68,7 +68,7 @@ class ProductService {
           .eq('is_active', true)
           .order('created_at', ascending: false);
 
-      if (response == null) return [];
+      if (response.isEmpty) return [];
 
       return (response as List)
           .map((product) => Product.fromMap(product))
@@ -93,8 +93,6 @@ class ProductService {
           .eq('is_active', true)
           .single();
 
-      if (response == null) return null;
-
       return Product.fromMap(response);
     } catch (e) {
       print('خطأ في جلب المنتج: $e');
@@ -115,7 +113,7 @@ class ProductService {
           .eq('is_active', true)
           .order('name');
 
-      if (response == null) return [];
+      if (response.isEmpty) return [];
 
       final categories = (response as List)
           .map((item) => item['name'] as String)
@@ -172,7 +170,7 @@ class ProductService {
           .order('created_at', ascending: false)
           .limit(6);
 
-      if (response == null) return [];
+      if (response.isEmpty) return [];
 
       return (response as List)
           .map((product) => Product.fromMap(product))

@@ -16,10 +16,7 @@ class SupabaseService {
   bool _isInitialized = false;
   bool _isSigningOut = false; // إضافة حالة لمنع تسجيل الخروج المتكرر
 
-  // إنشاء عميل service_role للإدارة
   SupabaseClient? _serviceRoleClient;
-
-  // الحصول على عميل service_role
   SupabaseClient? get serviceRoleClient {
     if (_serviceRoleClient == null) {
       try {
@@ -44,7 +41,6 @@ class SupabaseService {
     return _serviceRoleClient;
   }
 
-  // إضافة إعلان باستخدام service_role
   Future<Map<String, dynamic>?> addAdvertisementWithServiceRole(
     Map<String, dynamic> advertisementData,
   ) async {
@@ -70,14 +66,11 @@ class SupabaseService {
     }
   }
 
-  // تهيئة Supabase
   Future<void> initialize() async {
     if (_isInitialized) return;
 
     try {
       await dotenv.load(fileName: "assets/env");
-
-      // تم تحميل متغيرات البيئة بنجاح
 
       final url = dotenv.env['SUPABASE_URL'];
       final anonKey = dotenv.env['SUPABASE_ANON_KEY'];
@@ -101,16 +94,10 @@ class SupabaseService {
     }
   }
 
-  // التحقق من أن Supabase مهيأ
   bool get isReady => _isInitialized && _client != null && _auth != null;
-
-  // الحصول على العميل
   SupabaseClient? get client => _client;
-
-  // الحصول على المصادقة
   GoTrueClient? get auth => _auth;
 
-  // التحقق من حالة تسجيل الدخول
   bool get isAuthenticated {
     try {
       if (!isReady) return false;
@@ -121,10 +108,7 @@ class SupabaseService {
     }
   }
 
-  // الحصول على معرف المستخدم الحالي
   String? get currentUserId => _auth?.currentUser?.id;
-
-  // الحصول على المستخدم الحالي
   User? get currentUser {
     if (_auth == null) return null;
     return _auth!.currentUser;
@@ -2044,11 +2028,7 @@ class SupabaseService {
       print('محاولة إدراج بيانات المدير: $adminData');
 
       try {
-        final result = await _client!
-            .from('admin_users')
-            .insert(adminData)
-            .select()
-            .single();
+        await _client!.from('admin_users').insert(adminData).select().single();
 
         print('تم إضافة المستخدم كمدير في جدول admin_users بنجاح');
       } catch (tableError) {
@@ -2179,7 +2159,7 @@ class SupabaseService {
 
       // محاولة التحديث بـ user_id أولاً
       try {
-        final result = await _client!
+        await _client!
             .from('admin_users')
             .update(updates)
             .eq('user_id', user.id)
@@ -2191,14 +2171,12 @@ class SupabaseService {
         // محاولة التحديث بـ البريد الإلكتروني
         if (user.email != null) {
           try {
-            final result = await _client!
+            await _client!
                 .from('admin_users')
                 .update(updates)
                 .eq('email', user.email!)
                 .select();
-            print(
-              'تم تحديث آخر تحديث لكلمة المرور بـ البريد الإلكتروني: $result',
-            );
+            print('تم تحديث آخر تحديث لكلمة المرور بـ البريد الإلكتروني');
           } catch (emailError) {
             print('خطأ في التحديث بـ البريد الإلكتروني');
 
@@ -2218,10 +2196,7 @@ class SupabaseService {
                 'updated_at': DateTime.now().toIso8601String(),
               };
 
-              final insertResult = await _client!
-                  .from('admin_users')
-                  .insert(newRecord)
-                  .select();
+              await _client!.from('admin_users').insert(newRecord).select();
               print('تم إنشاء سجل جديد للمدير');
             } catch (insertError) {
               print('خطأ في إنشاء سجل جديد');
@@ -2254,7 +2229,7 @@ class SupabaseService {
 
       // محاولة التحديث بـ user_id أولاً
       try {
-        final result = await _client!
+        await _client!
             .from('admin_users')
             .update(updates)
             .eq('user_id', user.id)
@@ -2266,7 +2241,7 @@ class SupabaseService {
         // محاولة التحديث بـ البريد الإلكتروني
         if (user.email != null) {
           try {
-            final result = await _client!
+            await _client!
                 .from('admin_users')
                 .update(updates)
                 .eq('email', user.email!)
@@ -2291,10 +2266,7 @@ class SupabaseService {
                 'updated_at': DateTime.now().toIso8601String(),
               };
 
-              final insertResult = await _client!
-                  .from('admin_users')
-                  .insert(newRecord)
-                  .select();
+              await _client!.from('admin_users').insert(newRecord).select();
               print('تم إنشاء سجل جديد للمدير');
             } catch (insertError) {
               print('خطأ في إنشاء سجل جديد');
@@ -2371,10 +2343,7 @@ class SupabaseService {
       };
 
       try {
-        final insertResult = await _client!
-            .from('admin_users')
-            .insert(newRecord)
-            .select();
+        await _client!.from('admin_users').insert(newRecord).select();
         print('تم إنشاء سجل المدير');
       } catch (insertError) {
         print('خطأ في إنشاء سجل المدير');
@@ -2390,11 +2359,8 @@ class SupabaseService {
             'updated_at': DateTime.now().toIso8601String(),
           };
 
-          final simpleInsertResult = await _client!
-              .from('admin_users')
-              .insert(simpleRecord)
-              .select();
-          print('تم إنشاء سجل مدير بسيط: $simpleInsertResult');
+          await _client!.from('admin_users').insert(simpleRecord).select();
+          print('تم إنشاء سجل مدير بسيط');
         } catch (simpleError) {
           print('خطأ في إنشاء سجل بسيط');
         }

@@ -63,7 +63,7 @@ class MobilePackage {
   final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
-  
+
   // معلومات إضافية من جدول المشغلين
   MobileOperatorModel? operator;
 
@@ -140,17 +140,19 @@ class MobilePackage {
           .order('sort_order')
           .order('package_value');
 
-      if (response == null) return [];
+      if (response.isEmpty) return [];
 
       List<MobilePackage> packages = [];
       for (var row in response) {
         final package = MobilePackage.fromJson(row);
-        
+
         // إضافة معلومات المشغل
         if (row['mobile_operators'] != null) {
-          package.operator = MobileOperatorModel.fromJson(row['mobile_operators']);
+          package.operator = MobileOperatorModel.fromJson(
+            row['mobile_operators'],
+          );
         }
-        
+
         packages.add(package);
       }
 
@@ -162,17 +164,19 @@ class MobilePackage {
   }
 
   // الحصول على الباقات حسب المشغل
-  static Future<List<MobilePackage>> getPackagesByOperatorFromDatabase(MobileOperator operator) async {
+  static Future<List<MobilePackage>> getPackagesByOperatorFromDatabase(
+    MobileOperator operator,
+  ) async {
     try {
       final allPackages = await getPackagesFromDatabase();
-      
+
       if (operator == MobileOperator.all) {
         return allPackages;
       }
 
       return allPackages.where((package) {
         if (package.operator == null) return false;
-        
+
         switch (operator) {
           case MobileOperator.syriatel:
             return package.operator!.name == 'syriatel';
@@ -208,11 +212,9 @@ class MobilePackage {
           .eq('is_active', true)
           .order('name');
 
-      if (response == null) return [];
+      if (response.isEmpty) return [];
 
-      return response
-          .map((row) => MobileOperatorModel.fromJson(row))
-          .toList();
+      return response.map((row) => MobileOperatorModel.fromJson(row)).toList();
     } catch (e) {
       print('خطأ في جلب المشغلين من قاعدة البيانات: $e');
       return [];
@@ -347,7 +349,7 @@ class MobilePackage {
     if (operator != null) {
       return operator!.displayNameAr;
     }
-    
+
     // احتياطي للبيانات القديمة
     switch (operatorId) {
       case 1:

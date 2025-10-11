@@ -1,4 +1,3 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
 import '../../presentation/screens/mobile_package_model.dart';
 
@@ -25,9 +24,9 @@ class MobilePackagesService {
           .order('sort_order')
           .order('package_value');
 
-      print('تم جلب ${response?.length ?? 0} باقة');
+      print('تم جلب ${response.length} باقة');
 
-      if (response == null || response.isEmpty) {
+      if (response.isEmpty) {
         print('لا توجد باقات في قاعدة البيانات');
         return [];
       }
@@ -47,14 +46,10 @@ class MobilePackagesService {
                   .eq('is_active', true)
                   .single();
 
-              if (operatorResponse != null) {
-                package.operator = MobileOperatorModel.fromJson(
-                  operatorResponse,
-                );
-                print(
-                  'تم جلب معلومات المشغل: ${package.operator?.displayNameAr}',
-                );
-              }
+              package.operator = MobileOperatorModel.fromJson(operatorResponse);
+              print(
+                'تم جلب معلومات المشغل: ${package.operator?.displayNameAr}',
+              );
             } catch (operatorError) {
               print(
                 'خطأ في جلب معلومات المشغل ${package.operatorId}: $operatorError',
@@ -100,11 +95,6 @@ class MobilePackagesService {
           .eq('is_active', true)
           .single();
 
-      if (operatorResponse == null) {
-        print('لم يتم العثور على المشغل: $operatorName');
-        return [];
-      }
-
       final operatorId = operatorResponse['id'];
       final operator = MobileOperatorModel.fromJson(operatorResponse);
       print(
@@ -120,9 +110,9 @@ class MobilePackagesService {
           .order('sort_order')
           .order('package_value');
 
-      print('تم جلب ${response?.length ?? 0} باقة للمشغل $operatorName');
+      print('تم جلب ${response.length} باقة للمشغل $operatorName');
 
-      if (response == null || response.isEmpty) {
+      if (response.isEmpty) {
         return [];
       }
 
@@ -159,7 +149,7 @@ class MobilePackagesService {
           .eq('is_active', true)
           .order('name');
 
-      if (response == null) return [];
+      if (response.isEmpty) return [];
 
       return response.map((row) => MobileOperatorModel.fromJson(row)).toList();
     } catch (e) {
@@ -194,7 +184,7 @@ class MobilePackagesService {
           .order('sort_order')
           .order('package_value');
 
-      if (response == null) return [];
+      if (response.isEmpty) return [];
 
       List<MobilePackage> packages = [];
       for (var row in response) {
@@ -247,7 +237,7 @@ class MobilePackagesService {
           .order('package_price')
           .order('sort_order');
 
-      if (response == null) return [];
+      if (response.isEmpty) return [];
 
       List<MobilePackage> packages = [];
       for (var row in response) {
@@ -296,7 +286,7 @@ class MobilePackagesService {
           .order('package_price')
           .order('sort_order');
 
-      if (response == null) return [];
+      if (response.isEmpty) return [];
 
       List<MobilePackage> packages = [];
       for (var row in response) {
@@ -424,7 +414,7 @@ class MobilePackagesService {
       // اختبار جلب جميع الباقات (بدون فلتر)
       try {
         final allPackages = await client.from(_packagesTable).select('*');
-        print('إجمالي الباقات في قاعدة البيانات: ${allPackages?.length ?? 0}');
+        print('إجمالي الباقات في قاعدة البيانات: ${allPackages.length}');
       } catch (e) {
         print('خطأ في جلب جميع الباقات: $e');
       }
@@ -435,7 +425,7 @@ class MobilePackagesService {
             .from(_packagesTable)
             .select('*')
             .eq('is_active', true);
-        print('الباقات النشطة: ${activePackages?.length ?? 0}');
+        print('الباقات النشطة: ${activePackages.length}');
       } catch (e) {
         print('خطأ في جلب الباقات النشطة: $e');
       }
@@ -443,7 +433,7 @@ class MobilePackagesService {
       // اختبار جلب المشغلين
       try {
         final operators = await client.from(_operatorsTable).select('*');
-        print('إجمالي المشغلين: ${operators?.length ?? 0}');
+        print('إجمالي المشغلين: ${operators.length}');
       } catch (e) {
         print('خطأ في جلب المشغلين: $e');
       }

@@ -3,7 +3,6 @@ import 'dart:async';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/models/order_thread.dart';
 import '../../../core/services/order_service.dart';
-import '../../../core/debug/order_debug.dart';
 import 'order_chat_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
@@ -47,10 +46,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
     });
 
     try {
-      // تشغيل اختبار شامل لتشخيص المشاكل
-      print('🚀 بدء تشخيص نظام الطلبات...');
-      await OrderDebug.testOrderConnection();
-
       // اختبار الاتصال أولاً
       final connectionTest = await _orderService.testDatabaseConnection();
       print('نتيجة اختبار الاتصال بالطلبات: $connectionTest');

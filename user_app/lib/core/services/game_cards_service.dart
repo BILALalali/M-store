@@ -21,7 +21,7 @@ class GameCardsService {
           .order('sort_order')
           .order('card_value');
 
-      if (response == null || response.isEmpty) return [];
+      if (response.isEmpty) return [];
 
       final List<GameCard> cards = [];
       for (final row in response) {
@@ -80,7 +80,7 @@ class GameCardsService {
           .order('sort_order')
           .order('card_value');
 
-      if (response == null || response.isEmpty) return [];
+      if (response.isEmpty) return [];
 
       final List<GameCard> cards = [];
       for (final row in response) {

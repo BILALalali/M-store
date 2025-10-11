@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'order_chat_service.dart';
 import 'supabase_service.dart';
 import 'notification_service.dart';
 import '../../presentation/screens/order_model.dart';
@@ -62,26 +61,26 @@ class MessageListenerService {
       // إنشاء قناة Realtime للاستماع للرسائل من الإدارة فقط
       final channel = client.channel('notifications_$conversationId');
 
-      channel.onPostgresChanges(
-        event: PostgresChangeEvent.insert,
-        schema: 'public',
-        table: table,
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'conversation_id',
-          value: conversationId,
-        ),
-        callback: (payload, [ref]) {
-          final newRecord = payload.newRecord;
-          if (newRecord != null) {
-            // فقط رسائل الإدارة
-            if (newRecord['sender_type'] == 'admin') {
-              print('🔔 رسالة جديدة من الإدارة في الخلفية!');
-              _handleNewMessage(newRecord, order);
-            }
-          }
-        },
-      ).subscribe();
+      channel
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: table,
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'conversation_id',
+              value: conversationId,
+            ),
+            callback: (payload, [ref]) {
+              final newRecord = payload.newRecord;
+              // فقط رسائل الإدارة
+              if (newRecord['sender_type'] == 'admin') {
+                print('🔔 رسالة جديدة من الإدارة في الخلفية!');
+                _handleNewMessage(newRecord, order);
+              }
+            },
+          )
+          .subscribe();
 
       _channels[conversationId] = channel;
       print('✅ بدأ الاستماع للمحادثة: ${order.productName}');
