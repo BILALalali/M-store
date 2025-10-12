@@ -229,8 +229,25 @@ class _AccountScreenState extends State<AccountScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _logout() {
-    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+  Future<void> _logout() async {
+    try {
+      // تسجيل الخروج من Supabase أولاً
+      if (SupabaseService.client != null) {
+        await SupabaseService.client!.auth.signOut();
+        print('تم تسجيل الخروج من Supabase بنجاح');
+      }
+      
+      // الانتقال لشاشة تسجيل الدخول
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      }
+    } catch (e) {
+      print('خطأ في تسجيل الخروج: $e');
+      // حتى لو حدث خطأ، انتقل لشاشة تسجيل الدخول
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      }
+    }
   }
 
   @override

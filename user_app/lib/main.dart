@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/supabase_service.dart';
 import 'core/services/simple_notification_service.dart';
@@ -72,11 +73,52 @@ class MyApp extends StatelessWidget {
       title: 'تطبيق المستخدم',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      initialRoute: '/login',
+      home: FutureBuilder<User?>(
+        future: _getCurrentUser(),
+        builder: (context, snapshot) {
+          // عرض شاشة التحميل أثناء فحص حالة تسجيل الدخول
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('جاري التحميل...'),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // إذا كان المستخدم مسجل دخول، اذهب للشاشة الرئيسية
+          if (snapshot.hasData && snapshot.data != null) {
+            return const MainScreen();
+          }
+
+          // إذا لم يكن مسجل دخول، اذهب لشاشة تسجيل الدخول
+          return const LoginScreen();
+        },
+      ),
       routes: _routes,
       locale: const Locale('ar'),
       supportedLocales: _supportedLocales,
       localizationsDelegates: _localizationDelegates,
     );
+  }
+
+  /// الحصول على المستخدم الحالي المسجل دخول
+  Future<User?> _getCurrentUser() async {
+    try {
+      if (SupabaseService.client != null) {
+        final response = await SupabaseService.client!.auth.getUser();
+        return response.user;
+      }
+      return null;
+    } catch (e) {
+      print('خطأ في الحصول على المستخدم الحالي: $e');
+      return null;
+    }
   }
 }
