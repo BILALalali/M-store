@@ -172,7 +172,7 @@ class _AdminSidebarState extends State<AdminSidebar> {
               icon: Icons.support_agent,
               title: 'فريق الدعم',
               subtitle: 'إدارة دردشات الدعم',
-              index: 9,
+              index: 8,
               notificationCount:
                   widget.notificationService?.supportUnreadMessages ?? 0,
             ),
