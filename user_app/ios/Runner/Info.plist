@@ -47,5 +47,18 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- أذونات الإشعارات لـ iOS -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>background-processing</string>
+		<string>background-fetch</string>
+		<string>remote-notification</string>
+	</array>
+	<!-- أذونات الإشعارات -->
+	<key>NSUserNotificationUsageDescription</key>
+	<string>هذا التطبيق يحتاج أذونات الإشعارات لإرسال تحديثات الطلبات والرسائل</string>
+	<!-- أذونات الإشعارات المحلية -->
+	<key>NSLocalNotificationUsageDescription</key>
+	<string>هذا التطبيق يحتاج أذونات الإشعارات المحلية لإرسال تحديثات الطلبات والرسائل</string>
 </dict>
 </plist>

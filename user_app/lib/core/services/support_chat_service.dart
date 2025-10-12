@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
+import 'simple_notification_service.dart';
 
 class SupportChatService {
   static const String _conversations = 'support_conversations';
@@ -231,5 +232,83 @@ class SupportChatService {
         });
 
     return sub;
+  }
+
+  // خدمة الاستماع لإشعارات الدعم
+  static final SimpleNotificationService _notificationService = SimpleNotificationService();
+  static StreamSubscription? _supportNotificationSubscription;
+  static final Set<String> _notifiedSupportMessageIds = {};
+
+  /// بدء الاستماع لإشعارات الدعم
+  static Future<void> startSupportNotificationListener() async {
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) return;
+
+      // جلب محادثة المستخدم الحالية
+      final conversation = await _client
+          .from(_conversations)
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+      if (conversation == null) return;
+
+      final conversationId = conversation['id'] as String;
+
+      // إلغاء الاشتراك السابق إذا كان موجوداً
+      await _supportNotificationSubscription?.cancel();
+
+      // الاشتراك في الرسائل الجديدة من فريق الدعم
+      _supportNotificationSubscription = _client
+          .from(_messages)
+          .stream(primaryKey: ['id'])
+          .eq('conversation_id', conversationId)
+          .listen((rows) {
+            for (final row in rows) {
+              final messageId = row['id'] as String?;
+              final messageText =
+                  row['message'] as String? ?? 'رسالة جديدة من فريق الدعم';
+              final senderType = row['sender_type'] as String?;
+
+              // فقط رسائل فريق الدعم
+              if (senderType != 'admin') continue;
+
+              // تجنب الإشعارات المكررة
+              if (messageId != null &&
+                  !_notifiedSupportMessageIds.contains(messageId)) {
+                _notifiedSupportMessageIds.add(messageId);
+
+                // تنظيف القائمة إذا أصبحت كبيرة جداً
+                if (_notifiedSupportMessageIds.length > 1000) {
+                  final toRemove = _notifiedSupportMessageIds
+                      .take(500)
+                      .toList();
+                  _notifiedSupportMessageIds.removeAll(toRemove);
+                }
+
+            // إظهار الإشعار
+            _notificationService.showSupportMessageNotification(
+              messageText: messageText,
+              id: messageId.hashCode,
+            );
+
+                print('🔔 إشعار رسالة دعم جديدة: $messageText');
+              }
+            }
+          });
+
+      print('✅ بدء الاستماع لإشعارات الدعم');
+    } catch (e) {
+      print('❌ خطأ في بدء الاستماع لإشعارات الدعم: $e');
+    }
+  }
+
+  /// إيقاف الاستماع لإشعارات الدعم
+  static Future<void> stopSupportNotificationListener() async {
+    await _supportNotificationSubscription?.cancel();
+    _supportNotificationSubscription = null;
+    _notifiedSupportMessageIds.clear();
+    print('⏹️ تم إيقاف الاستماع لإشعارات الدعم');
   }
 }

@@ -7,6 +7,7 @@ import 'other_services_screen.dart';
 import '../../core/services/support_chat_service.dart';
 import '../../core/services/message_listener_service.dart';
 import '../../core/services/order_chat_service.dart';
+import '../../core/services/simple_notification_service.dart';
 import 'order_model.dart';
 import 'dart:async';
 
@@ -21,7 +22,7 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 2; // الرئيسية في المنتصف
   int _unreadSupportMessages = 0;
   StreamSubscription? _unreadSubscription;
-  
+
   // خدمة الاستماع للرسائل
   final MessageListenerService _messageListener = MessageListenerService();
 
@@ -38,28 +39,30 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _initializeUnreadCount();
     _initializeMessageListener();
+    _initializeSupportNotifications();
   }
 
   @override
   void dispose() {
     _unreadSubscription?.cancel();
     _messageListener.dispose();
+    SupportChatService.stopSupportNotificationListener();
     super.dispose();
   }
-  
+
   /// تهيئة خدمة الاستماع للرسائل الجديدة
   Future<void> _initializeMessageListener() async {
     try {
       print('🔔 تهيئة خدمة الاستماع للرسائل...');
-      
+
       // تحميل جميع المحادثات
       final results = await Future.wait<List<Order>>([
         OrderChatService.fetchWholesaleOrdersForCurrentUser(),
         OrderChatService.fetchRetailOrdersForCurrentUser(),
       ]);
-      
+
       final List<Order> allOrders = [...results[0], ...results[1]];
-      
+
       if (allOrders.isNotEmpty) {
         // بدء الاستماع لجميع المحادثات
         await _messageListener.startListening(allOrders);
@@ -91,6 +94,36 @@ class _MainScreenState extends State<MainScreen> {
         });
       }
     });
+  }
+
+  /// تهيئة إشعارات الدعم
+  Future<void> _initializeSupportNotifications() async {
+    try {
+      print('🔔 تهيئة إشعارات الدعم...');
+      await SupportChatService.startSupportNotificationListener();
+      print('✅ تم تهيئة إشعارات الدعم بنجاح');
+
+      // اختبار الإشعارات بعد 5 ثواني
+      Future.delayed(const Duration(seconds: 5), () {
+        _testNotifications();
+      });
+    } catch (e) {
+      print('❌ خطأ في تهيئة إشعارات الدعم: $e');
+    }
+  }
+
+  /// اختبار الإشعارات
+  Future<void> _testNotifications() async {
+    try {
+      print('🧪 اختبار الإشعارات المبسطة...');
+      
+      // اختبار الإشعارات المبسطة
+      await SimpleNotificationService().testNotifications();
+      
+      print('✅ تم إرسال الإشعارات التجريبية');
+    } catch (e) {
+      print('❌ خطأ في اختبار الإشعارات: $e');
+    }
   }
 
   @override
