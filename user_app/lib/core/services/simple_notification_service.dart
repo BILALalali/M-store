@@ -4,11 +4,13 @@ import 'package:flutter/foundation.dart';
 
 /// خدمة الإشعارات المبسطة والمضمونة
 class SimpleNotificationService {
-  static final SimpleNotificationService _instance = SimpleNotificationService._internal();
+  static final SimpleNotificationService _instance =
+      SimpleNotificationService._internal();
   factory SimpleNotificationService() => _instance;
   SimpleNotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _notifications =
+      FlutterLocalNotificationsPlugin();
   bool _initialized = false;
 
   /// تهيئة بسيطة ومضمونة
@@ -19,8 +21,10 @@ class SimpleNotificationService {
       print('🔔 بدء تهيئة الإشعارات المبسطة...');
 
       // إعدادات Android بسيطة
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-      
+      const androidSettings = AndroidInitializationSettings(
+        '@mipmap/ic_launcher',
+      );
+
       // إعدادات iOS محسنة
       const iosSettings = DarwinInitializationSettings(
         requestAlertPermission: true,
@@ -45,8 +49,11 @@ class SimpleNotificationService {
 
       // إنشاء قناة بسيطة للأندرويد
       if (defaultTargetPlatform == TargetPlatform.android) {
-        final androidPlugin = _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-        
+        final androidPlugin = _notifications
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+
         if (androidPlugin != null) {
           // قناة محسنة للخلفية
           const channel = AndroidNotificationChannel(
@@ -60,10 +67,10 @@ class SimpleNotificationService {
             enableLights: true,
             ledColor: Color(0xFF1EC6D9),
           );
-          
+
           await androidPlugin.createNotificationChannel(channel);
           print('✅ تم إنشاء قناة الإشعارات البسيطة');
-          
+
           // طلب الأذونات
           await androidPlugin.requestNotificationsPermission();
           print('✅ تم طلب أذونات الإشعارات');
@@ -74,8 +81,9 @@ class SimpleNotificationService {
       if (defaultTargetPlatform == TargetPlatform.iOS) {
         final iosPlugin = _notifications
             .resolvePlatformSpecificImplementation<
-                IOSFlutterLocalNotificationsPlugin>();
-        
+              IOSFlutterLocalNotificationsPlugin
+            >();
+
         if (iosPlugin != null) {
           final result = await iosPlugin.requestPermissions(
             alert: true,
@@ -85,7 +93,7 @@ class SimpleNotificationService {
             provisional: true,
           );
           print('🔐 نتيجة طلب أذونات iOS: $result');
-          
+
           // التحقق من حالة الأذونات
           final areEnabled = await iosPlugin.checkPermissions();
           print('🔔 حالة أذونات iOS: $areEnabled');
@@ -113,7 +121,7 @@ class SimpleNotificationService {
 
     try {
       print('🔔 محاولة إظهار إشعار بسيط: $title');
-      
+
       // إعدادات Android محسنة للخلفية
       const androidDetails = AndroidNotificationDetails(
         'simple_channel',
@@ -159,37 +167,13 @@ class SimpleNotificationService {
 
       // إظهار الإشعار
       await _notifications.show(id, title, body, notificationDetails);
-      
+
       print('✅ تم إظهار الإشعار البسيط بنجاح');
       print('📱 العنوان: $title');
       print('📝 النص: $body');
     } catch (e) {
       print('❌ خطأ في إظهار الإشعار البسيط: $e');
     }
-  }
-
-  /// اختبار الإشعارات
-  Future<void> testNotifications() async {
-    print('🧪 بدء اختبار الإشعارات البسيطة...');
-    
-    // اختبار إشعار الدعم
-    await showSimpleNotification(
-      title: 'رسالة من فريق الدعم',
-      body: 'مرحباً! هذه رسالة تجريبية من فريق الدعم',
-      id: 1001,
-    );
-    
-    // انتظار ثانيتين
-    await Future.delayed(const Duration(seconds: 2));
-    
-    // اختبار إشعار الطلب
-    await showSimpleNotification(
-      title: 'رسالة من الإدارة',
-      body: 'تم تحديث حالة طلبك. يرجى المراجعة',
-      id: 1002,
-    );
-    
-    print('✅ انتهى اختبار الإشعارات البسيطة');
   }
 
   /// إظهار إشعار رسالة دعم جديدة
@@ -222,8 +206,9 @@ class SimpleNotificationService {
     if (defaultTargetPlatform == TargetPlatform.android) {
       final androidPlugin = _notifications
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
-      
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+
       if (androidPlugin != null) {
         final result = await androidPlugin.areNotificationsEnabled();
         return result ?? false;
@@ -231,8 +216,9 @@ class SimpleNotificationService {
     } else if (defaultTargetPlatform == TargetPlatform.iOS) {
       final iosPlugin = _notifications
           .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin>();
-      
+            IOSFlutterLocalNotificationsPlugin
+          >();
+
       if (iosPlugin != null) {
         final permissions = await iosPlugin.checkPermissions();
         return permissions?.isEnabled ?? false;
@@ -246,16 +232,18 @@ class SimpleNotificationService {
     if (defaultTargetPlatform == TargetPlatform.android) {
       final androidPlugin = _notifications
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
-      
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+
       if (androidPlugin != null) {
         await androidPlugin.requestNotificationsPermission();
       }
     } else if (defaultTargetPlatform == TargetPlatform.iOS) {
       final iosPlugin = _notifications
           .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin>();
-      
+            IOSFlutterLocalNotificationsPlugin
+          >();
+
       if (iosPlugin != null) {
         await iosPlugin.requestPermissions(
           alert: true,

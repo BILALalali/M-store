@@ -99,30 +99,9 @@ class _MainScreenState extends State<MainScreen> {
   /// تهيئة إشعارات الدعم
   Future<void> _initializeSupportNotifications() async {
     try {
-      print('🔔 تهيئة إشعارات الدعم...');
       await SupportChatService.startSupportNotificationListener();
-      print('✅ تم تهيئة إشعارات الدعم بنجاح');
-
-      // اختبار الإشعارات بعد 5 ثواني
-      Future.delayed(const Duration(seconds: 5), () {
-        _testNotifications();
-      });
     } catch (e) {
-      print('❌ خطأ في تهيئة إشعارات الدعم: $e');
-    }
-  }
-
-  /// اختبار الإشعارات
-  Future<void> _testNotifications() async {
-    try {
-      print('🧪 اختبار الإشعارات المبسطة...');
-      
-      // اختبار الإشعارات المبسطة
-      await SimpleNotificationService().testNotifications();
-      
-      print('✅ تم إرسال الإشعارات التجريبية');
-    } catch (e) {
-      print('❌ خطأ في اختبار الإشعارات: $e');
+      // خطأ صامت في الإنتاج
     }
   }
 

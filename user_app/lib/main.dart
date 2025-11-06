@@ -27,14 +27,8 @@ void main() async {
   // تهيئة خدمة الإشعارات المبسطة
   try {
     await SimpleNotificationService().initialize();
-    print('تم تهيئة خدمة الإشعارات المبسطة بنجاح');
-
-    // اختبار الإشعارات بعد 3 ثواني
-    Future.delayed(const Duration(seconds: 3), () {
-      SimpleNotificationService().testNotifications();
-    });
   } catch (e) {
-    print('فشل في تهيئة خدمة الإشعارات المبسطة: $e');
+    // خطأ صامت في الإنتاج
   }
 
   runApp(const MyApp());
