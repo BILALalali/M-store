@@ -166,6 +166,101 @@ class SupabaseService {
     }
   }
 
+  // إرسال رابط إعادة تعيين كلمة المرور
+  Future<void> resetPassword(String email) async {
+    try {
+      if (!isReady) {
+        throw Exception('Supabase غير مهيأ. يرجى المحاولة مرة أخرى.');
+      }
+
+      if (email.isEmpty) {
+        throw Exception('البريد الإلكتروني مطلوب');
+      }
+
+      print('إرسال رابط إعادة تعيين كلمة المرور للمستخدم: $email');
+
+      // التحقق من وجود المستخدم في جدول admin_users
+      final adminExists = await checkAdminExists(email);
+      if (!adminExists) {
+        throw Exception('هذا البريد الإلكتروني غير مسجل في لوحة الإدارة');
+      }
+
+      // إرسال رابط إعادة تعيين كلمة المرور
+      // ملاحظة: يجب إعداد redirect URL في Supabase Dashboard
+      // Authentication > URL Configuration > Redirect URLs
+      // أضف: http://localhost:*/** أو رابط التطبيق الفعلي
+      await _auth!.resetPasswordForEmail(
+        email,
+        redirectTo: null, // سيستخدم الإعدادات من Supabase Dashboard
+      );
+
+      print('تم إرسال رابط إعادة تعيين كلمة المرور بنجاح');
+    } catch (e) {
+      print('خطأ في إرسال رابط إعادة تعيين كلمة المرور: $e');
+      rethrow;
+    }
+  }
+
+  // إعادة تعيين كلمة المرور باستخدام service_role (للمطورين فقط)
+  Future<void> resetPasswordWithServiceRole(String email, String newPassword) async {
+    try {
+      // التأكد من تحميل dotenv
+      if (!_isInitialized) {
+        await dotenv.load(fileName: "assets/env");
+      }
+
+      final url = dotenv.env['SUPABASE_URL'];
+      final serviceRoleKey = dotenv.env['SUPABASE_SERVICE_ROLE_KEY'];
+
+      if (url == null || serviceRoleKey == null) {
+        throw Exception('بيانات service_role غير موجودة في ملف env');
+      }
+
+      print('🔑 إعداد عميل service_role...');
+      print('🔑 URL: $url');
+      print('🔑 Service Role Key موجود: ${serviceRoleKey.isNotEmpty}');
+
+      // إنشاء عميل service_role جديد
+      final serviceClient = SupabaseClient(url, serviceRoleKey);
+
+      print('✅ تم إنشاء عميل service_role بنجاح');
+      print('🔍 البحث عن المستخدم: $email');
+
+      // التحقق من وجود المستخدم في جدول admin_users
+      final adminExists = await checkAdminExists(email);
+      if (!adminExists) {
+        throw Exception('هذا البريد الإلكتروني غير مسجل في لوحة الإدارة');
+      }
+
+      // البحث عن المستخدم في Authentication
+      print('🔍 جلب قائمة المستخدمين من Authentication...');
+      final usersResponse = await serviceClient.auth.admin.listUsers();
+      print('📊 عدد المستخدمين: ${usersResponse.length}');
+
+      final user = usersResponse.firstWhere(
+        (user) => user.email?.toLowerCase() == email.toLowerCase(),
+        orElse: () => throw Exception('المستخدم غير موجود في Authentication'),
+      );
+
+      print('✅ تم العثور على المستخدم: ${user.id}');
+      print('📧 البريد الإلكتروني: ${user.email}');
+
+      // تحديث كلمة المرور
+      print('🔐 تحديث كلمة المرور...');
+      await serviceClient.auth.admin.updateUserById(
+        user.id,
+        attributes: AdminUserAttributes(password: newPassword),
+      );
+
+      print('✅ تم إعادة تعيين كلمة المرور بنجاح');
+    } catch (e) {
+      print('❌ خطأ في إعادة تعيين كلمة المرور: $e');
+      print('❌ نوع الخطأ: ${e.runtimeType}');
+      print('❌ تفاصيل الخطأ: ${e.toString()}');
+      rethrow;
+    }
+  }
+
   // تسجيل دخول ببيانات مخصصة
   Future<AuthResponse> signInWithCredentials(
     String email,
@@ -187,6 +282,13 @@ class SupabaseService {
 
       print('محاولة تسجيل الدخول للمستخدم: $email');
 
+      // التحقق من وجود المستخدم في جدول admin_users قبل محاولة تسجيل الدخول
+      final adminExists = await checkAdminExists(email);
+      if (!adminExists) {
+        print('المستخدم غير موجود في جدول admin_users');
+        throw Exception('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+      }
+
       // محاولة تسجيل الدخول بكلمة المرور أولاً
       final response = await _auth!.signInWithPassword(
         email: email,
@@ -198,11 +300,35 @@ class SupabaseService {
         throw Exception('فشل في تسجيل الدخول - لم يتم إنشاء المستخدم');
       }
 
+      print('تم تسجيل الدخول في Supabase Auth بنجاح');
+      print('حالة تأكيد البريد: ${response.user!.emailConfirmedAt != null ? "مؤكد" : "غير مؤكد"}');
+
       // التحقق من أن المستخدم تم تأكيده
       if (response.user!.emailConfirmedAt == null) {
-        // تسجيل الخروج إذا لم يتم تأكيد البريد
-        await _auth!.signOut();
-        throw Exception('يرجى تأكيد البريد الإلكتروني قبل تسجيل الدخول');
+        print('البريد الإلكتروني غير مؤكد، محاولة التأكيد التلقائي...');
+        
+        // محاولة تأكيد البريد تلقائياً إذا كان المستخدم موجود في admin_users
+        try {
+          await confirmAdminEmail(email);
+          print('تم تأكيد البريد الإلكتروني تلقائياً');
+          
+          // إعادة تسجيل الدخول بعد التأكيد
+          final retryResponse = await _auth!.signInWithPassword(
+            email: email,
+            password: password,
+          );
+          
+          if (retryResponse.user == null) {
+            await _auth!.signOut();
+            throw Exception('فشل في تسجيل الدخول بعد تأكيد البريد');
+          }
+          
+          print('تم تسجيل الدخول بنجاح بعد التأكيد');
+        } catch (confirmError) {
+          print('فشل في تأكيد البريد تلقائياً: $confirmError');
+          // إذا فشل التأكيد التلقائي، نسمح بتسجيل الدخول للمدراء الموجودين في admin_users
+          print('السماح بتسجيل الدخول للمدير الموجود في admin_users');
+        }
       }
 
       print('تم تسجيل الدخول بنجاح: ${response.user!.email}');
@@ -229,21 +355,36 @@ class SupabaseService {
 
       return response;
     } catch (e) {
-      print('خطأ في تسجيل الدخول');
+      print('❌ خطأ في تسجيل الدخول: $e');
+      print('نوع الخطأ: ${e.runtimeType}');
+      print('تفاصيل الخطأ: ${e.toString()}');
 
       // رسائل خطأ واضحة
-      if (e.toString().contains('Invalid login credentials')) {
+      final errorString = e.toString().toLowerCase();
+      
+      if (errorString.contains('invalid login credentials') || 
+          errorString.contains('invalid_credentials') ||
+          errorString.contains('email not found') ||
+          errorString.contains('wrong password')) {
+        print('❌ بيانات تسجيل الدخول غير صحيحة');
         throw Exception('البريد الإلكتروني أو كلمة المرور غير صحيحة');
-      } else if (e.toString().contains('Email not confirmed')) {
+      } else if (errorString.contains('email not confirmed') ||
+                 errorString.contains('email_not_confirmed')) {
+        print('❌ البريد الإلكتروني غير مؤكد');
         throw Exception('يرجى تأكيد البريد الإلكتروني قبل تسجيل الدخول');
-      } else if (e.toString().contains('Too many requests')) {
+      } else if (errorString.contains('too many requests') ||
+                 errorString.contains('rate_limit')) {
+        print('❌ تم تجاوز عدد المحاولات');
         throw Exception('تم تجاوز عدد المحاولات المسموح. يرجى المحاولة لاحقاً');
-      } else if (e.toString().contains('غير مسجل في لوحة الإدارة')) {
+      } else if (errorString.contains('غير مسجل في لوحة الإدارة')) {
+        print('❌ المستخدم غير مسجل في لوحة الإدارة');
         throw Exception('هذا البريد الإلكتروني غير مسجل في لوحة الإدارة');
-      } else if (e.toString().contains('فشل في التحقق من صلاحيات المستخدم')) {
+      } else if (errorString.contains('فشل في التحقق من صلاحيات المستخدم')) {
+        print('❌ فشل في التحقق من صلاحيات المستخدم');
         throw Exception('فشل في التحقق من صلاحيات المستخدم');
       } else {
-        throw Exception('خطأ في تسجيل الدخول: $e');
+        print('❌ خطأ غير معروف في تسجيل الدخول');
+        throw Exception('خطأ في تسجيل الدخول: ${e.toString()}');
       }
     }
   }
@@ -296,26 +437,47 @@ class SupabaseService {
   // التحقق من وجود المستخدم في جدول admin_users
   Future<bool> checkAdminExists(String email) async {
     try {
-      if (!isReady) return false;
+      if (!isReady) {
+        print('❌ Supabase غير مهيأ');
+        return false;
+      }
 
-      print('التحقق من وجود المستخدم في جدول admin_users...');
+      print('🔍 التحقق من وجود المستخدم في جدول admin_users...');
+      print('📧 البريد الإلكتروني: $email');
 
       final response = await _client!
           .from('admin_users')
-          .select('id, email, is_active')
+          .select('id, email, is_active, role')
           .eq('email', email)
           .eq('is_active', true)
           .maybeSingle();
 
       if (response != null) {
-        print('تم العثور على المستخدم في جدول admin_users');
+        print('✅ تم العثور على المستخدم في جدول admin_users');
+        print('📋 بيانات المستخدم: $response');
         return true;
       } else {
-        print('المستخدم غير موجود في جدول admin_users أو غير نشط');
+        print('❌ المستخدم غير موجود في جدول admin_users أو غير نشط');
+        
+        // محاولة البحث بدون شرط is_active
+        try {
+          final inactiveResponse = await _client!
+              .from('admin_users')
+              .select('id, email, is_active, role')
+              .eq('email', email)
+              .maybeSingle();
+          
+          if (inactiveResponse != null) {
+            print('⚠️ المستخدم موجود لكن غير نشط (is_active = ${inactiveResponse['is_active']})');
+          }
+        } catch (e) {
+          print('⚠️ خطأ في البحث عن المستخدم غير النشط: $e');
+        }
+        
         return false;
       }
     } catch (e) {
-      print('خطأ في التحقق من وجود المستخدم');
+      print('❌ خطأ في التحقق من وجود المستخدم: $e');
       return false;
     }
   }
@@ -400,12 +562,20 @@ class SupabaseService {
   // التحقق من أن المستخدم مدير
   Future<bool> isAdmin() async {
     try {
-      if (!isReady) return false;
+      if (!isReady) {
+        print('❌ Supabase غير مهيأ');
+        return false;
+      }
 
       final user = _auth!.currentUser;
-      if (user == null) return false;
+      if (user == null) {
+        print('❌ لا يوجد مستخدم مسجل دخول');
+        return false;
+      }
 
-      print('التحقق من صلاحيات المدير...');
+      print('🔍 التحقق من صلاحيات المدير...');
+      print('📧 البريد الإلكتروني: ${user.email}');
+      print('🆔 User ID: ${user.id}');
 
       // البحث باستخدام البريد الإلكتروني مباشرة (أكثر موثوقية)
       if (user.email != null) {
@@ -417,35 +587,62 @@ class SupabaseService {
               .eq('is_active', true)
               .single();
 
-          print(
-            'تم العثور على المستخدم في جدول admin_users باستخدام البريد الإلكتروني: $response',
-          );
+          print('✅ تم العثور على المستخدم في جدول admin_users');
+          print('📋 بيانات المدير: $response');
           return true;
         } catch (emailError) {
-          print('خطأ في البحث بـ البريد الإلكتروني');
+          print('⚠️ خطأ في البحث بـ البريد الإلكتروني: $emailError');
+          print('🔍 محاولة البحث بـ user_id...');
+
+          // محاولة البحث بـ user_id
+          try {
+            final responseByUserId = await _client!
+                .from('admin_users')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('is_active', true)
+                .maybeSingle();
+
+            if (responseByUserId != null) {
+              print('✅ تم العثور على المستخدم باستخدام user_id');
+              return true;
+            }
+          } catch (userIdError) {
+            print('⚠️ خطأ في البحث بـ user_id: $userIdError');
+          }
 
           // محاولة قراءة جميع البيانات في الجدول
           try {
             final allData = await _client!.from('admin_users').select('*');
-            print('جلب بيانات جدول admin_users...');
+            print('📊 جلب بيانات جدول admin_users (${allData.length} سجل)...');
 
             // البحث في البيانات المحملة
             for (var row in allData) {
-              if ((row['email'] == user.email || row['user_id'] == user.id) &&
-                  (row['is_active'] == true || row['is_active'] == null)) {
-                print('تم العثور على المستخدم في البيانات المحملة');
+              final rowEmail = row['email']?.toString().toLowerCase();
+              final userEmail = user.email?.toLowerCase();
+              final rowUserId = row['user_id']?.toString();
+              final isActive = row['is_active'] == true || row['is_active'] == null;
+
+              if ((rowEmail == userEmail || rowUserId == user.id) && isActive) {
+                print('✅ تم العثور على المستخدم في البيانات المحملة');
+                print('📋 بيانات المدير: $row');
                 return true;
               }
             }
+            
+            print('❌ المستخدم غير موجود في جدول admin_users');
           } catch (readError) {
-            print('خطأ في قراءة جميع البيانات');
+            print('❌ خطأ في قراءة جميع البيانات: $readError');
           }
         }
+      } else {
+        print('❌ البريد الإلكتروني غير متوفر');
       }
 
+      print('❌ المستخدم ليس مديراً');
       return false;
     } catch (e) {
-      print('خطأ في التحقق من صلاحيات المدير');
+      print('❌ خطأ في التحقق من صلاحيات المدير: $e');
       return false;
     }
   }

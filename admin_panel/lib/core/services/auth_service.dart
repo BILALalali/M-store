@@ -304,6 +304,38 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  // إعادة تعيين كلمة المرور (إرسال رابط عبر البريد)
+  Future<bool> resetPassword(String email) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      await _supabaseService.resetPassword(email);
+      return true;
+    } catch (e) {
+      _setError('خطأ في إرسال رابط إعادة تعيين كلمة المرور: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // إعادة تعيين كلمة المرور مباشرة (للمطورين فقط - يحتاج service_role)
+  Future<bool> resetPasswordDirectly(String email, String newPassword) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      await _supabaseService.resetPasswordWithServiceRole(email, newPassword);
+      return true;
+    } catch (e) {
+      _setError('خطأ في إعادة تعيين كلمة المرور: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   // جلب معلومات المدير
   Future<void> _loadAdminProfile() async {
     try {

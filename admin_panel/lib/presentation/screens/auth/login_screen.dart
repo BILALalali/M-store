@@ -237,16 +237,36 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 16),
 
                   // رابط نسيت كلمة المرور
-                  TextButton(
-                    onPressed: _authService.isLoading
-                        ? null
-                        : () {
-                            // TODO: فتح نافذة استعادة كلمة المرور
-                          },
-                    child: Text(
-                      'نسيت كلمة المرور؟',
-                      style: TextStyle(color: AppColors.primary, fontSize: 14),
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextButton(
+                        onPressed: _authService.isLoading
+                            ? null
+                            : () {
+                                _showResetPasswordDialog();
+                              },
+                        child: Text(
+                          'نسيت كلمة المرور؟',
+                          style: TextStyle(color: AppColors.primary, fontSize: 14),
+                        ),
+                      ),
+                      Text(
+                        ' | ',
+                        style: TextStyle(color: AppColors.text.withValues(alpha: 0.3)),
+                      ),
+                      TextButton(
+                        onPressed: _authService.isLoading
+                            ? null
+                            : () {
+                                _showDirectPasswordResetDialog();
+                              },
+                        child: Text(
+                          'تغيير مباشر (للمطورين)',
+                          style: TextStyle(color: AppColors.warning, fontSize: 12),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -284,5 +304,281 @@ class _LoginScreenState extends State<LoginScreen> {
       print('خطأ في تسجيل الدخول: $e');
       // رسالة الخطأ ستظهر تلقائياً من AuthService
     }
+  }
+
+  // عرض نافذة إعادة تعيين كلمة المرور
+  void _showResetPasswordDialog() {
+    final emailController = TextEditingController(
+      text: _emailController.text.trim(),
+    );
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('إعادة تعيين كلمة المرور'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'أدخل بريدك الإلكتروني وسنرسل لك رابط لإعادة تعيين كلمة المرور',
+                style: TextStyle(fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                enabled: !_authService.isLoading,
+                decoration: InputDecoration(
+                  labelText: 'البريد الإلكتروني',
+                  hintText: 'أدخل بريدك الإلكتروني',
+                  prefixIcon: Icon(Icons.email, color: AppColors.primary),
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: _authService.isLoading
+                  ? null
+                  : () => Navigator.of(context).pop(),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: _authService.isLoading
+                  ? null
+                  : () async {
+                      if (emailController.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('يرجى إدخال البريد الإلكتروني'),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                        return;
+                      }
+
+                      final email = emailController.text.trim();
+                      final success = await _authService.resetPassword(email);
+
+                      if (mounted) {
+                        Navigator.of(context).pop();
+
+                        if (success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'تم إرسال رابط إعادة تعيين كلمة المرور إلى $email',
+                              ),
+                              backgroundColor: AppColors.success,
+                              duration: const Duration(seconds: 5),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                _authService.errorMessage ??
+                                    'فشل في إرسال رابط إعادة تعيين كلمة المرور',
+                              ),
+                              backgroundColor: AppColors.error,
+                              duration: const Duration(seconds: 5),
+                            ),
+                          );
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: _authService.isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text('إرسال'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // عرض نافذة تغيير كلمة المرور مباشرة (للمطورين)
+  void _showDirectPasswordResetDialog() {
+    final emailController = TextEditingController(
+      text: _emailController.text.trim(),
+    );
+    final passwordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('تغيير كلمة المرور مباشرة'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '⚠️ هذه الوظيفة للمطورين فقط وتحتاج service_role key',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.warning,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  enabled: !_authService.isLoading,
+                  decoration: InputDecoration(
+                    labelText: 'البريد الإلكتروني',
+                    hintText: 'أدخل بريدك الإلكتروني',
+                    prefixIcon: Icon(Icons.email, color: AppColors.primary),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  enabled: !_authService.isLoading,
+                  decoration: InputDecoration(
+                    labelText: 'كلمة المرور الجديدة',
+                    hintText: 'أدخل كلمة المرور الجديدة',
+                    prefixIcon: Icon(Icons.lock, color: AppColors.primary),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: confirmPasswordController,
+                  obscureText: true,
+                  enabled: !_authService.isLoading,
+                  decoration: InputDecoration(
+                    labelText: 'تأكيد كلمة المرور',
+                    hintText: 'أعد إدخال كلمة المرور',
+                    prefixIcon: Icon(Icons.lock_outline, color: AppColors.primary),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: _authService.isLoading
+                  ? null
+                  : () => Navigator.of(context).pop(),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: _authService.isLoading
+                  ? null
+                  : () async {
+                      if (emailController.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('يرجى إدخال البريد الإلكتروني'),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (passwordController.text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('يرجى إدخال كلمة المرور الجديدة'),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (passwordController.text.length < 6) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (passwordController.text != confirmPasswordController.text) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('كلمة المرور غير متطابقة'),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                        return;
+                      }
+
+                      final email = emailController.text.trim();
+                      final newPassword = passwordController.text;
+                      final success = await _authService.resetPasswordDirectly(
+                        email,
+                        newPassword,
+                      );
+
+                      if (mounted) {
+                        Navigator.of(context).pop();
+
+                        if (success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'تم تغيير كلمة المرور بنجاح لـ $email',
+                              ),
+                              backgroundColor: AppColors.success,
+                              duration: const Duration(seconds: 5),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                _authService.errorMessage ??
+                                    'فشل في تغيير كلمة المرور',
+                              ),
+                              backgroundColor: AppColors.error,
+                              duration: const Duration(seconds: 5),
+                            ),
+                          );
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.warning,
+                foregroundColor: Colors.white,
+              ),
+              child: _authService.isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text('تغيير'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
