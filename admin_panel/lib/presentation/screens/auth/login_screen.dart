@@ -240,16 +240,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      TextButton(
-                        onPressed: _authService.isLoading
-                            ? null
-                            : () {
+                  TextButton(
+                    onPressed: _authService.isLoading
+                        ? null
+                        : () {
                                 _showResetPasswordDialog();
-                              },
-                        child: Text(
-                          'نسيت كلمة المرور؟',
-                          style: TextStyle(color: AppColors.primary, fontSize: 14),
-                        ),
+                          },
+                    child: Text(
+                      'نسيت كلمة المرور؟',
+                      style: TextStyle(color: AppColors.primary, fontSize: 14),
+                    ),
                       ),
                       Text(
                         ' | ',

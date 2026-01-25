@@ -319,7 +319,7 @@ class SupabaseService {
           );
           
           if (retryResponse.user == null) {
-            await _auth!.signOut();
+        await _auth!.signOut();
             throw Exception('فشل في تسجيل الدخول بعد تأكيد البريد');
           }
           

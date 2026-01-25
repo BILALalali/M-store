@@ -1,3 +1,5 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'supabase_service.dart';
 
 class UsersService {
@@ -177,6 +179,83 @@ class UsersService {
     } catch (e) {
       print('خطأ في جلب إحصائيات المستخدمين: $e');
       return _getDefaultStats();
+    }
+  }
+
+  // تغيير كلمة مرور المستخدم باستخدام service_role
+  Future<bool> resetUserPassword(String userId, String newPassword) async {
+    try {
+      // التأكد من تحميل dotenv
+      if (!dotenv.isInitialized) {
+        await dotenv.load(fileName: "assets/env");
+      }
+
+      final url = dotenv.env['SUPABASE_URL'];
+      final serviceRoleKey = dotenv.env['SUPABASE_SERVICE_ROLE_KEY'];
+
+      if (url == null || serviceRoleKey == null) {
+        throw Exception('بيانات service_role غير موجودة في ملف env');
+      }
+
+      print('🔑 إعداد عميل service_role...');
+      print('🔑 URL: $url');
+      print('🔑 Service Role Key موجود: ${serviceRoleKey.isNotEmpty}');
+      print('🔑 Service Role Key (أول 20 حرف): ${serviceRoleKey.substring(0, serviceRoleKey.length > 20 ? 20 : serviceRoleKey.length)}...');
+
+      // إنشاء عميل service_role جديد
+      final serviceClient = SupabaseClient(url, serviceRoleKey);
+
+      print('✅ تم إنشاء عميل service_role بنجاح');
+      print('🔐 تغيير كلمة مرور المستخدم: $userId');
+
+      // التحقق من أن userId موجود في profiles
+      final userProfile = await getUserById(userId);
+      if (userProfile == null) {
+        throw Exception('المستخدم غير موجود في جدول profiles');
+      }
+
+      print('📋 بيانات المستخدم من profiles: $userProfile');
+
+      // البحث عن المستخدم في Authentication باستخدام userId
+      // userId من profiles هو نفسه user_id في auth.users
+      print('🔍 البحث عن المستخدم في Authentication...');
+      final usersResponse = await serviceClient.auth.admin.listUsers();
+      print('📊 عدد المستخدمين في Authentication: ${usersResponse.length}');
+
+      // البحث عن المستخدم باستخدام userId
+      final authUser = usersResponse.firstWhere(
+        (user) => user.id == userId,
+        orElse: () => throw Exception('المستخدم غير موجود في Authentication'),
+      );
+
+      print('✅ تم العثور على المستخدم في Authentication');
+      print('📧 البريد الإلكتروني: ${authUser.email}');
+      print('🆔 User ID: ${authUser.id}');
+
+      // تحديث كلمة المرور
+      print('🔐 تحديث كلمة المرور...');
+      await serviceClient.auth.admin.updateUserById(
+        authUser.id,
+        attributes: AdminUserAttributes(password: newPassword),
+      );
+
+      print('✅ تم تغيير كلمة مرور المستخدم بنجاح');
+      return true;
+    } catch (e) {
+      print('❌ خطأ في تغيير كلمة مرور المستخدم: $e');
+      print('❌ نوع الخطأ: ${e.runtimeType}');
+      print('❌ تفاصيل الخطأ: ${e.toString()}');
+      
+      // رسالة خطأ أوضح
+      if (e.toString().contains('Invalid API key') || 
+          e.toString().contains('401')) {
+        throw Exception('مفتاح API غير صحيح أو منتهي الصلاحية. يرجى التحقق من SUPABASE_SERVICE_ROLE_KEY في ملف env');
+      } else if (e.toString().contains('not found') || 
+                 e.toString().contains('غير موجود')) {
+        throw Exception('المستخدم غير موجود في نظام المصادقة');
+      } else {
+        rethrow;
+      }
     }
   }
 
